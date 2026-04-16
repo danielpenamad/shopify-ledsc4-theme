@@ -1,0 +1,7 @@
+node_modules/
+.env
+data/*.xlsx
+data/*.csv
+!data/.gitkeep
+logs/*.log
+!logs/.gitkeep
