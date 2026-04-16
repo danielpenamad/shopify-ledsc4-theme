@@ -38,16 +38,20 @@ if (!dryRun) {
 
 runPipeline({
   source: createLocalFileSource(args.file),
-  parse: (buf) => {
-    const sheets = parseXlsx(buf, { sheets: [sheetName] });
-    return sheets[sheetName] || [];
-  },
-  map: (rows) => mapProductRows(rows),
+  parse: (buf) => parseXlsx(buf),
+  map: (sheets) => mapProductRows(sheets, lang),
   write: (products, opts) => {
     if (opts.dryRun) {
+      let withPrice = 0;
+      let withImages = 0;
+      let withMeta = 0;
       for (const p of products) {
-        logger.info(`[DRY RUN] CREATE SKU ${p.sku}: "${p.title}" (${p.images.length} imgs, ${p.metafields.length} mf)`);
+        if (p.variants[0].price !== '0.00') withPrice++;
+        if (p.images.length > 0) withImages++;
+        if (p.metafields.length > 0) withMeta++;
+        logger.info(`[DRY RUN] SKU ${p.sku}: "${p.title}" | ${p.variants[0].price}€ | ${p.images.length} imgs | ${p.metafields.length} mf | tags: ${p.tags.join(', ')}`);
       }
+      logger.info(`Summary: ${products.length} products, ${withPrice} with price, ${withImages} with images, ${withMeta} with metafields`);
       return { created: products.length, updated: 0, errors: 0 };
     }
     return writeProducts(products, { dryRun: false });
