@@ -17,9 +17,9 @@ const FIND_PRODUCT_BY_SKU = `
   }
 `;
 
-const CREATE_PRODUCT = `
-  mutation createProduct($input: ProductInput!, $media: [CreateMediaInput!]) {
-    productCreate(input: $input, media: $media) {
+const PRODUCT_SET = `
+  mutation productSet($input: ProductSetInput!, $synchronous: Boolean!) {
+    productSet(input: $input, synchronous: $synchronous) {
       product {
         id
         title
@@ -35,19 +35,22 @@ const CREATE_PRODUCT = `
       userErrors {
         field
         message
+        code
       }
     }
   }
 `;
 
-const UPDATE_PRODUCT = `
-  mutation updateProduct($input: ProductInput!) {
-    productUpdate(input: $input) {
-      product {
-        id
-        title
+const CREATE_MEDIA = `
+  mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+    productCreateMedia(productId: $productId, media: $media) {
+      media {
+        ... on MediaImage {
+          id
+          status
+        }
       }
-      userErrors {
+      mediaUserErrors {
         field
         message
       }
@@ -56,10 +59,7 @@ const UPDATE_PRODUCT = `
 `;
 
 /**
- * Write products to Shopify (create or update by SKU).
- *
- * @param {Object[]} products — mapped product objects
- * @param {Object} options — { dryRun }
+ * Write products to Shopify using productSet (idempotent create/update).
  */
 export async function writeProducts(products, options = {}) {
   const { dryRun = false } = options;
@@ -81,44 +81,61 @@ export async function writeProducts(products, options = {}) {
         continue;
       }
 
+      const input = {
+        title: product.title,
+        descriptionHtml: product.body_html || '',
+        vendor: product.vendor || 'LedsC4',
+        productType: product.product_type || '',
+        tags: product.tags || [],
+        metafields: product.metafields.map((mf) => ({
+          namespace: mf.namespace,
+          key: mf.key,
+          value: mf.value,
+          type: mf.type,
+        })),
+        variants: [{
+          optionValues: [{ optionName: 'Title', name: 'Default Title' }],
+          sku: product.sku,
+          price: product.variants[0]?.price || '0.00',
+          inventoryManagement: 'SHOPIFY',
+          barcode: product.variants[0]?.barcode || '',
+        }],
+      };
+
       if (existing) {
-        const updateResp = await graphql(UPDATE_PRODUCT, {
-          input: {
-            id: existing.product.id,
-            title: product.title,
-            bodyHtml: product.body_html,
-            metafields: product.metafields,
-          },
-        });
-        const ue = updateResp?.data?.productUpdate?.userErrors;
-        if (ue?.length) {
-          logger.error(`SKU ${product.sku}: update failed — ${ue[0].message}`);
-          errors++;
-          continue;
+        input.id = existing.product.id;
+      }
+
+      const setResp = await graphql(PRODUCT_SET, {
+        input,
+        synchronous: true,
+      });
+
+      const ue = setResp?.data?.productSet?.userErrors;
+      if (ue?.length) {
+        logger.error(`SKU ${product.sku}: ${ue.map((e) => e.message).join('; ')}`);
+        errors++;
+        continue;
+      }
+
+      const productId = setResp?.data?.productSet?.product?.id;
+
+      if (productId && product.images.length > 0) {
+        try {
+          const media = product.images.map((img) => ({
+            originalSource: img.src,
+            mediaContentType: 'IMAGE',
+          }));
+          await graphql(CREATE_MEDIA, { productId, media });
+        } catch (mediaErr) {
+          logger.warn(`SKU ${product.sku}: images failed — ${mediaErr.message}`);
         }
+      }
+
+      if (existing) {
         logger.info(`SKU ${product.sku}: updated "${product.title}"`);
         updated++;
       } else {
-        const media = product.images.map((img) => ({
-          originalSource: img.src,
-          mediaContentType: 'IMAGE',
-        }));
-
-        const createResp = await graphql(CREATE_PRODUCT, {
-          input: {
-            title: product.title,
-            bodyHtml: product.body_html,
-            variants: product.variants,
-            metafields: product.metafields,
-          },
-          media,
-        });
-        const ue = createResp?.data?.productCreate?.userErrors;
-        if (ue?.length) {
-          logger.error(`SKU ${product.sku}: create failed — ${ue[0].message}`);
-          errors++;
-          continue;
-        }
         logger.info(`SKU ${product.sku}: created "${product.title}"`);
         created++;
       }

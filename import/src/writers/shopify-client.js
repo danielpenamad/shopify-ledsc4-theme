@@ -25,7 +25,7 @@ export function initClient() {
 
   client = createAdminApiClient({
     storeDomain: store,
-    apiVersion: '2024-10',
+    apiVersion: '2026-04',
     accessToken: token,
   });
 
