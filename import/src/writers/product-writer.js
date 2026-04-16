@@ -97,7 +97,6 @@ export async function writeProducts(products, options = {}) {
           optionValues: [{ optionName: 'Title', name: 'Default Title' }],
           sku: product.sku,
           price: product.variants[0]?.price || '0.00',
-          inventoryManagement: 'SHOPIFY',
           barcode: product.variants[0]?.barcode || '',
         }],
       };
