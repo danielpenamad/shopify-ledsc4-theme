@@ -65,6 +65,9 @@ export async function restPut(path, body) {
 
 /**
  * GraphQL request with automatic retry on throttle.
+ *
+ * @shopify/admin-api-client .request() returns { data, errors, extensions }
+ * where errors can be an object, an array, or undefined.
  */
 export async function graphql(query, variables = {}) {
   await throttle();
@@ -74,17 +77,29 @@ export async function graphql(query, variables = {}) {
     const response = await client.request(query, { variables });
 
     const cost = response?.extensions?.cost;
-    if (cost && cost.throttleStatus.currentlyAvailable < 100) {
+    if (cost?.throttleStatus?.currentlyAvailable < 100) {
       const waitMs = Math.ceil(cost.requestedQueryCost / cost.throttleStatus.restoreRate) * 1000;
       logger.info(`GraphQL throttle: waiting ${waitMs}ms`);
       await new Promise((r) => setTimeout(r, waitMs));
     }
 
-    if (response?.errors?.some((e) => e.message?.includes('Throttled'))) {
+    const errors = response?.errors;
+    const errorList = Array.isArray(errors)
+      ? errors
+      : errors?.graphQLErrors ?? errors?.networkErrors ?? [];
+    const isThrottled = Array.isArray(errorList) &&
+      errorList.some((e) => (e.message || '').includes('Throttled'));
+
+    if (isThrottled) {
       const backoff = 2000 * (attempt + 1);
       logger.warn(`GraphQL throttled, retry in ${backoff}ms (attempt ${attempt + 1})`);
       await new Promise((r) => setTimeout(r, backoff));
       continue;
+    }
+
+    if (errorList.length > 0) {
+      const msg = errorList.map((e) => e.message || JSON.stringify(e)).join('; ');
+      throw new Error(`GraphQL error: ${msg}`);
     }
 
     return response;
