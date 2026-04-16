@@ -81,25 +81,33 @@ export async function writeProducts(products, options = {}) {
         continue;
       }
 
+      const variant = {
+        optionValues: [{ optionName: 'Title', name: 'Default Title' }],
+        sku: product.sku,
+        price: product.variants[0]?.price || '0.00',
+      };
+
+      const barcode = product.variants[0]?.barcode;
+      if (barcode) variant.barcode = barcode;
+
       const input = {
         title: product.title,
         descriptionHtml: product.body_html || '',
         vendor: product.vendor || 'LedsC4',
         productType: product.product_type || '',
         tags: product.tags || [],
-        metafields: product.metafields.map((mf) => ({
+        productOptions: [{ name: 'Title', values: [{ name: 'Default Title' }] }],
+        variants: [variant],
+      };
+
+      if (product.metafields.length > 0) {
+        input.metafields = product.metafields.map((mf) => ({
           namespace: mf.namespace,
           key: mf.key,
           value: mf.value,
           type: mf.type,
-        })),
-        variants: [{
-          optionValues: [{ optionName: 'Title', name: 'Default Title' }],
-          sku: product.sku,
-          price: product.variants[0]?.price || '0.00',
-          barcode: product.variants[0]?.barcode || '',
-        }],
-      };
+        }));
+      }
 
       if (existing) {
         input.id = existing.product.id;
