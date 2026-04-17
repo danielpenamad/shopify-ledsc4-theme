@@ -80,7 +80,6 @@ export async function writeStockUpdates(updates, options = {}) {
         input: {
           reason: 'correction',
           name: 'available',
-          ignoreCompareQuantity: true,
           quantities: [
             {
               inventoryItemId,
