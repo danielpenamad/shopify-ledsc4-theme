@@ -7,7 +7,7 @@ Workflow **W2 — Aprobación manual**. Se dispara cuando staff añade el tag
 ## Prerrequisitos
 
 - [ ] W1 configurado (o al menos: customer puede tener tag `pendiente` válido)
-- [ ] Plantilla **`B2B · 04 Cuenta aprobada (manual)`** cargada en Shopify Email
+- [ ] Plantilla **`b2b_cuenta_aprobada`** cargada en Shopify Email
 - [ ] Catálogo "Outlet general" creado (Fase A)
 
 ---
@@ -88,7 +88,7 @@ tenía company. Idempotente.
 
 ### Rama Then — enviar email 4
 
-1. **+** → **Send email** → template `B2B · 04 Cuenta aprobada (manual)` →
+1. **+** → **Send email** → template `b2b_cuenta_aprobada` →
    to `{{ customer.email }}`
 
 ### Rama Else — (no enviar)

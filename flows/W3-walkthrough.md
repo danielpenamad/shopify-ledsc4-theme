@@ -5,7 +5,7 @@ Workflow **W3 — Rechazo manual**. Se dispara cuando staff añade el tag
 
 ## Prerrequisitos
 
-- [ ] Plantilla **`B2B · 05 Cuenta rechazada`** cargada en Shopify Email
+- [ ] Plantilla **`b2b_cuenta_rechazada`** cargada en Shopify Email
   (la plantilla lee `{{ customer.metafields.b2b.motivo_rechazo }}` vía
   Liquid condicional).
 
@@ -46,7 +46,7 @@ Dentro de **Then**:
 
 1. **+** → **Action** → **Send email**
 2. Config:
-   - **Template**: `B2B · 05 Cuenta rechazada`
+   - **Template**: `b2b_cuenta_rechazada`
    - **To**: `{{ customer.email }}`
    - **From name** / **From email**: defaults del store (o
      `no-reply@ledsc4.com` si lo tienes verificado)

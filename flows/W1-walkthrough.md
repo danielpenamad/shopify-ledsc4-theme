@@ -10,10 +10,10 @@ exactos. Tiempo estimado: **20-30 min**.
 ## Prerrequisitos (no arrancar sin esto)
 
 - [ ] Plantillas **01, 02, 03** cargadas en Shopify Email (ver
-  `email-templates/README.md`). Los nombres deben coincidir **exactamente**:
-  - `B2B · 01 Bienvenida (auto)`
-  - `B2B · 02 Solicitud recibida`
-  - `B2B · 03 Backoffice: nuevo pendiente`
+  `email-templates/README.md`). Los IDs deben coincidir **exactamente**:
+  - `b2b_bienvenida_auto`
+  - `b2b_solicitud_recibida`
+  - `b2b_backoffice_pendiente`
 - [ ] Shop metafields `b2b.whitelist_emails` y `b2b.email_backoffice`
   poblados (ya hecho con `scripts/set-shop-b2b-metafields.mjs`).
 - [ ] Fase A aplicada (catálogo "Outlet general" creado).
@@ -111,7 +111,7 @@ condicional que la usa.
 
 1. Dentro de **Else**: **+** → **Add customer tags** → tag `nif_invalido`
 2. **+** → **Send email** (Shopify Email) → template
-   `B2B · 03 Backoffice: nuevo pendiente` → to
+   `b2b_backoffice_pendiente` → to
    `{{ shop.metafields.b2b.email_backoffice }}`. **Subject override**:
    `ALERTA NIF inválido · {{ customer.email }}`
 3. **End** de la rama else (no más steps).
@@ -141,15 +141,15 @@ Dentro de la rama **Then** del paso 6:
    - **Code**: pega el contenido de `flows/_helpers/create-company.js`.
      El export `module.exports = async function createCompanyForCustomer`
      — Flow lo ejecuta pasándole `{ input, shopify }`.
-5. **Send email** → template `B2B · 01 Bienvenida (auto)` →
+5. **Send email** → template `b2b_bienvenida_auto` →
    to `{{ customer.email }}`.
 
 ### Rama B — Else: no match → PENDIENTE
 
 1. (`pendiente` ya está puesto, no tocar tags)
-2. **Send email** → template `B2B · 02 Solicitud recibida` →
+2. **Send email** → template `b2b_solicitud_recibida` →
    to `{{ customer.email }}`
-3. **Send email** → template `B2B · 03 Backoffice: nuevo pendiente` →
+3. **Send email** → template `b2b_backoffice_pendiente` →
    to `{{ shop.metafields.b2b.email_backoffice }}`
 
 ## Paso 8 — Guardar y activar

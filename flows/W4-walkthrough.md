@@ -11,7 +11,7 @@ Complementa `W4-whitelist-reeval.md`. Tiempo: **12-18 min** (hay más Run code).
 - [ ] **Cambio pendiente en W2** (paso 6 del walkthrough W2): la condición
       "NOT contains `aprobado_via_whitelist`" debe estar ya en W2 antes de
       activar W4, si no se enviará el email 4 además del 6.
-- [ ] Plantilla **`B2B · 06 Bienvenida (re-evaluación whitelist)`**
+- [ ] Plantilla **`b2b_bienvenida_reeval`**
       cargada en Shopify Email.
 
 ---
@@ -74,7 +74,7 @@ Complementa `W4-whitelist-reeval.md`. Tiempo: **12-18 min** (hay más Run code).
 3. Dentro del loop:
 
    **Action — Send email**:
-   - **Template**: `B2B · 06 Bienvenida (re-evaluación whitelist)`
+   - **Template**: `b2b_bienvenida_reeval`
    - **To**: `{{ loop.item }}`
 
 > Alternativa si Flow no ofrece "For each" nativo: usa un **Run code**
