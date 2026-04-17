@@ -495,7 +495,20 @@
       "last_name": "Last name",
       "email": "Email",
       "password": "Password",
-      "submit": "Create"
+      "submit": "Create",
+      "b2b": {
+        "section_title": "Your company details",
+        "phone": "Phone",
+        "empresa": "Company name",
+        "nif": "Tax ID (NIF/CIF/NIE)",
+        "sector": "Sector",
+        "sector_placeholder": "Select a sector…",
+        "pais": "Country",
+        "pais_placeholder": "Select a country…",
+        "volumen": "Estimated annual volume",
+        "volumen_placeholder": "Estimated annual volume (optional)",
+        "terms_html": "I have read and accept the terms of sale and the privacy policy."
+      }
     },
     "reset_password": {
       "title": "Reset account password",

@@ -94,7 +94,7 @@
     <option value="" disabled {% if form['metafields[b2b][pais]'] == blank %}selected{% endif %}>
       {{ 'customer.register.b2b.pais_placeholder' | t: default: 'País…' }}
     </option>
-    {{ 'general.country_region' | t | country_option_tags }}
+    {{ all_country_option_tags }}
   </select>
   <label for="RegisterForm-b2b-pais">{{ 'customer.register.b2b.pais' | t: default: 'País' }}</label>
 </div>

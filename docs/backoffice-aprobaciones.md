@@ -8,25 +8,23 @@ Herramientas: Shopify Admin (vista Customers).
 
 Hay dos formas:
 
-### Saved view "Pendientes de aprobación"
+### Customer segment "Pendientes de aprobacion" (ya creado vía API)
 
-En **Customers**, crear (una sola vez) la saved view:
+El segmento ya existe en el store (creado vía `segmentCreate` Admin API).
+ID: `gid://shopify/Segment/1137132536135`.
 
-- Filter: `Customer tags` CONTAINS `pendiente`
-- Sort: `Created at` DESC
-- Save as: **Pendientes de aprobación**
+Query ShopifyQL: `customer_tags CONTAINS 'pendiente'`
 
-Una vez guardada, aparece en la barra superior. Click ahí = lista de
-pendientes con los más recientes arriba.
+- En **Customers**, click "View all segments" → seleccionar **Pendientes de aprobacion**.
+- Ordena por "Created at" DESC si quieres los más recientes arriba.
+- Sirve también como base para campañas de email si llega el caso.
 
-### Customer segment (opcional, más potente)
+### Saved view (opcional, solo UI)
 
-También puedes crear un segmento guardado con la misma query para usarlo
-en emails o reports:
+Si prefieres un filtro guardado en la vista directa de Customers (sin ir
+a Segments), crea una saved view con el mismo filtro:
 
-```
-customer_tags CONTAINS 'pendiente'
-```
+- Customers → Filter → `Customer tags` CONTAINS `pendiente` → Save as "Pendientes de aprobación".
 
 ## 2. Revisar una solicitud
 

@@ -81,12 +81,15 @@ module.exports = async function createCompanyForCustomer({ input, shopify }) {
 
   // 4. Añadir la CompanyLocation al contexto del catálogo
   const upd = await shopify.graphql(
-    `mutation($catalogId: ID!, $contextsToAdd: [ID!]!) {
+    `mutation($catalogId: ID!, $contextsToAdd: CatalogContextInput!) {
        catalogContextUpdate(catalogId: $catalogId, contextsToAdd: $contextsToAdd) {
          userErrors { field message }
        }
      }`,
-    { catalogId: catalog.id, contextsToAdd: [locationId] }
+    {
+      catalogId: catalog.id,
+      contextsToAdd: { companyLocationIds: [locationId] },
+    }
   );
   const uErrs = upd.catalogContextUpdate?.userErrors || [];
   if (uErrs.length) throw new Error('catalogContextUpdate: ' + JSON.stringify(uErrs));
