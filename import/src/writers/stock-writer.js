@@ -1,4 +1,5 @@
 import { graphql } from './shopify-client.js';
+import { randomUUID } from 'crypto';
 import logger from '../logger.js';
 
 const FIND_VARIANT_WITH_INVENTORY = `
@@ -23,19 +24,34 @@ const FIND_VARIANT_WITH_INVENTORY = `
   }
 `;
 
-const SET_INVENTORY = `
-  mutation setInventory($input: InventorySetQuantitiesInput!) {
-    inventorySetQuantities(input: $input) {
-      inventoryAdjustmentGroup {
-        reason
-      }
-      userErrors {
-        field
-        message
+function buildSetInventoryMutation(idempotencyKey) {
+  return `
+    mutation SetStock @idempotent(key: "${idempotencyKey}") {
+      inventorySetQuantities(
+        input: {
+          reason: "correction"
+          name: "available"
+          quantities: [
+            {
+              inventoryItemId: "$ITEM_ID"
+              locationId: "$LOCATION_ID"
+              quantity: $QUANTITY
+              changeFromQuantity: $FROM_QTY
+            }
+          ]
+        }
+      ) {
+        inventoryAdjustmentGroup {
+          reason
+        }
+        userErrors {
+          field
+          message
+        }
       }
     }
-  }
-`;
+  `;
+}
 
 /**
  * Write stock updates to Shopify.
@@ -80,20 +96,14 @@ export async function writeStockUpdates(updates, options = {}) {
         continue;
       }
 
-      const setResp = await graphql(SET_INVENTORY, {
-        input: {
-          reason: 'correction',
-          name: 'available',
-          quantities: [
-            {
-              inventoryItemId: variant.inventoryItem.id,
-              locationId: gidLocation,
-              quantity: update.inventory,
-              changeFromQuantity: currentQty,
-            },
-          ],
-        },
-      });
+      const key = randomUUID();
+      const mutation = buildSetInventoryMutation(key)
+        .replace('$ITEM_ID', variant.inventoryItem.id)
+        .replace('$LOCATION_ID', gidLocation)
+        .replace('$QUANTITY', String(update.inventory))
+        .replace('$FROM_QTY', String(currentQty));
+
+      const setResp = await graphql(mutation);
 
       const ue = setResp?.data?.inventorySetQuantities?.userErrors;
       if (ue?.length) {
