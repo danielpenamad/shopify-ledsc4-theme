@@ -1,0 +1,85 @@
+{% comment %}
+  LedsC4 product spec badges — 6 key specs in a 3×2 grid.
+  Reads from product metafields (namespace: product).
+{% endcomment %}
+
+{%- assign vatios = product.metafields.product.vatios.value -%}
+{%- assign temperatura = product.metafields.product.temperatura_k.value -%}
+{%- assign ip = product.metafields.product.ip.value -%}
+{%- assign cri = product.metafields.product.cri.value -%}
+{%- assign ancho = product.metafields.product.ancho_mm.value -%}
+{%- assign alto = product.metafields.product.alto_mm.value -%}
+{%- assign lumenes = product.metafields.product.lumenes_reales.value -%}
+
+{%- assign has_specs = false -%}
+{%- if vatios != blank or temperatura != blank or ip != blank or cri != blank or lumenes != blank -%}
+  {%- assign has_specs = true -%}
+{%- endif -%}
+
+{%- if has_specs -%}
+<div class="spec-badges">
+  {%- if vatios != blank -%}
+    <div class="spec-badge">
+      <div class="spec-badge__icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <div class="spec-badge__label">Potencia (W)</div>
+      <div class="spec-badge__value">{{ vatios }}W</div>
+    </div>
+  {%- endif -%}
+
+  {%- if temperatura != blank -%}
+    <div class="spec-badge">
+      <div class="spec-badge__icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </div>
+      <div class="spec-badge__label">Temperatura de color</div>
+      <div class="spec-badge__value">{{ temperatura }}K</div>
+    </div>
+  {%- endif -%}
+
+  {%- if ip != blank -%}
+    <div class="spec-badge">
+      <div class="spec-badge__icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="spec-badge__label">IP</div>
+      <div class="spec-badge__value">{{ ip }}</div>
+    </div>
+  {%- endif -%}
+
+  {%- if cri != blank -%}
+    <div class="spec-badge">
+      <div class="spec-badge__icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </div>
+      <div class="spec-badge__label">CRI</div>
+      <div class="spec-badge__value">{{ cri }}</div>
+    </div>
+  {%- endif -%}
+
+  {%- if ancho != blank or alto != blank -%}
+    <div class="spec-badge">
+      <div class="spec-badge__icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+      </div>
+      <div class="spec-badge__label">Dimensiones</div>
+      <div class="spec-badge__value">
+        {%- if ancho != blank -%}{{ ancho }}{%- endif -%}
+        {%- if ancho != blank and alto != blank -%} × {%- endif -%}
+        {%- if alto != blank -%}{{ alto }}mm{%- endif -%}
+      </div>
+    </div>
+  {%- endif -%}
+
+  {%- if lumenes != blank -%}
+    <div class="spec-badge">
+      <div class="spec-badge__icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2v1"/><path d="M12 6a5 5 0 0 1 5 5c0 1.6-.8 3-2 4h-6c-1.2-1-2-2.4-2-4a5 5 0 0 1 5-5z"/></svg>
+      </div>
+      <div class="spec-badge__label">Lúmenes reales (lm)</div>
+      <div class="spec-badge__value">{{ lumenes }} lm</div>
+    </div>
+  {%- endif -%}
+</div>
+{%- endif -%}

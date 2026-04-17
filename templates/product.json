@@ -12,26 +12,44 @@
     "main": {
       "type": "main-product",
       "blocks": {
-        "vendor": {
-          "type": "text",
+        "sku_label": {
+          "type": "sku",
           "settings": {
-            "text": "{{ product.vendor }}",
             "text_style": "uppercase"
+          }
+        },
+        "type_label": {
+          "type": "custom_liquid",
+          "settings": {
+            "custom_liquid": "{% if product.type != blank %}<p class=\"product__type-label\">{{ product.type }}</p>{% endif %}"
           }
         },
         "title": {
           "type": "title",
           "settings": {}
         },
+        "familia": {
+          "type": "custom_liquid",
+          "settings": {
+            "custom_liquid": "{% if product.metafields.product.familia.value != blank %}<p class=\"product__familia\">Familia: <strong>{{ product.metafields.product.familia.value }}</strong></p>{% endif %}"
+          }
+        },
+        "description": {
+          "type": "custom_liquid",
+          "settings": {
+            "custom_liquid": "{% if product.description != blank %}<div class=\"product__description-amplia\"><h3>Descripción amplia</h3><p>{{ product.description }}</p></div>{% endif %}"
+          }
+        },
         "price": {
           "type": "price",
           "settings": {}
         },
-        "variant_picker": {
-          "type": "variant_picker",
+        "inventory": {
+          "type": "inventory",
           "settings": {
-            "picker_type": "button",
-            "swatch_shape": "circle"
+            "text_style": "body",
+            "inventory_threshold": 9999,
+            "show_inventory_quantity": true
           }
         },
         "quantity_selector": {
@@ -41,51 +59,63 @@
         "buy_buttons": {
           "type": "buy_buttons",
           "settings": {
-            "show_dynamic_checkout": true,
-            "show_gift_card_recipient": true
+            "show_dynamic_checkout": false,
+            "show_gift_card_recipient": false
           }
         },
-        "description": {
-          "type": "description",
-          "settings": {}
-        },
-        "share": {
-          "type": "share",
+        "ficha_tecnica": {
+          "type": "custom_liquid",
           "settings": {
-            "share_label": "Share"
+            "custom_liquid": "{% if product.metafields.product.pdf_ficha.value != blank %}<a href=\"{{ product.metafields.product.pdf_ficha.value }}\" target=\"_blank\" rel=\"noopener\" class=\"product__ficha-link\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><polyline points=\"14 2 14 8 20 8\"/></svg>Ficha técnica</a>{% endif %}"
+          }
+        },
+        "spec_badges": {
+          "type": "custom_liquid",
+          "settings": {
+            "custom_liquid": "{% render 'product-spec-badges' %}"
+          }
+        },
+        "tabs_specs_docs": {
+          "type": "custom_liquid",
+          "settings": {
+            "custom_liquid": "<link rel=\"stylesheet\" href=\"{{ 'section-product-custom.css' | asset_url }}\">\n<div class=\"product__tabs\">\n  <div class=\"product__tabs-nav\">\n    <button class=\"product__tab-btn active\" data-tab=\"specs\" onclick=\"document.querySelectorAll('.product__tab-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.product__tab-content').forEach(c=>c.classList.remove('active'));document.querySelector('[data-content=specs]').classList.add('active')\">Especificaciones</button>\n    <button class=\"product__tab-btn\" data-tab=\"docs\" onclick=\"document.querySelectorAll('.product__tab-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.product__tab-content').forEach(c=>c.classList.remove('active'));document.querySelector('[data-content=docs]').classList.add('active')\">Documentos</button>\n  </div>\n  <div class=\"product__tab-content active\" data-content=\"specs\">{% render 'product-specs-table' %}</div>\n  <div class=\"product__tab-content\" data-content=\"docs\">{% render 'product-documents' %}</div>\n</div>"
           }
         }
       },
       "block_order": [
-        "vendor",
+        "sku_label",
+        "type_label",
         "title",
+        "familia",
+        "description",
         "price",
-        "variant_picker",
+        "inventory",
         "quantity_selector",
         "buy_buttons",
-        "description",
-        "share"
+        "ficha_tecnica",
+        "spec_badges",
+        "tabs_specs_docs"
       ],
       "settings": {
         "enable_sticky_info": true,
         "color_scheme": "scheme-1",
-        "media_size": "large",
+        "media_size": "medium",
         "constrain_to_viewport": true,
         "media_fit": "contain",
-        "gallery_layout": "stacked",
-        "mobile_thumbnails": "hide",
+        "gallery_layout": "thumbnail_slider",
+        "mobile_thumbnails": "show",
         "media_position": "left",
         "image_zoom": "lightbox",
         "hide_variants": true,
         "enable_video_looping": false,
-        "padding_top": 36,
+        "padding_top": 28,
         "padding_bottom": 12
       }
     },
     "related-products": {
       "type": "related-products",
       "settings": {
-        "heading": "You may also like",
+        "heading": "Productos similares",
         "heading_size": "h2",
         "products_to_show": 4,
         "columns_desktop": 4,
