@@ -89,7 +89,7 @@ export async function writeStockUpdates(updates, options = {}) {
               inventoryItemId: variant.inventoryItem.id,
               locationId: gidLocation,
               quantity: update.inventory,
-              compareQuantity: currentQty,
+              changeFromQuantity: currentQty,
             },
           ],
         },
