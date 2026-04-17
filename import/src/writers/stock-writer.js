@@ -1,20 +1,21 @@
 import { graphql } from './shopify-client.js';
 import logger from '../logger.js';
 
-const FIND_VARIANT_BY_SKU = `
-  query findVariantBySku($query: String!) {
+const FIND_VARIANT_WITH_INVENTORY = `
+  query findVariantBySku($query: String!, $locationId: ID!) {
     productVariants(first: 1, query: $query) {
       edges {
         node {
           id
           sku
-          price
           inventoryItem {
             id
-          }
-          product {
-            id
-            title
+            inventoryLevel(locationId: $locationId) {
+              quantities(names: ["available"]) {
+                name
+                quantity
+              }
+            }
           }
         }
       }
@@ -38,15 +39,11 @@ const SET_INVENTORY = `
 
 /**
  * Write stock updates to Shopify.
- *
- * @param {Object[]} updates — array of { sku, inventory, price? }
- * @param {Object} options — { dryRun, locationId }
- * @returns {{ processed: number, errors: number, notFound: number }}
  */
 export async function writeStockUpdates(updates, options = {}) {
   const { dryRun = false, locationId } = options;
 
-  if (!locationId) throw new Error('SHOPIFY_LOCATION_ID is required for inventory updates');
+  if (!locationId) throw new Error('SHOPIFY_LOCATION_ID is required');
 
   const gidLocation = locationId.startsWith('gid://')
     ? locationId
@@ -58,7 +55,10 @@ export async function writeStockUpdates(updates, options = {}) {
 
   for (const update of updates) {
     try {
-      const resp = await graphql(FIND_VARIANT_BY_SKU, { query: `sku:${update.sku}` });
+      const resp = await graphql(FIND_VARIANT_WITH_INVENTORY, {
+        query: `sku:${update.sku}`,
+        locationId: gidLocation,
+      });
       const variant = resp?.data?.productVariants?.edges?.[0]?.node;
 
       if (!variant) {
@@ -66,15 +66,19 @@ export async function writeStockUpdates(updates, options = {}) {
         continue;
       }
 
-      if (dryRun) {
-        const parts = [`SKU ${update.sku}: inventory → ${update.inventory}`];
-        if (update.price) parts.push(`price → ${update.price}`);
-        logger.info(`[DRY RUN] ${parts.join(', ')}`);
+      const currentQty = variant.inventoryItem?.inventoryLevel
+        ?.quantities?.find((q) => q.name === 'available')?.quantity ?? 0;
+
+      if (currentQty === update.inventory) {
         processed++;
         continue;
       }
 
-      const inventoryItemId = variant.inventoryItem.id;
+      if (dryRun) {
+        logger.info(`[DRY RUN] SKU ${update.sku}: ${currentQty} → ${update.inventory}`);
+        processed++;
+        continue;
+      }
 
       const setResp = await graphql(SET_INVENTORY, {
         input: {
@@ -82,22 +86,23 @@ export async function writeStockUpdates(updates, options = {}) {
           name: 'available',
           quantities: [
             {
-              inventoryItemId,
+              inventoryItemId: variant.inventoryItem.id,
               locationId: gidLocation,
               quantity: update.inventory,
+              compareQuantity: currentQty,
             },
           ],
         },
       });
 
-      const setErrors = setResp?.data?.inventorySetQuantities?.userErrors;
-      if (setErrors?.length) {
-        logger.error(`SKU ${update.sku}: inventory set failed — ${setErrors[0].message}`);
+      const ue = setResp?.data?.inventorySetQuantities?.userErrors;
+      if (ue?.length) {
+        logger.error(`SKU ${update.sku}: ${ue[0].message}`);
         errors++;
         continue;
       }
 
-      logger.info(`SKU ${update.sku}: stock → ${update.inventory}`);
+      logger.info(`SKU ${update.sku}: ${currentQty} → ${update.inventory}`);
       processed++;
     } catch (err) {
       logger.error(`SKU ${update.sku}: ${err.message}`);
