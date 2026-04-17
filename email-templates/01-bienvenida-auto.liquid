@@ -1,0 +1,22 @@
+{% comment %}
+  Email 1 — Bienvenida tras auto-aprobación (whitelist match al registrar).
+  Disparador: W1 rama auto.
+  To: {{customer.email}}
+{% endcomment %}
+
+Subject: Tu cuenta B2B de LedsC4 Outlet está activa
+
+Hola {{ customer.first_name }},
+
+Tu cuenta B2B para LedsC4 Outlet acaba de activarse.
+Ya puedes acceder al portal y empezar a pedir al precio de outlet.
+
+→ Acceder: {{ shop.url }}/account/login
+
+Empresa: {{ customer.metafields.b2b.empresa }}
+NIF: {{ customer.metafields.b2b.nif }}
+
+Para cualquier duda, escríbenos a {{ shop.metafields.b2b.email_backoffice }}.
+
+Un saludo,
+Equipo LedsC4 Outlet

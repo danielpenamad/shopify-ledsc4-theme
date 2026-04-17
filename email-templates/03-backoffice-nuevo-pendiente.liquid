@@ -1,0 +1,26 @@
+{% comment %}
+  Email 3 — Aviso al backoffice de nuevo registro pendiente.
+  Disparador: W1 rama pendiente.
+  To: {{shop.metafields.b2b.email_backoffice}}
+{% endcomment %}
+
+Subject: [B2B] Nuevo registro pendiente — {{ customer.metafields.b2b.empresa }}
+
+Nuevo cliente pendiente de aprobación:
+
+- Nombre:     {{ customer.first_name }} {{ customer.last_name }}
+- Email:      {{ customer.email }}
+- Teléfono:   {{ customer.phone }}
+- Empresa:    {{ customer.metafields.b2b.empresa }}
+- NIF:        {{ customer.metafields.b2b.nif }}
+- Sector:     {{ customer.metafields.b2b.sector }}
+- País:       {{ customer.metafields.b2b.pais }}
+- Volumen:    {{ customer.metafields.b2b.volumen_estimado }}
+- Registrado: {{ customer.metafields.b2b.fecha_registro }}
+
+Ver en admin: {{ shop.admin_url }}/customers/{{ customer.id }}
+
+Para aprobar: quita el tag `pendiente`, añade `aprobado`.
+Para rechazar: rellena b2b.motivo_rechazo (opcional) y añade el tag `rechazado`.
+
+— Flow: W1 (registro)

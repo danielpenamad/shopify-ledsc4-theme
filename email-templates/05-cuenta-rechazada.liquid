@@ -1,0 +1,21 @@
+{% comment %}
+  Email 5 — Cuenta rechazada.
+  Disparador: W3 (tag 'rechazado' añadido).
+  To: {{customer.email}}
+  Si b2b.motivo_rechazo está vacío, cae a texto genérico.
+{% endcomment %}
+
+Subject: Estado de tu solicitud B2B
+
+Hola {{ customer.first_name }},
+
+Tu solicitud de alta en el portal B2B de LedsC4 Outlet no ha podido aprobarse en esta ocasión.
+
+{% if customer.metafields.b2b.motivo_rechazo != blank %}
+Motivo: {{ customer.metafields.b2b.motivo_rechazo }}
+{% endif %}
+
+Si crees que se trata de un error o quieres ampliar información, escríbenos a {{ shop.metafields.b2b.email_backoffice }}.
+
+Un saludo,
+Equipo LedsC4 Outlet

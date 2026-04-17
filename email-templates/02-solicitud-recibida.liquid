@@ -1,0 +1,18 @@
+{% comment %}
+  Email 2 — Solicitud recibida, en revisión.
+  Disparador: W1 rama pendiente.
+  To: {{customer.email}}
+{% endcomment %}
+
+Subject: Hemos recibido tu solicitud de alta B2B
+
+Hola {{ customer.first_name }},
+
+Hemos recibido tu solicitud de acceso al portal B2B de LedsC4 Outlet.
+Nuestro equipo la revisará y te contestará en un plazo máximo de 2 días laborables.
+No necesitas hacer nada más por ahora.
+
+Si la solicitud es urgente, puedes escribirnos directamente a {{ shop.metafields.b2b.email_backoffice }}.
+
+Un saludo,
+Equipo LedsC4 Outlet

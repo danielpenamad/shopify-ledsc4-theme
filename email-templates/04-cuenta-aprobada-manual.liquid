@@ -1,0 +1,20 @@
+{% comment %}
+  Email 4 — Cuenta aprobada manualmente por backoffice.
+  Disparador: W2 (customer passes from 'pendiente' to 'aprobado').
+  To: {{customer.email}}
+{% endcomment %}
+
+Subject: Tu solicitud B2B ha sido aprobada
+
+Hola {{ customer.first_name }},
+
+Tu solicitud de alta en el portal B2B de LedsC4 Outlet ha sido aprobada.
+Ya puedes acceder con tu email y empezar a pedir al precio de outlet.
+
+→ Acceder: {{ shop.url }}/account/login
+
+Empresa: {{ customer.metafields.b2b.empresa }}
+Fecha de aprobación: {{ customer.metafields.b2b.fecha_aprobacion }}
+
+Un saludo,
+Equipo LedsC4 Outlet

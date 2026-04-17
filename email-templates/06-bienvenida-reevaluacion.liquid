@@ -1,0 +1,26 @@
+{% comment %}
+  Email 6 — Bienvenida tras re-evaluación (whitelist updated y aprueba un pendiente).
+  Disparador: W4.
+  To: {{customer.email}}
+
+  Mismo contenido base que email 1. Se mantiene en plantilla separada
+  por si en el futuro queremos diferenciar (p.ej. mensaje "gracias por
+  esperar" tras re-evaluación).
+{% endcomment %}
+
+Subject: Tu cuenta B2B de LedsC4 Outlet está activa
+
+Hola {{ customer.first_name }},
+
+Tu cuenta B2B para LedsC4 Outlet acaba de activarse.
+Ya puedes acceder al portal y empezar a pedir al precio de outlet.
+
+→ Acceder: {{ shop.url }}/account/login
+
+Empresa: {{ customer.metafields.b2b.empresa }}
+NIF: {{ customer.metafields.b2b.nif }}
+
+Para cualquier duda, escríbenos a {{ shop.metafields.b2b.email_backoffice }}.
+
+Un saludo,
+Equipo LedsC4 Outlet
