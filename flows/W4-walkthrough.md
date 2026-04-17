@@ -11,8 +11,8 @@ Complementa `W4-whitelist-reeval.md`. Tiempo: **12-18 min** (hay más Run code).
 - [ ] **Cambio pendiente en W2** (paso 6 del walkthrough W2): la condición
       "NOT contains `aprobado_via_whitelist`" debe estar ya en W2 antes de
       activar W4, si no se enviará el email 4 además del 6.
-- [ ] Plantilla **`b2b_bienvenida_reeval`**
-      cargada en Shopify Email.
+- [ ] Accesible `email-templates/06-bienvenida-reevaluacion.liquid`
+      para pegar el body inline en el `Send internal email` del loop.
 
 ---
 
@@ -73,9 +73,11 @@ Complementa `W4-whitelist-reeval.md`. Tiempo: **12-18 min** (hay más Run code).
 2. **List**: `find_and_promote.emails`
 3. Dentro del loop:
 
-   **Action — Send email**:
-   - **Template**: `b2b_bienvenida_reeval`
+   **Action — Send internal email**:
    - **To**: `{{ loop.item }}`
+   - **Subject**: `Tu cuenta B2B de LedsC4 Outlet está activa`
+   - **Body**: cuerpo de `email-templates/06-bienvenida-reevaluacion.liquid`
+     (omitir `{% comment %}` y la línea `Subject:`)
 
 > Alternativa si Flow no ofrece "For each" nativo: usa un **Run code**
 > adicional que itere `find_and_promote.emails` y llame a la Email API

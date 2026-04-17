@@ -5,9 +5,9 @@ Workflow **W3 — Rechazo manual**. Se dispara cuando staff añade el tag
 
 ## Prerrequisitos
 
-- [ ] Plantilla **`b2b_cuenta_rechazada`** cargada en Shopify Email
-  (la plantilla lee `{{ customer.metafields.b2b.motivo_rechazo }}` vía
-  Liquid condicional).
+- [ ] Accesible `email-templates/05-cuenta-rechazada.liquid` para pegar
+  el body inline. El body contiene un `{% if customer.metafields.b2b.motivo_rechazo != blank %}`
+  que Flow resuelve siempre que la query del trigger incluya el metafield.
 
 ---
 
@@ -44,15 +44,18 @@ Dentro de **Then**:
 
 ## Paso 4 — Send email: plantilla 05
 
-1. **+** → **Action** → **Send email**
+1. **+** → **Action** → **Send internal email**
 2. Config:
-   - **Template**: `b2b_cuenta_rechazada`
    - **To**: `{{ customer.email }}`
-   - **From name** / **From email**: defaults del store (o
-     `no-reply@ledsc4.com` si lo tienes verificado)
+   - **Subject**: `Estado de tu solicitud B2B`
+   - **Body**: cuerpo de `email-templates/05-cuenta-rechazada.liquid`
+     (omitir `{% comment %}` y la línea `Subject:`). El `{% if %}` del
+     motivo se evalúa en Flow al enviar.
 
-La plantilla muestra el motivo solo si `customer.metafields.b2b.motivo_rechazo`
-está poblado (condicional Liquid). No hay que hacer nada en Flow.
+Importante: la **query del trigger** del workflow debe incluir
+`metafield(namespace: "b2b", key: "motivo_rechazo") { value }` para que
+el condicional Liquid tenga el dato. Si no lo tiene, el if cae al else
+(mensaje genérico), que es el comportamiento deseado.
 
 ## Paso 5 — Guardar y activar
 

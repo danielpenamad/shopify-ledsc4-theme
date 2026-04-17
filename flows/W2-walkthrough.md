@@ -7,7 +7,8 @@ Workflow **W2 — Aprobación manual**. Se dispara cuando staff añade el tag
 ## Prerrequisitos
 
 - [ ] W1 configurado (o al menos: customer puede tener tag `pendiente` válido)
-- [ ] Plantilla **`b2b_cuenta_aprobada`** cargada en Shopify Email
+- [ ] Accesible `email-templates/04-cuenta-aprobada-manual.liquid` para
+  pegar el body inline en el paso `Send internal email` de este workflow
 - [ ] Catálogo "Outlet general" creado (Fase A)
 
 ---
@@ -88,8 +89,11 @@ tenía company. Idempotente.
 
 ### Rama Then — enviar email 4
 
-1. **+** → **Send email** → template `b2b_cuenta_aprobada` →
-   to `{{ customer.email }}`
+1. **+** → **Action** → **Send internal email**
+   - **To**: `{{ customer.email }}`
+   - **Subject**: `Tu solicitud B2B ha sido aprobada`
+   - **Body**: cuerpo de `email-templates/04-cuenta-aprobada-manual.liquid`
+     (omitir `{% comment %}` y la línea `Subject:`)
 
 ### Rama Else — (no enviar)
 

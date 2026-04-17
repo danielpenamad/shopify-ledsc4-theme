@@ -7,7 +7,7 @@ cerrar Fase B.
 **Precondiciones comunes**:
 - Fase A aplicada (metafields, tags canónicos, catalog "Outlet general", 745 productos)
 - Workflows W1-W4 configurados en Flow y activos
-- Plantillas de email 1-6 cargadas en Shopify Email y referenciadas en los Flows
+- Bodies de email 1-6 pegados inline en los pasos `Send internal email` de W1-W4 (ver `email-templates/WALKTHROUGH.md`)
 - `b2b.whitelist_emails` con al menos un email de pruebas
 - `b2b.email_backoffice` poblado (p.ej. tu propio email con +backoffice en el subdominio)
 - Rol staff "Backoffice Aprobaciones" asignado al usuario de pruebas

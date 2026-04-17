@@ -21,9 +21,11 @@ pública de Flow no permite crear workflows programáticamente (abril 2026).
   canónicos + catalog).
 - Los workflows W1, W2 y W4 crean Companies B2B. Requiere plan Grow con B2B
   nativo habilitado y el catálogo "Outlet general" existente (creado en Fase A).
-- Los emails (1–6) se gestionan con **Shopify Email**, cada uno como plantilla
-  guardada en Admin → Marketing → Shopify Email → Templates. Los textos de
-  referencia están en `/email-templates/`.
+- Los emails (1–6) se envían con la acción nativa **`Send internal email`**
+  de Flow (el store actual no tiene Shopify Email). Los `.liquid` de
+  `/email-templates/` son la fuente del subject y body; se copy-paste
+  inline en cada paso `Send internal email` del workflow correspondiente.
+  Ver `email-templates/WALKTHROUGH.md`.
 
 ## Convenciones compartidas
 

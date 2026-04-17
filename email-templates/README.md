@@ -1,28 +1,31 @@
 # Plantillas de email B2B — LedsC4 Outlet
 
-6 plantillas para los 5 escenarios del workflow de registro y aprobación.
-Todos los textos están en español. Formato: Liquid (Shopify Email templates).
+6 bodies de email para los escenarios del workflow de registro y
+aprobación. Todos los textos están en español. Formato Liquid, pensados
+para pegarse inline en la acción `Send internal email` de Shopify Flow
+(el store actual no tiene Shopify Email disponible).
 
-| # | Archivo | Disparador | Destinatario | Template ID admin |
-|---|---|---|---|---|
-| 1 | `01-bienvenida-auto.liquid` | W1 rama auto | cliente | `b2b_bienvenida_auto` |
-| 2 | `02-solicitud-recibida.liquid` | W1 rama pendiente | cliente | `b2b_solicitud_recibida` |
-| 3 | `03-backoffice-nuevo-pendiente.liquid` | W1 rama pendiente | backoffice | `b2b_backoffice_pendiente` |
-| 4 | `04-cuenta-aprobada-manual.liquid` | W2 | cliente | `b2b_cuenta_aprobada` |
-| 5 | `05-cuenta-rechazada.liquid` | W3 | cliente | `b2b_cuenta_rechazada` |
-| 6 | `06-bienvenida-reevaluacion.liquid` | W4 tras añadir a whitelist | cliente | `b2b_bienvenida_reeval` |
+| # | Archivo | Disparador | Destinatario |
+|---|---|---|---|
+| 1 | `01-bienvenida-auto.liquid` | W1 rama auto | cliente |
+| 2 | `02-solicitud-recibida.liquid` | W1 rama pendiente | cliente |
+| 3 | `03-backoffice-nuevo-pendiente.liquid` | W1 rama pendiente | backoffice |
+| 4 | `04-cuenta-aprobada-manual.liquid` | W2 | cliente |
+| 5 | `05-cuenta-rechazada.liquid` | W3 | cliente |
+| 6 | `06-bienvenida-reevaluacion.liquid` | W4 tras añadir a whitelist | cliente |
 
-**Email 6** tiene el mismo contenido que el 1. Se mantiene como plantilla
-separada para permitir evolución independiente (ver W4-whitelist-reeval.md).
+**Email 6** tiene el mismo contenido que el 1. Se mantiene en archivo
+separado para permitir evolución independiente (ver W4-whitelist-reeval.md).
 
-## Cómo cargarlas en Shopify Email
+## Cómo pegarlas en Flow
 
-Shopify Email no importa templates desde archivo. Proceso manual:
+Cada `.liquid` contiene metadata (`{% comment %}`), una línea
+`Subject: ...` y el cuerpo. Al configurar un paso `Send internal email`:
 
-1. Admin → **Marketing → Shopify Email → Templates → Create template**.
-2. Pega el contenido del `.liquid` correspondiente en el editor.
-3. Guarda con el "Template ID admin" de la tabla anterior como nombre.
-4. Enlaza cada template al Flow correspondiente en el paso "Send email".
+- **Subject** del Flow ← la línea `Subject: ...` sin el prefijo.
+- **Body** del Flow ← todo lo que haya debajo (omitir `{% comment %}` y `Subject:`).
+
+Guía completa paso a paso: [WALKTHROUGH.md](WALKTHROUGH.md).
 
 ## Variables disponibles
 

@@ -9,11 +9,9 @@ exactos. Tiempo estimado: **20-30 min**.
 
 ## Prerrequisitos (no arrancar sin esto)
 
-- [ ] Plantillas **01, 02, 03** cargadas en Shopify Email (ver
-  `email-templates/README.md`). Los IDs deben coincidir **exactamente**:
-  - `b2b_bienvenida_auto`
-  - `b2b_solicitud_recibida`
-  - `b2b_backoffice_pendiente`
+- [ ] Accesible el repo con los `.liquid` fuente en `email-templates/`
+  (bodies 01, 02, 03 que pegarás inline en los pasos `Send internal email`
+  de este workflow). Ver [email-templates/WALKTHROUGH.md](../email-templates/WALKTHROUGH.md).
 - [ ] Shop metafields `b2b.whitelist_emails` y `b2b.email_backoffice`
   poblados (ya hecho con `scripts/set-shop-b2b-metafields.mjs`).
 - [ ] Fase A aplicada (catálogo "Outlet general" creado).
@@ -110,10 +108,11 @@ condicional que la usa.
 ### Else (NIF inválido)
 
 1. Dentro de **Else**: **+** → **Add customer tags** → tag `nif_invalido`
-2. **+** → **Send email** (Shopify Email) → template
-   `b2b_backoffice_pendiente` → to
-   `{{ shop.metafields.b2b.email_backoffice }}`. **Subject override**:
-   `ALERTA NIF inválido · {{ customer.email }}`
+2. **+** → **Action** → **Send internal email**
+   - **To**: `{{ shop.metafields.b2b.email_backoffice }}`
+   - **Subject**: `ALERTA NIF inválido · {{ customer.email }}`
+   - **Body**: pega el cuerpo de `email-templates/03-backoffice-nuevo-pendiente.liquid`
+     (omitir el bloque `{% comment %}` y la línea `Subject: ...`).
 3. **End** de la rama else (no más steps).
 
 ## Paso 7 — Check if: email en whitelist
@@ -141,16 +140,22 @@ Dentro de la rama **Then** del paso 6:
    - **Code**: pega el contenido de `flows/_helpers/create-company.js`.
      El export `module.exports = async function createCompanyForCustomer`
      — Flow lo ejecuta pasándole `{ input, shopify }`.
-5. **Send email** → template `b2b_bienvenida_auto` →
-   to `{{ customer.email }}`.
+5. **Send internal email**:
+   - **To**: `{{ customer.email }}`
+   - **Subject**: `Tu cuenta B2B de LedsC4 Outlet está activa`
+   - **Body**: cuerpo de `email-templates/01-bienvenida-auto.liquid`
 
 ### Rama B — Else: no match → PENDIENTE
 
 1. (`pendiente` ya está puesto, no tocar tags)
-2. **Send email** → template `b2b_solicitud_recibida` →
-   to `{{ customer.email }}`
-3. **Send email** → template `b2b_backoffice_pendiente` →
-   to `{{ shop.metafields.b2b.email_backoffice }}`
+2. **Send internal email**:
+   - **To**: `{{ customer.email }}`
+   - **Subject**: `Hemos recibido tu solicitud de alta B2B`
+   - **Body**: cuerpo de `email-templates/02-solicitud-recibida.liquid`
+3. **Send internal email**:
+   - **To**: `{{ shop.metafields.b2b.email_backoffice }}`
+   - **Subject**: `[B2B] Nuevo registro pendiente — {{ customer.metafields.b2b.empresa }}`
+   - **Body**: cuerpo de `email-templates/03-backoffice-nuevo-pendiente.liquid`
 
 ## Paso 8 — Guardar y activar
 
