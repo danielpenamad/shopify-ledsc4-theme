@@ -26,7 +26,7 @@ const FIND_VARIANT_WITH_INVENTORY = `
 
 function buildSetInventoryMutation(idempotencyKey) {
   return `
-    mutation SetStock @idempotent(key: "${idempotencyKey}") {
+    mutation SetStock {
       inventorySetQuantities(
         input: {
           reason: "correction"
@@ -40,7 +40,7 @@ function buildSetInventoryMutation(idempotencyKey) {
             }
           ]
         }
-      ) {
+      ) @idempotent(key: "${idempotencyKey}") {
         inventoryAdjustmentGroup {
           reason
         }
