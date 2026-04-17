@@ -1,0 +1,41 @@
+{% comment %}
+  LedsC4 specifications table — full product specs from metafields.
+{% endcomment %}
+
+{%- assign ns = product.metafields.product -%}
+
+{%- capture specs_rows -%}
+  {%- if ns.familia.value != blank -%}<tr><td>Familia</td><td>{{ ns.familia.value }}</td></tr>{%- endif -%}
+  {%- if ns.catalogo.value != blank -%}<tr><td>Catálogo</td><td>{{ ns.catalogo.value }}</td></tr>{%- endif -%}
+  {%- if ns.garantia.value != blank -%}<tr><td>Garantía</td><td>{{ ns.garantia.value }} años</td></tr>{%- endif -%}
+  {%- if ns.material.value != blank -%}<tr><td>Material</td><td>{{ ns.material.value }}</td></tr>{%- endif -%}
+  {%- if ns.acabado.value != blank -%}<tr><td>Acabado</td><td>{{ ns.acabado.value }}</td></tr>{%- endif -%}
+  {%- if ns.etiqueta_vf.value != blank -%}<tr><td>Voltaje</td><td>{{ ns.etiqueta_vf.value }}</td></tr>{%- endif -%}
+  {%- if ns.ancho_mm.value != blank -%}<tr><td>Ancho (mm)</td><td>{{ ns.ancho_mm.value }}</td></tr>{%- endif -%}
+  {%- if ns.alto_mm.value != blank -%}<tr><td>Alto (mm)</td><td>{{ ns.alto_mm.value }}</td></tr>{%- endif -%}
+  {%- if ns.largo_mm.value != blank -%}<tr><td>Largo (mm)</td><td>{{ ns.largo_mm.value }}</td></tr>{%- endif -%}
+  {%- if ns.proyeccion_mm.value != blank -%}<tr><td>Proyección (mm)</td><td>{{ ns.proyeccion_mm.value }}</td></tr>{%- endif -%}
+  {%- if ns.fuente_luz.value != blank -%}<tr><td>Fuente de luz</td><td>{{ ns.fuente_luz.value }}</td></tr>{%- endif -%}
+  {%- if ns.incluye_bombilla.value != blank -%}<tr><td>Incluye bombilla</td><td>{{ ns.incluye_bombilla.value }}</td></tr>{%- endif -%}
+  {%- if ns.eficiencia_energetica.value != blank -%}<tr><td>Eficiencia energética</td><td>{{ ns.eficiencia_energetica.value }}</td></tr>{%- endif -%}
+  {%- if ns.peso_neto_kg.value != blank -%}<tr><td>Peso neto (kg)</td><td>{{ ns.peso_neto_kg.value }}</td></tr>{%- endif -%}
+  {%- if ns.vatios.value != blank -%}<tr><td>Potencia (W)</td><td>{{ ns.vatios.value }}</td></tr>{%- endif -%}
+  {%- if ns.lumenes.value != blank -%}<tr><td>Lúmenes (lm)</td><td>{{ ns.lumenes.value }}</td></tr>{%- endif -%}
+  {%- if ns.lumenes_reales.value != blank -%}<tr><td>Lúmenes reales (lm)</td><td>{{ ns.lumenes_reales.value }}</td></tr>{%- endif -%}
+  {%- if ns.temperatura_k.value != blank -%}<tr><td>Temperatura de color</td><td>{{ ns.temperatura_k.value }}K</td></tr>{%- endif -%}
+  {%- if ns.cri.value != blank -%}<tr><td>CRI</td><td>{{ ns.cri.value }}</td></tr>{%- endif -%}
+  {%- if ns.angulo_luz.value != blank -%}<tr><td>Ángulo del haz</td><td>{{ ns.angulo_luz.value }}</td></tr>{%- endif -%}
+  {%- if ns.regulacion.value != blank -%}<tr><td>Regulación</td><td>{{ ns.regulacion.value }}</td></tr>{%- endif -%}
+  {%- if ns.ip.value != blank -%}<tr><td>IP</td><td>{{ ns.ip.value }}</td></tr>{%- endif -%}
+  {%- if ns.ik.value != blank -%}<tr><td>IK</td><td>{{ ns.ik.value }}</td></tr>{%- endif -%}
+{%- endcapture -%}
+
+{%- if specs_rows != blank -%}
+<div class="specs-table-wrapper">
+  <table class="specs-table">
+    <tbody>
+      {{ specs_rows }}
+    </tbody>
+  </table>
+</div>
+{%- endif -%}
