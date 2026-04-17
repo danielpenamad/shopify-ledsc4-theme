@@ -115,13 +115,20 @@
                   <p class="product__familia">Familia: <strong>{{ product.metafields.product.familia.value }}</strong></p>
                 {%- endif -%}
               {%- when 'price' -%}
-                <div id="price-{{ section.id }}" role="status" {{ block.shopify_attributes }}>
-                  {%- render 'price',
-                    product: product,
-                    use_variant: true,
-                    show_badges: true,
-                    price_class: 'price--large'
-                  -%}
+                <div class="product__price-stock-row" style="display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem;">
+                  <div id="price-{{ section.id }}" role="status" {{ block.shopify_attributes }}>
+                    {%- render 'price',
+                      product: product,
+                      use_variant: true,
+                      show_badges: true,
+                      price_class: 'price--large'
+                    -%}
+                  </div>
+                  {%- if product.selected_or_first_available_variant.inventory_management == 'shopify' -%}
+                    <p class="product__stock-inline" id="StockCount-{{ section.id }}">
+                      {{ product.selected_or_first_available_variant.inventory_quantity }} uds
+                    </p>
+                  {%- endif -%}
                 </div>
                 {%- if product.quantity_price_breaks_configured? -%}
                   <div class="volume-pricing-note" id="Volume-Note-{{ section.id }}">
