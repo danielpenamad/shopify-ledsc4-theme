@@ -1,0 +1,83 @@
+[
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "empresa",
+    "name": "Empresa",
+    "description": "Razón social del cliente B2B.",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "nif",
+    "name": "NIF / CIF",
+    "description": "Identificador fiscal.",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "sector",
+    "name": "Sector",
+    "description": "Sector de actividad (instalador, arquitecto, retail, etc.).",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "zona",
+    "name": "Zona",
+    "description": "Zona geográfica. Reservado para multi-tarifa futura.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "volumen_estimado",
+    "name": "Volumen estimado",
+    "description": "Volumen anual declarado. Texto libre por ahora; candidato a number_decimal cuando se active multi-tarifa.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "fecha_registro",
+    "name": "Fecha de registro",
+    "description": "Fecha en que el cliente envió el formulario de alta.",
+    "type": "date",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "fecha_aprobacion",
+    "name": "Fecha de aprobación",
+    "description": "Se rellena al pasar a estado aprobado. Nullable.",
+    "type": "date",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "motivo_rechazo",
+    "name": "Motivo de rechazo",
+    "description": "Texto libre. Solo aplica si el cliente está en estado rechazado.",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "SHOP",
+    "namespace": "b2b",
+    "key": "whitelist_emails",
+    "name": "Whitelist de emails pre-aprobados",
+    "description": "Emails que se auto-aprueban al registrarse. Editable por staff con permiso Edit custom data.",
+    "type": "list.single_line_text_field",
+    "pin": true
+  }
+]
