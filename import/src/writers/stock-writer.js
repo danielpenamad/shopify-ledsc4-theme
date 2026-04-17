@@ -22,43 +22,15 @@ const FIND_VARIANT_BY_SKU = `
   }
 `;
 
-const UPDATE_VARIANT_PRICE = `
-  mutation updateVariantPrice($input: ProductVariantInput!) {
-    productVariantUpdate(input: $input) {
-      productVariant {
-        id
-        price
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const ADJUST_INVENTORY = `
-  mutation adjustInventory($input: InventoryAdjustQuantitiesInput!) {
-    inventoryAdjustQuantities(input: $input) {
+const SET_INVENTORY = `
+  mutation setInventory($input: InventorySetQuantitiesInput!) {
+    inventorySetQuantities(input: $input) {
       inventoryAdjustmentGroup {
         reason
       }
       userErrors {
         field
         message
-      }
-    }
-  }
-`;
-
-const GET_INVENTORY_LEVEL = `
-  query getInventoryLevel($inventoryItemId: ID!, $locationId: ID!) {
-    inventoryItem(id: $inventoryItemId) {
-      inventoryLevel(locationId: $locationId) {
-        quantities(names: ["available"]) {
-          name
-          quantity
-        }
       }
     }
   }
@@ -90,7 +62,6 @@ export async function writeStockUpdates(updates, options = {}) {
       const variant = resp?.data?.productVariants?.edges?.[0]?.node;
 
       if (!variant) {
-        logger.warn(`SKU ${update.sku}: not found in Shopify`);
         notFound++;
         continue;
       }
@@ -103,52 +74,31 @@ export async function writeStockUpdates(updates, options = {}) {
         continue;
       }
 
-      if (update.price && update.price !== variant.price) {
-        const priceResp = await graphql(UPDATE_VARIANT_PRICE, {
-          input: { id: variant.id, price: update.price },
-        });
-        const priceErrors = priceResp?.data?.productVariantUpdate?.userErrors;
-        if (priceErrors?.length) {
-          logger.error(`SKU ${update.sku}: price update failed — ${priceErrors[0].message}`);
-          errors++;
-          continue;
-        }
-      }
-
       const inventoryItemId = variant.inventoryItem.id;
 
-      const levelResp = await graphql(GET_INVENTORY_LEVEL, {
-        inventoryItemId,
-        locationId: gidLocation,
+      const setResp = await graphql(SET_INVENTORY, {
+        input: {
+          reason: 'correction',
+          name: 'available',
+          ignoreCompareQuantity: true,
+          quantities: [
+            {
+              inventoryItemId,
+              locationId: gidLocation,
+              quantity: update.inventory,
+            },
+          ],
+        },
       });
 
-      const currentQty = levelResp?.data?.inventoryItem?.inventoryLevel
-        ?.quantities?.find((q) => q.name === 'available')?.quantity ?? 0;
-      const delta = update.inventory - currentQty;
-
-      if (delta !== 0) {
-        const adjResp = await graphql(ADJUST_INVENTORY, {
-          input: {
-            reason: 'correction',
-            name: 'available',
-            changes: [
-              {
-                delta,
-                inventoryItemId,
-                locationId: gidLocation,
-              },
-            ],
-          },
-        });
-        const adjErrors = adjResp?.data?.inventoryAdjustQuantities?.userErrors;
-        if (adjErrors?.length) {
-          logger.error(`SKU ${update.sku}: inventory adjust failed — ${adjErrors[0].message}`);
-          errors++;
-          continue;
-        }
+      const setErrors = setResp?.data?.inventorySetQuantities?.userErrors;
+      if (setErrors?.length) {
+        logger.error(`SKU ${update.sku}: inventory set failed — ${setErrors[0].message}`);
+        errors++;
+        continue;
       }
 
-      logger.info(`SKU ${update.sku}: updated (inv: ${currentQty} → ${update.inventory}${update.price ? `, price: ${update.price}` : ''})`);
+      logger.info(`SKU ${update.sku}: stock → ${update.inventory}`);
       processed++;
     } catch (err) {
       logger.error(`SKU ${update.sku}: ${err.message}`);
@@ -156,5 +106,6 @@ export async function writeStockUpdates(updates, options = {}) {
     }
   }
 
+  logger.info(`Stock sync: ${processed} updated, ${notFound} not found, ${errors} errors`);
   return { processed, errors, notFound };
 }
