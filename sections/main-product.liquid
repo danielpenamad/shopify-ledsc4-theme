@@ -91,18 +91,17 @@
               {%- when '@app' -%}
                 {% render block %}
               {%- when 'text' -%}
+                {%- unless block.settings.text contains product.vendor -%}
                 <p
                   class="product__text inline-richtext{% if block.settings.text_style == 'uppercase' %} caption-with-letter-spacing{% elsif block.settings.text_style == 'subtitle' %} subtitle{% endif %}"
                   {{ block.shopify_attributes }}
                 >
                   {{- block.settings.text -}}
                 </p>
+                {%- endunless -%}
               {%- when 'title' -%}
-                {%- if product.selected_or_first_available_variant.sku != blank -%}
-                  <p class="product__type-label">{{ product.selected_or_first_available_variant.sku }}</p>
-                {%- endif -%}
                 {%- if product.type != blank -%}
-                  <p class="product__type-label" style="margin-top: -0.2rem;">{{ product.type }}</p>
+                  <p class="product__type-label">{{ product.type }}</p>
                 {%- endif -%}
                 <div class="product__title" {{ block.shopify_attributes }}>
                   <h1>{{ product.title | escape }}</h1>
