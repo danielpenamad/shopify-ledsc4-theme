@@ -1,26 +1,36 @@
-{% comment %}
-  Email 6 — Bienvenida tras re-evaluación (whitelist updated y aprueba un pendiente).
-  Disparador: W4.
-  To: {{customer.email}}
+<!--
+  Email 6 — Bienvenida tras re-evaluación (whitelist actualizada aprueba un pendiente).
+  Disparador: W4 (Send marketing mail).
+  To: {{ customer.email }} (gestionado por Shopify Messaging).
 
-  Mismo contenido base que email 1. Se mantiene en plantilla separada
-  por si en el futuro queremos diferenciar (p.ej. mensaje "gracias por
-  esperar" tras re-evaluación).
-{% endcomment %}
+  Mismo contenido base que email 01. Plantilla separada para evolución
+  independiente (p.ej. añadir "gracias por esperar").
 
-Subject: Tu cuenta B2B de LedsC4 Outlet está activa
+  Plantilla Shopify Messaging / marketing. Obligatorio incluir:
+    {{ unsubscribe_link }}
+    {{ open_tracking_block }}
 
-Hola {{ customer.first_name }},
+  Asunto (campo "Asunto" del correo):
+    Tu cuenta B2B de LedsC4 Outlet está activa
+-->
 
-Tu cuenta B2B para LedsC4 Outlet acaba de activarse.
-Ya puedes acceder al portal y empezar a pedir al precio de outlet.
+<p>Hola {{ customer.first_name }},</p>
 
-→ Acceder: {{ shop.url }}/account/login
+<p>¡Buenas noticias! Tu cuenta B2B para <strong>LedsC4 Outlet</strong> acaba de activarse. Ya puedes acceder al portal y empezar a pedir al precio de outlet.</p>
 
-Empresa: {{ customer.metafields.b2b.empresa }}
-NIF: {{ customer.metafields.b2b.nif }}
+<p><a href="{{ shop.url }}/account/login">Acceder al portal</a></p>
 
-Para cualquier duda, escríbenos a {{ shop.metafields.b2b.email_backoffice }}.
+<p><strong>Datos registrados</strong></p>
+<ul>
+  <li>Empresa: {{ customer.metafields.b2b.empresa }}</li>
+  <li>NIF: {{ customer.metafields.b2b.nif }}</li>
+</ul>
 
-Un saludo,
-Equipo LedsC4 Outlet
+<p>Para cualquier duda, escríbenos a <a href="mailto:daniel.pena+backoffice@creacciones.es">daniel.pena+backoffice@creacciones.es</a>.</p>
+
+<p>Un saludo,<br>
+Equipo LedsC4 Outlet</p>
+
+<p style="font-size:12px;color:#888;">Puedes darte de baja en {{ unsubscribe_link }}</p>
+
+{{ open_tracking_block }}

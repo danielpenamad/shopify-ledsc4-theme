@@ -1,9 +1,13 @@
 # Plantillas de email B2B — LedsC4 Outlet
 
 6 bodies de email para los escenarios del workflow de registro y
-aprobación. Todos los textos están en español. Formato Liquid, pensados
-para pegarse inline en la acción `Send internal email` de Shopify Flow
-(el store actual no tiene Shopify Email disponible).
+aprobación. Todos los textos están en español. Estrategia mixta:
+
+- **5 de ellos (al cliente) son HTML de Shopify Messaging** — marketing
+  mail guardada como plantilla en admin, referenciada por nombre en la
+  acción `Send marketing mail` de Flow.
+- **1 de ellos (al backoffice) es texto plano inline** — body pegado
+  dentro del step `Send internal email` de Flow (no permite variables en To).
 
 | # | Archivo | Disparador | Destinatario |
 |---|---|---|---|

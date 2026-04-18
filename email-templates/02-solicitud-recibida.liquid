@@ -1,18 +1,27 @@
-{% comment %}
+<!--
   Email 2 — Solicitud recibida, en revisión.
-  Disparador: W1 rama pendiente.
-  To: {{customer.email}}
-{% endcomment %}
+  Disparador: W1 rama B (Send marketing mail).
+  To: {{ customer.email }} (gestionado por Shopify Messaging).
 
-Subject: Hemos recibido tu solicitud de alta B2B
+  Plantilla Shopify Messaging / marketing. Obligatorio incluir:
+    {{ unsubscribe_link }}
+    {{ open_tracking_block }}
 
-Hola {{ customer.first_name }},
+  Asunto (campo "Asunto" del correo):
+    Hemos recibido tu solicitud de alta B2B
+-->
 
-Hemos recibido tu solicitud de acceso al portal B2B de LedsC4 Outlet.
-Nuestro equipo la revisará y te contestará en un plazo máximo de 2 días laborables.
-No necesitas hacer nada más por ahora.
+<p>Hola {{ customer.first_name }},</p>
 
-Si la solicitud es urgente, puedes escribirnos directamente a {{ shop.metafields.b2b.email_backoffice }}.
+<p>Hemos recibido tu solicitud de acceso al portal B2B de <strong>LedsC4 Outlet</strong>. Nuestro equipo la revisará y te contestará en un plazo máximo de <strong>2 días laborables</strong>.</p>
 
-Un saludo,
-Equipo LedsC4 Outlet
+<p>No necesitas hacer nada más por ahora.</p>
+
+<p>Si la solicitud es urgente, puedes escribirnos directamente a <a href="mailto:daniel.pena+backoffice@creacciones.es">daniel.pena+backoffice@creacciones.es</a>.</p>
+
+<p>Un saludo,<br>
+Equipo LedsC4 Outlet</p>
+
+<p style="font-size:12px;color:#888;">Puedes darte de baja en {{ unsubscribe_link }}</p>
+
+{{ open_tracking_block }}

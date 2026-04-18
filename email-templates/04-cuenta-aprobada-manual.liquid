@@ -1,20 +1,30 @@
-{% comment %}
+<!--
   Email 4 — Cuenta aprobada manualmente por backoffice.
-  Disparador: W2 (customer passes from 'pendiente' to 'aprobado').
-  To: {{customer.email}}
-{% endcomment %}
+  Disparador: W2 (Send marketing mail cuando el tag pasa de pendiente a aprobado).
+  To: {{ customer.email }} (gestionado por Shopify Messaging).
 
-Subject: Tu solicitud B2B ha sido aprobada
+  Plantilla Shopify Messaging / marketing. Obligatorio incluir:
+    {{ unsubscribe_link }}
+    {{ open_tracking_block }}
 
-Hola {{ customer.first_name }},
+  Asunto (campo "Asunto" del correo):
+    Tu solicitud B2B ha sido aprobada
+-->
 
-Tu solicitud de alta en el portal B2B de LedsC4 Outlet ha sido aprobada.
-Ya puedes acceder con tu email y empezar a pedir al precio de outlet.
+<p>Hola {{ customer.first_name }},</p>
 
-→ Acceder: {{ shop.url }}/account/login
+<p>Tu solicitud de alta en el portal B2B de <strong>LedsC4 Outlet</strong> ha sido aprobada. Ya puedes acceder con tu email y empezar a pedir al precio de outlet.</p>
 
-Empresa: {{ customer.metafields.b2b.empresa }}
-Fecha de aprobación: {{ customer.metafields.b2b.fecha_aprobacion }}
+<p><a href="{{ shop.url }}/account/login">Acceder al portal</a></p>
 
-Un saludo,
-Equipo LedsC4 Outlet
+<ul>
+  <li>Empresa: {{ customer.metafields.b2b.empresa }}</li>
+  <li>Fecha de aprobación: {{ customer.metafields.b2b.fecha_aprobacion }}</li>
+</ul>
+
+<p>Un saludo,<br>
+Equipo LedsC4 Outlet</p>
+
+<p style="font-size:12px;color:#888;">Puedes darte de baja en {{ unsubscribe_link }}</p>
+
+{{ open_tracking_block }}
