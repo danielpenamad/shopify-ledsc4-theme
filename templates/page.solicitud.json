@@ -1,0 +1,9 @@
+{
+  "sections": {
+    "solicitud": {
+      "type": "b2b-solicitud-form",
+      "settings": {}
+    }
+  },
+  "order": ["solicitud"]
+}

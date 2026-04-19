@@ -1,0 +1,230 @@
+{%- comment -%}
+  B2B · Fase D — formulario de solicitud de pedido.
+  Renderiza /pages/solicitud:
+    1. Resumen del carrito (read-only)
+    2. Textarea comentario (max 1000)
+    3. Checkbox aviso IVA/portes (required)
+    4. Submit -> POST al edge function submit-order-request
+  Autenticacion: HMAC(customer.id:timestamp, settings.order_request_hmac_secret)
+  firmado server-side por Liquid. TTL 10 min.
+{%- endcomment -%}
+
+{%- liquid
+  assign now_ts = 'now' | date: '%s'
+  assign hmac_payload = customer.id | append: ':' | append: now_ts
+  assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
+-%}
+
+<style>
+  .b2b-solicitud { max-width: 900px; margin: 0 auto; padding: 48px 24px; font-family: var(--font-body-family); }
+  .b2b-solicitud h1 { font-family: var(--font-heading-family); font-size: 2rem; margin: 0 0 8px 0; letter-spacing: -0.01em; }
+  .b2b-solicitud__lead { color: #666; margin: 0 0 32px 0; font-size: 1rem; line-height: 1.5; }
+  .b2b-solicitud__table { width: 100%; border-collapse: collapse; margin: 0 0 24px 0; }
+  .b2b-solicitud__table th, .b2b-solicitud__table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+  .b2b-solicitud__table th { font-weight: 600; color: #666; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+  .b2b-solicitud__table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .b2b-solicitud__totals { background: #fafaf7; padding: 16px 20px; border-radius: 6px; margin: 0 0 32px 0; }
+  .b2b-solicitud__totals .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; }
+  .b2b-solicitud__totals .row--big { font-weight: 600; font-size: 1.1rem; border-top: 1px solid #e0e0e0; margin-top: 8px; padding-top: 12px; }
+  .b2b-solicitud__warn { font-size: 0.8rem; color: #666; margin-top: 8px; font-style: italic; }
+  .b2b-solicitud__field { margin: 0 0 20px 0; }
+  .b2b-solicitud__field label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9rem; }
+  .b2b-solicitud__field textarea { width: 100%; min-height: 120px; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 0.95rem; resize: vertical; }
+  .b2b-solicitud__checkbox { display: flex; align-items: flex-start; gap: 12px; padding: 16px; background: #fff8e1; border-left: 3px solid #d4a84a; margin: 0 0 24px 0; }
+  .b2b-solicitud__checkbox input { margin-top: 3px; flex-shrink: 0; }
+  .b2b-solicitud__checkbox label { font-size: 0.9rem; line-height: 1.5; cursor: pointer; }
+  .b2b-solicitud__actions { display: flex; gap: 12px; align-items: center; }
+  .b2b-solicitud__submit { background: #1a1f27; color: #fff; border: 0; padding: 14px 32px; border-radius: 6px; font-size: 1rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .b2b-solicitud__submit:hover { background: #000; }
+  .b2b-solicitud__submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .b2b-solicitud__cancel { color: #666; text-decoration: underline; font-size: 0.9rem; }
+  .b2b-solicitud__error { background: #fef2f2; border-left: 3px solid #dc2626; padding: 16px; margin: 0 0 24px 0; color: #991b1b; font-size: 0.9rem; display: none; }
+  .b2b-solicitud__error.visible { display: block; }
+  .b2b-solicitud__empty { text-align: center; padding: 60px 24px; }
+</style>
+
+<div class="b2b-solicitud">
+  <h1>Solicitud de pedido</h1>
+  <p class="b2b-solicitud__lead">Revisa tu pedido, añade un comentario opcional y envía la solicitud. Nuestro equipo comercial revisará tu petición y confirmará disponibilidad, precios finales (IVA y portes) y fechas en las próximas 48h laborables.</p>
+
+  {%- if cart.item_count == 0 -%}
+    <div class="b2b-solicitud__empty">
+      <p>Tu carrito está vacío. <a href="/collections/coleccion-2026">Ver catálogo</a>.</p>
+    </div>
+  {%- else -%}
+
+    <div id="b2b-solicitud-error" class="b2b-solicitud__error"></div>
+
+    <table class="b2b-solicitud__table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="num">Uds.</th>
+          <th class="num">Precio unit.</th>
+          <th class="num">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {%- for item in cart.items -%}
+          <tr>
+            <td>
+              <strong>{{ item.product.title }}</strong>
+              {%- if item.variant.title != 'Default Title' -%}
+                <br><small style="color:#666;">{{ item.variant.title }}</small>
+              {%- endif -%}
+              {%- if item.variant.sku -%}
+                <br><small style="color:#999;">SKU: {{ item.variant.sku }}</small>
+              {%- endif -%}
+            </td>
+            <td class="num">{{ item.quantity }}</td>
+            <td class="num">{{ item.price | money }}</td>
+            <td class="num">{{ item.line_price | money }}</td>
+          </tr>
+        {%- endfor -%}
+      </tbody>
+    </table>
+
+    <div class="b2b-solicitud__totals">
+      <div class="row">
+        <span>Importe estimado (sin IVA ni portes)</span>
+        <span>{{ cart.total_price | money }}</span>
+      </div>
+      <p class="b2b-solicitud__warn">* Los precios definitivos los confirmará el equipo comercial tras revisar disponibilidad y ajustes de volumen.</p>
+    </div>
+
+    <form id="b2b-solicitud-form" onsubmit="return false;">
+      <div class="b2b-solicitud__field">
+        <label for="b2b-comentario">Comentario o propuesta (opcional)</label>
+        <textarea id="b2b-comentario" name="comentario" maxlength="1000" placeholder="Ej: Necesito recibir el pedido antes del 15 de mayo. Pregúntame por descuento por volumen si llego a X unidades."></textarea>
+      </div>
+
+      <div class="b2b-solicitud__checkbox">
+        <input type="checkbox" id="b2b-aviso" name="aviso" required>
+        <label for="b2b-aviso">
+          He leído que el importe mostrado es orientativo y no incluye IVA ni costes de envío, que se confirmarán por el equipo comercial antes de procesar el pedido.
+        </label>
+      </div>
+
+      <div class="b2b-solicitud__actions">
+        <button type="submit" id="b2b-submit" class="b2b-solicitud__submit">Confirmar y enviar solicitud</button>
+        <a href="/cart" class="b2b-solicitud__cancel">Volver al carrito</a>
+      </div>
+    </form>
+
+    <script>
+      (function () {
+        const ENDPOINT = {{ settings.order_request_endpoint | json }};
+        const CUSTOMER_ID = {{ customer.id | json }};
+        const TIMESTAMP = {{ now_ts | json }};
+        const SIGNATURE = {{ hmac_sig | json }};
+
+        const form = document.getElementById('b2b-solicitud-form');
+        const submitBtn = document.getElementById('b2b-submit');
+        const comentarioEl = document.getElementById('b2b-comentario');
+        const avisoEl = document.getElementById('b2b-aviso');
+        const errorEl = document.getElementById('b2b-solicitud-error');
+
+        function showError(msg) {
+          errorEl.textContent = msg;
+          errorEl.classList.add('visible');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Confirmar y enviar solicitud';
+        }
+
+        function hideError() {
+          errorEl.classList.remove('visible');
+        }
+
+        async function submit(force) {
+          if (!avisoEl.checked) {
+            showError('Debes marcar la casilla del aviso antes de enviar.');
+            return;
+          }
+          hideError();
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Enviando…';
+
+          // Lee el carrito en tiempo real (por si cambio entre render y submit)
+          let cartData;
+          try {
+            cartData = await fetch('/cart.js').then((r) => r.json());
+          } catch (e) {
+            showError('No se pudo leer el carrito. Refresca la página e intenta de nuevo.');
+            return;
+          }
+
+          if (!cartData.items || !cartData.items.length) {
+            showError('Tu carrito está vacío.');
+            return;
+          }
+
+          const items = cartData.items.map((it) => ({
+            variantId: 'gid://shopify/ProductVariant/' + it.variant_id,
+            quantity: it.quantity,
+          }));
+
+          const payload = {
+            customerId: CUSTOMER_ID,
+            timestamp: Number(TIMESTAMP),
+            signature: SIGNATURE,
+            note: comentarioEl.value || '',
+            items: items,
+            force: !!force,
+          };
+
+          let res;
+          try {
+            res = await fetch(ENDPOINT, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            }).then((r) => r.json());
+          } catch (e) {
+            showError('Error de red al enviar la solicitud: ' + e.message);
+            return;
+          }
+
+          if (res.warning === 'recent_request') {
+            const ok = confirm(
+              res.message + '\n\n(Tu última solicitud ' + (res.recentDraft && res.recentDraft.name) + ' sigue en revisión.)'
+            );
+            if (ok) {
+              return submit(true);
+            } else {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Confirmar y enviar solicitud';
+              return;
+            }
+          }
+
+          if (!res.ok) {
+            showError('No se pudo crear la solicitud: ' + (res.error || 'error desconocido') + '. Si persiste, contacta con el equipo comercial.');
+            return;
+          }
+
+          // Limpiar carrito cliente-side y redirigir
+          try {
+            await fetch('/cart/clear.js', { method: 'POST' });
+          } catch (e) {
+            /* no bloqueante */
+          }
+          const ref = encodeURIComponent(res.draftOrderName || '');
+          window.location.href = '/pages/solicitud-enviada?ref=' + ref;
+        }
+
+        form.addEventListener('submit', function (ev) {
+          ev.preventDefault();
+          submit(false);
+        });
+      })();
+    </script>
+
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "B2B Solicitud (form)",
+  "settings": []
+}
+{% endschema %}

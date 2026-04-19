@@ -36,5 +36,19 @@
     "handle": "canal-de-denuncias",
     "body_file": "pages/legal/canal-de-denuncias.html",
     "published": true
+  },
+  {
+    "title": "Solicitud de pedido",
+    "handle": "solicitud",
+    "template_suffix": "solicitud",
+    "body_html": "<p>Revisa tu pedido y envia la solicitud al equipo comercial.</p><p><em>Contenido real renderizado desde el tema (templates/page.solicitud.json).</em></p>",
+    "published": true
+  },
+  {
+    "title": "Solicitud enviada",
+    "handle": "solicitud-enviada",
+    "template_suffix": "solicitud-enviada",
+    "body_html": "<p>Hemos recibido tu solicitud.</p><p><em>Contenido real renderizado desde el tema (templates/page.solicitud-enviada.json).</em></p>",
+    "published": true
   }
 ]

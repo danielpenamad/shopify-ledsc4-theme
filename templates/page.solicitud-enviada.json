@@ -1,0 +1,9 @@
+{
+  "sections": {
+    "enviada": {
+      "type": "b2b-solicitud-enviada",
+      "settings": {}
+    }
+  },
+  "order": ["enviada"]
+}
