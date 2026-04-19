@@ -1,0 +1,73 @@
+<!--
+  Email 7b — Notificacion al backoffice de nueva solicitud B2B.
+  Disparador: Flow W5, step Send internal email (inline HTML).
+  NO es marketing mail: NO incluye {{ unsubscribe_link }}. Cuerpo va
+  pegado tal cual en el campo "Email body" del Send internal email step.
+  To: hardcoded literal — ver docs/hardcoded-emails.md.
+  Asunto: Nueva solicitud B2B · {{ draft_order.customer.metafields.b2b.empresa | default: draft_order.customer.display_name }} · {{ draft_order.name }}
+-->
+
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;max-width:720px;margin:0 auto;padding:24px;">
+
+  <h2 style="font-size:18px;font-weight:600;margin:0 0 16px 0;border-bottom:2px solid #1a1f27;padding-bottom:8px;">Nueva solicitud B2B · {{ draft_order.name }}</h2>
+
+  <!-- CLIENTE -->
+  <h3 style="font-size:13px;text-transform:uppercase;color:#666;letter-spacing:0.05em;margin:20px 0 8px 0;">Cliente</h3>
+  <table cellpadding="4" style="font-size:14px;border-collapse:collapse;">
+    <tr><td style="color:#666;padding-right:16px;">Empresa:</td><td><strong>{{ draft_order.customer.metafields.b2b.empresa }}</strong></td></tr>
+    <tr><td style="color:#666;padding-right:16px;">NIF / CIF:</td><td>{{ draft_order.customer.metafields.b2b.nif }}</td></tr>
+    <tr><td style="color:#666;padding-right:16px;">Nombre:</td><td>{{ draft_order.customer.display_name }}</td></tr>
+    <tr><td style="color:#666;padding-right:16px;">Email:</td><td><a href="mailto:{{ draft_order.customer.email }}" style="color:#1a1f27;">{{ draft_order.customer.email }}</a></td></tr>
+    {% if draft_order.customer.phone %}<tr><td style="color:#666;padding-right:16px;">Teléfono:</td><td>{{ draft_order.customer.phone }}</td></tr>{% endif %}
+    <tr><td style="color:#666;padding-right:16px;">Sector:</td><td>{{ draft_order.customer.metafields.b2b.sector | default: '—' }}</td></tr>
+  </table>
+
+  <!-- SOLICITUD -->
+  <h3 style="font-size:13px;text-transform:uppercase;color:#666;letter-spacing:0.05em;margin:24px 0 8px 0;">Solicitud</h3>
+  <table cellpadding="4" style="font-size:14px;border-collapse:collapse;">
+    <tr><td style="color:#666;padding-right:16px;">Referencia:</td><td><strong>{{ draft_order.name }}</strong></td></tr>
+    <tr><td style="color:#666;padding-right:16px;">Fecha:</td><td>{{ draft_order.created_at | date: '%d/%m/%Y %H:%M' }}</td></tr>
+    <tr><td style="color:#666;padding-right:16px;">Importe estimado:</td><td><strong>{{ draft_order.total_price | money }}</strong> <span style="color:#888;">(sin IVA ni portes)</span></td></tr>
+    {% for attr in draft_order.custom_attributes %}
+      {% if attr.key == 'cbm_total' %}<tr><td style="color:#666;padding-right:16px;">CBM total:</td><td><strong>{{ attr.value }} m³</strong></td></tr>{% endif %}
+    {% endfor %}
+  </table>
+
+  <!-- LINEAS -->
+  <h3 style="font-size:13px;text-transform:uppercase;color:#666;letter-spacing:0.05em;margin:24px 0 8px 0;">Líneas solicitadas</h3>
+  <table cellpadding="6" cellspacing="0" style="font-size:13px;border-collapse:collapse;width:100%;border:1px solid #e0e0e0;">
+    <thead>
+      <tr style="background:#fafaf7;">
+        <th align="left" style="border-bottom:1px solid #e0e0e0;">SKU</th>
+        <th align="left" style="border-bottom:1px solid #e0e0e0;">Producto</th>
+        <th align="right" style="border-bottom:1px solid #e0e0e0;">Uds.</th>
+        <th align="right" style="border-bottom:1px solid #e0e0e0;">Precio unit.</th>
+        <th align="right" style="border-bottom:1px solid #e0e0e0;">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in draft_order.line_items %}
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="color:#999;">{{ line.sku | default: '—' }}</td>
+          <td>{{ line.title }}{% if line.variant_title and line.variant_title != 'Default Title' %} · <span style="color:#888;">{{ line.variant_title }}</span>{% endif %}</td>
+          <td align="right">{{ line.quantity }}</td>
+          <td align="right">{{ line.price | money }}</td>
+          <td align="right"><strong>{{ line.line_price | money }}</strong></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- COMENTARIO -->
+  {% if draft_order.note != blank %}
+    <h3 style="font-size:13px;text-transform:uppercase;color:#666;letter-spacing:0.05em;margin:24px 0 8px 0;">Comentario del cliente</h3>
+    <div style="background:#fff8e1;border-left:3px solid #d4a84a;padding:12px 16px;font-size:14px;line-height:1.55;color:#555;font-style:italic;">{{ draft_order.note }}</div>
+  {% endif %}
+
+  <!-- CTA -->
+  <div style="margin-top:32px;text-align:center;">
+    <a href="{{ shop.url }}/admin/draft_orders/{{ draft_order.id }}" style="display:inline-block;background:#1a1f27;color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-size:15px;font-weight:500;">Abrir en admin</a>
+  </div>
+
+  <p style="font-size:11px;color:#888;margin-top:24px;text-align:center;">Notificacion interna · no responder a este correo.</p>
+</div>
