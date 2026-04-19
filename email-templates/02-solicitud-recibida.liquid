@@ -1,27 +1,49 @@
 <!--
   Email 2 — Solicitud recibida, en revisión.
-  Disparador: W1 rama B (Send marketing mail).
-  To: {{ customer.email }} (gestionado por Shopify Messaging).
-
-  Plantilla Shopify Messaging / marketing. Obligatorio incluir:
-    {{ unsubscribe_link }}
-    {{ open_tracking_block }}
-
-  Asunto (campo "Asunto" del correo):
-    Hemos recibido tu solicitud de alta B2B
+  Disparador: W1 rama Falso (Send marketing mail).
+  Asunto: Hemos recibido tu solicitud de alta B2B
 -->
 
-<p>Hola {{ customer.first_name }},</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafaf7;margin:0;padding:0;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
 
-<p>Hemos recibido tu solicitud de acceso al portal B2B de <strong>LedsC4 Outlet</strong>. Nuestro equipo la revisará y te contestará en un plazo máximo de <strong>2 días laborables</strong>.</p>
+        <tr>
+          <td align="center" style="padding:36px 40px 24px 40px;border-bottom:1px solid #eeeeee;">
+            {% if shop.brand.logo %}
+              <img src="{{ shop.brand.logo.src | image_url: width: 400 }}" alt="{{ shop.name }}" width="160" style="display:block;margin:0 auto;border:0;">
+            {% else %}
+              <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:0.08em;color:#1a1f27;">LEDS C4 · Outlet</div>
+            {% endif %}
+          </td>
+        </tr>
 
-<p>No necesitas hacer nada más por ahora.</p>
+        <tr>
+          <td style="padding:32px 40px 24px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;">
+            <h1 style="font-size:22px;font-weight:600;margin:0 0 16px 0;line-height:1.3;letter-spacing:-0.01em;">Hemos recibido tu solicitud</h1>
+            <p style="font-size:16px;line-height:1.55;margin:0 0 16px 0;">Hola {{ customer.first_name }},</p>
+            <p style="font-size:16px;line-height:1.55;margin:0 0 16px 0;">Hemos recibido tu solicitud de acceso al portal B2B de <strong>LedsC4 Outlet</strong>. Nuestro equipo la revisará y te contestará en un plazo máximo de <strong>2 días laborables</strong>.</p>
+            <p style="font-size:16px;line-height:1.55;margin:0 0 24px 0;color:#666;">No necesitas hacer nada más por ahora. Te avisaremos por email a esta misma dirección cuando tu cuenta esté lista.</p>
+          </td>
+        </tr>
 
-<p>Si la solicitud es urgente, puedes escribirnos directamente a <a href="mailto:daniel.pena+backoffice@creacciones.es">daniel.pena+backoffice@creacciones.es</a>.</p>
+        <tr>
+          <td style="padding:0 40px 28px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#666;font-size:14px;line-height:1.55;">
+            <p style="margin:0;">¿Urgente? Escríbenos a <a href="mailto:{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}" style="color:#1a1f27;">{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}</a>.</p>
+          </td>
+        </tr>
 
-<p>Un saludo,<br>
-Equipo LedsC4 Outlet</p>
-
-<p style="font-size:12px;color:#888;">Puedes darte de baja en {{ unsubscribe_link }}</p>
+        <tr>
+          <td style="padding:24px 40px;background:#fafaf7;border-top:1px solid #eeeeee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#888;font-size:11px;text-align:center;line-height:1.55;">
+            <p style="margin:0 0 6px 0;"><strong style="color:#666;">LEDS C4, SA</strong> · CIF A59410910</p>
+            <p style="margin:0 0 10px 0;">Carretera de Rubí 88, 2ª planta, Sant Cugat del Vallés</p>
+            <p style="margin:0;"><a href="{{ unsubscribe_link }}" style="color:#888;text-decoration:underline;">Darte de baja</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
 {{ open_tracking_block }}
