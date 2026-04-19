@@ -43,11 +43,10 @@
         >
           {{- 'general.cart.view_empty_cart' | t -}}
         </a>
-        <form action="{{ routes.cart_url }}" method="post" id="cart-notification-form">
-          <button class="button button--primary button--full-width" name="checkout">
-            {{ 'sections.cart.checkout' | t }}
-          </button>
-        </form>
+        {%- comment -%}B2B override (Fase D): link al flujo de solicitud.{%- endcomment -%}
+        <a href="/pages/solicitud" class="button button--primary button--full-width">
+          Enviar solicitud de pedido
+        </a>
         <button type="button" class="link button-label">{{ 'general.continue_shopping' | t }}</button>
       </div>
     </div>
