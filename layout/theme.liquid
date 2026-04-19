@@ -334,16 +334,7 @@
           <script>window.location.replace('/account/login');</script>
         {%- elsif customer.tags contains 'rechazado' -%}
           <script>window.location.replace('/pages/cuenta-rechazada');</script>
-        {%- elsif customer.tags contains 'aprobado' == false -%}
-          {%- comment -%}
-            No aprobado (pendiente explícito o sin tag). Solo afecta URLs
-            comerciales (products/collections/cart/search). Safety net
-            adicional a Locksmith Rule 2 por si no enforza.
-          {%- endcomment -%}
-          {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' or gate_path contains '/search' or gate_path contains '/pages/solicitud' or gate_path contains '/pages/mis-solicitudes' or gate_path contains '/checkout' -%}
-            <script>window.location.replace('/pages/cuenta-en-revision');</script>
-          {%- endif -%}
-        {%- else -%}
+        {%- elsif customer.tags contains 'aprobado' -%}
           {%- comment -%}
             Aprobado. Fase D: checkout nativo deshabilitado. Cualquier
             intento de acceder directamente a /checkout redirige al carrito,
@@ -351,6 +342,15 @@
           {%- endcomment -%}
           {%- if gate_path contains '/checkout' -%}
             <script>window.location.replace('/cart');</script>
+          {%- endif -%}
+        {%- else -%}
+          {%- comment -%}
+            No aprobado (pendiente explícito o sin tag). Solo afecta URLs
+            comerciales (products/collections/cart/search/solicitud).
+            Safety net adicional a Locksmith Rule 2 por si no enforza.
+          {%- endcomment -%}
+          {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' or gate_path contains '/search' or gate_path contains '/pages/solicitud' or gate_path contains '/pages/mis-solicitudes' or gate_path contains '/checkout' -%}
+            <script>window.location.replace('/pages/cuenta-en-revision');</script>
           {%- endif -%}
         {%- endif -%}
       {%- endunless -%}
