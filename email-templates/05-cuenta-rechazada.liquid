@@ -1,0 +1,32 @@
+<!--
+  Email 5 — Cuenta rechazada.
+  Disparador: W3 (Send marketing mail cuando se añade el tag rechazado).
+  To: {{ customer.email }} (gestionado por Shopify Messaging).
+
+  El motivo (b2b.motivo_rechazo) se muestra solo si está poblado.
+  Si está vacío, el email cae a un texto genérico sin línea "Motivo".
+
+  Plantilla Shopify Messaging / marketing. Obligatorio incluir:
+    {{ unsubscribe_link }}
+    {{ open_tracking_block }}
+
+  Asunto (campo "Asunto" del correo):
+    Estado de tu solicitud B2B
+-->
+
+<p>Hola {{ customer.first_name }},</p>
+
+<p>Tu solicitud de alta en el portal B2B de <strong>LedsC4 Outlet</strong> no ha podido aprobarse en esta ocasión.</p>
+
+{% if customer.metafields.b2b.motivo_rechazo != blank %}
+<p><strong>Motivo:</strong> {{ customer.metafields.b2b.motivo_rechazo }}</p>
+{% endif %}
+
+<p>Si crees que se trata de un error o quieres ampliar información, escríbenos a <a href="mailto:daniel.pena+backoffice@creacciones.es">daniel.pena+backoffice@creacciones.es</a>.</p>
+
+<p>Un saludo,<br>
+Equipo LedsC4 Outlet</p>
+
+<p style="font-size:12px;color:#888;">Puedes darte de baja en {{ unsubscribe_link }}</p>
+
+{{ open_tracking_block }}

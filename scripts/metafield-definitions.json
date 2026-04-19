@@ -29,11 +29,11 @@
   {
     "ownerType": "CUSTOMER",
     "namespace": "b2b",
-    "key": "zona",
-    "name": "Zona",
-    "description": "Zona geográfica. Reservado para multi-tarifa futura.",
+    "key": "pais",
+    "name": "País",
+    "description": "País de facturación / operación del cliente B2B. Reservado para multi-tarifa futura.",
     "type": "single_line_text_field",
-    "pin": false
+    "pin": true
   },
   {
     "ownerType": "CUSTOMER",
@@ -78,6 +78,15 @@
     "name": "Whitelist de emails pre-aprobados",
     "description": "Emails que se auto-aprueban al registrarse. Editable por staff con permiso Edit custom data.",
     "type": "list.single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "SHOP",
+    "namespace": "b2b",
+    "key": "email_backoffice",
+    "name": "Email backoffice aprobaciones",
+    "description": "Destinatario de avisos de nuevo registro B2B pendiente de aprobación.",
+    "type": "single_line_text_field",
     "pin": true
   }
 ]

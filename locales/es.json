@@ -480,7 +480,20 @@
       "last_name": "Apellido",
       "email": "Correo electrónico",
       "password": "Contraseña",
-      "submit": "Crear"
+      "submit": "Crear",
+      "b2b": {
+        "section_title": "Datos de tu empresa",
+        "phone": "Teléfono",
+        "empresa": "Razón social",
+        "nif": "NIF / CIF",
+        "sector": "Sector",
+        "sector_placeholder": "Sector…",
+        "pais": "País",
+        "pais_placeholder": "País…",
+        "volumen": "Volumen anual estimado",
+        "volumen_placeholder": "Volumen anual estimado (opcional)",
+        "terms_html": "He leído y acepto las condiciones de venta y la política de privacidad."
+      }
     },
     "reset_password": {
       "title": "Restablecer contraseña de cuenta",

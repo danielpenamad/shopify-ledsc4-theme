@@ -1,48 +1,51 @@
-# LedsC4 B2B — Modelo de datos (Fase A)
+# LedsC4 B2B — Modelo de datos
 
 Documento de referencia del modelo de datos que soporta el portal outlet B2B de
-LedsC4 en Shopify (tema Dawn, plan Grow, B2B nativo + Locksmith). Esta fase
-define **solo estructura**: tags, metafields, catálogo y rol staff. Los flujos
-(aprobaciones, storefront, solicitudes, emails) llegan en fases posteriores.
+LedsC4 en Shopify (tema Dawn, plan Grow, B2B nativo + Locksmith).
+
+- **Fase A** (aplicada) — estructura: tags canónicos, metafields, catálogo, rol staff.
+- **Fase B** (en curso) — flujo de registro y aprobación. Ver [backoffice-aprobaciones.md](backoffice-aprobaciones.md), [test-scenarios.md](test-scenarios.md) y `flows/`.
+- Fase C — storefront (Locksmith).
+- Fase D — solicitudes / draft orders.
+- Fase E — emails transversal.
 
 ## 1. Diagrama del modelo
 
 ```
-                            +--------------------------+
-                            |        SHOP              |
-                            |  metafield:              |
-                            |  b2b.whitelist_emails    |
-                            |  (list.single_line_text) |
-                            +-----------+--------------+
-                                        |
-                                        | auto-aprueba si email ∈ whitelist
-                                        v
-+----------------------+   tag único    +---------------+   1-a-1   +-----------------+
-|      CUSTOMER        |  pendiente /   |     TAG       |           |    COMPANY      |
-|  (cuenta Shopify)    +----------------+  aprobado /   |           |  (B2B nativo)   |
-|                      |  rechazado     |  rechazado    |           |  1 miembro      |
-|  metafields b2b.*    |                +---------------+           |                 |
-|  (ver §4)            |                                            |                 |
-+----------+-----------+                                            +--------+--------+
-           |                                                                 |
-           | aprobado → se crea Company (fase B)                             |
-           +-----------------------------------------------------------------+
-                                                                             |
-                                                                             v
-                                                +-----------------------------------------+
-                                                |  COMPANY LOCATION (1 por company)       |
-                                                |    asignada a 1 CATALOG:                |
-                                                |    "Outlet general"                     |
-                                                +-------------------+---------------------+
-                                                                    |
-                                                                    v
-                                                +-----------------------------------------+
-                                                |  CATALOG "Outlet general" (ACTIVE)      |
-                                                |    priceList: 0% sobre shop (EUR)       |
-                                                |    publication ← smart collection       |
-                                                |                  "Colección 2026"       |
-                                                |                  (tag Coleccion:2026)   |
-                                                +-----------------------------------------+
+                      +--------------------------------+
+                      |              SHOP              |
+                      |  metafields b2b.*              |
+                      |    whitelist_emails  (list)    |
+                      |    email_backoffice  (string)  |
+                      +--------------+-----------------+
+                                     |
+                                     | W1 auto-aprueba si email ∈ whitelist
+                                     v
++----------------------+   tag único   +---------------+   1-a-1   +-----------------+
+|      CUSTOMER        |  pendiente /  |     TAG       |           |    COMPANY      |
+|  (cuenta Shopify)    +---------------+  aprobado /   |           |  (B2B nativo)   |
+|                      |  rechazado    |  rechazado    |           |  1 miembro      |
+|  metafields b2b.*    |               +---------------+           |                 |
+|  (ver §4)            |                                           |                 |
++----------+-----------+                                           +--------+--------+
+           |                                                                |
+           | aprobado → Flow W1/W2 crea Company                             |
+           +----------------------------------------------------------------+
+                                                                            |
+                                                                            v
+                                           +-----------------------------------------+
+                                           |  COMPANY LOCATION (1 por company)       |
+                                           |    asignada a 1 CATALOG:                |
+                                           |    "Outlet general"                     |
+                                           +-------------------+---------------------+
+                                                               |
+                                                               v
+                                           +-----------------------------------------+
+                                           |  CATALOG "Outlet general" (ACTIVE)      |
+                                           |    priceList: 0% sobre shop (EUR)       |
+                                           |    publication ← 745 productos tag      |
+                                           |                  Coleccion:2026         |
+                                           +-----------------------------------------+
 ```
 
 Lectura en 30 segundos: el cliente se da de alta → entra como `pendiente` → al
@@ -70,16 +73,21 @@ Tres tags, **mutuamente excluyentes**. Exactamente uno por cliente en todo momen
 
 El script se ejecuta a mano o en CI. Sobre un store vacío de B2B corre limpio.
 
-## 3. Metafield de tienda (Shop)
+## 3. Metafields de tienda (Shop)
 
 | Namespace | Key                | Tipo                           | Acceso admin          | Uso |
 |-----------|--------------------|--------------------------------|-----------------------|-----|
-| `b2b`     | `whitelist_emails` | `list.single_line_text_field`  | `MERCHANT_READ_WRITE` | Lista blanca de emails que se auto-aprueban al registrarse. Editable por staff con permiso "Edit custom data" (no hace falta ser admin total). |
+| `b2b`     | `whitelist_emails` | `list.single_line_text_field`  | `MERCHANT_READ_WRITE` | Lista blanca de emails que se auto-aprueban al registrarse. Editable por staff con permiso "Edit custom data". |
+| `b2b`     | `email_backoffice` | `single_line_text_field`       | `MERCHANT_READ_WRITE` | Destinatario de avisos al backoffice cuando llega un registro pendiente (W1 rama B, email 3). |
 
-Ejemplo de valor:
+Ejemplos de valor:
 
 ```json
+// b2b.whitelist_emails
 ["juan@instalador.com", "compras@arquitecto.es", "pedidos@retail.com"]
+
+// b2b.email_backoffice
+"backoffice@ledsc4.com"
 ```
 
 ## 4. Metafields de Customer (namespace `b2b`)
@@ -87,16 +95,18 @@ Ejemplo de valor:
 | Key                | Tipo                       | Pin  | Nullable | Uso |
 |--------------------|----------------------------|------|----------|-----|
 | `empresa`          | `single_line_text_field`   | Sí   | No       | Razón social |
-| `nif`              | `single_line_text_field`   | Sí   | No       | NIF/CIF |
-| `sector`           | `single_line_text_field`   | Sí   | No       | Instalador, arquitecto, retail, etc. |
-| `zona`             | `single_line_text_field`   | No   | Sí       | Geografía. Reservado para multi-tarifa. |
-| `volumen_estimado` | `single_line_text_field`   | No   | Sí       | Volumen anual. Candidato a `number_decimal` cuando se active multi-tarifa. |
+| `nif`              | `single_line_text_field`   | Sí   | No       | NIF/CIF/NIE (validado con dígito de control en el registro y reforzado por Flow W1) |
+| `sector`           | `single_line_text_field`   | Sí   | No       | Valor de la lista fija del formulario (instalador, arquitecto_interiorismo, retail_tienda, distribuidor, empresa_final, otro) |
+| `pais`             | `single_line_text_field`   | Sí   | Sí       | ISO country code del formulario. Reservado para multi-tarifa. (Renombrado desde `zona` al iniciar Fase B.) |
+| `volumen_estimado` | `single_line_text_field`   | No   | Sí       | Slug de rango: `<5k`, `5k-25k`, `25k-100k`, `>100k`, `no_se` |
 | `fecha_registro`   | `date`                     | Sí   | No       | Fecha del alta (formulario enviado) |
 | `fecha_aprobacion` | `date`                     | Sí   | Sí       | Solo si `aprobado` |
-| `motivo_rechazo`   | `single_line_text_field`   | Sí   | Sí       | Solo si `rechazado` |
+| `motivo_rechazo`   | `single_line_text_field`   | Sí   | Sí       | Solo si `rechazado`. Se usa en el cuerpo del email 5 si no está vacío. |
 
-Todos tienen `access.admin = MERCHANT_READ_WRITE` y `access.storefront = NONE`.
-La exposición al storefront llega en fase C (si aplica).
+En el store Development (y previsiblemente también en Grow) el bloque `access` no
+se acepta explícitamente en la creación vía API; se omite y Shopify aplica
+defaults (merchant read-write, storefront none). La exposición al storefront
+llega en fase C (si aplica).
 
 ### Ejemplo de payload Customer
 
@@ -109,8 +119,8 @@ La exposición al storefront llega en fase C (si aplica).
     "b2b.empresa": "Instalaciones Luz SL",
     "b2b.nif": "B12345678",
     "b2b.sector": "instalador",
-    "b2b.zona": "",
-    "b2b.volumen_estimado": "",
+    "b2b.pais": "ES",
+    "b2b.volumen_estimado": "5k-25k",
     "b2b.fecha_registro": "2026-04-17",
     "b2b.fecha_aprobacion": null,
     "b2b.motivo_rechazo": null

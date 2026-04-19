@@ -1,0 +1,36 @@
+<!--
+  Email 6 — Bienvenida tras re-evaluación (whitelist actualizada aprueba un pendiente).
+  Disparador: W4 (Send marketing mail).
+  To: {{ customer.email }} (gestionado por Shopify Messaging).
+
+  Mismo contenido base que email 01. Plantilla separada para evolución
+  independiente (p.ej. añadir "gracias por esperar").
+
+  Plantilla Shopify Messaging / marketing. Obligatorio incluir:
+    {{ unsubscribe_link }}
+    {{ open_tracking_block }}
+
+  Asunto (campo "Asunto" del correo):
+    Tu cuenta B2B de LedsC4 Outlet está activa
+-->
+
+<p>Hola {{ customer.first_name }},</p>
+
+<p>¡Buenas noticias! Tu cuenta B2B para <strong>LedsC4 Outlet</strong> acaba de activarse. Ya puedes acceder al portal y empezar a pedir al precio de outlet.</p>
+
+<p><a href="{{ shop.url }}/account/login">Acceder al portal</a></p>
+
+<p><strong>Datos registrados</strong></p>
+<ul>
+  <li>Empresa: {{ customer.metafields.b2b.empresa }}</li>
+  <li>NIF: {{ customer.metafields.b2b.nif }}</li>
+</ul>
+
+<p>Para cualquier duda, escríbenos a <a href="mailto:daniel.pena+backoffice@creacciones.es">daniel.pena+backoffice@creacciones.es</a>.</p>
+
+<p>Un saludo,<br>
+Equipo LedsC4 Outlet</p>
+
+<p style="font-size:12px;color:#888;">Puedes darte de baja en {{ unsubscribe_link }}</p>
+
+{{ open_tracking_block }}

@@ -1,0 +1,32 @@
+<!--
+  Email 3 — Aviso al backoffice de nuevo registro pendiente.
+  Disparador: W1 rama B (Send internal email, inline).
+  To: daniel.pena+backoffice@creacciones.es (literal en el step; Flow no acepta
+  variables en el To de Send internal email).
+
+  El body se pega INLINE en el bloque Send internal email de W1 rama B. Usa
+  sintaxis de Flow Liquid: camelCase para customer + `runCode.*` para los
+  metafields (vienen ya como output del primer Run code parseAndNormalize).
+
+  Asunto (campo Subject del step):
+    [B2B] Nuevo registro pendiente — {{ runCode.empresa }}
+-->
+
+Nuevo cliente pendiente de aprobación:
+
+- Nombre:     {{ customer.firstName }} {{ customer.lastName }}
+- Email:      {{ customer.defaultEmailAddress.emailAddress }}
+- Teléfono:   {{ customer.defaultPhoneNumber.phoneNumber }}
+- Empresa:    {{ runCode.empresa }}
+- NIF:        {{ runCode.nif }}
+- Sector:     {{ runCode.sector }}
+- País:       {{ runCode.pais }}
+- Volumen:    {{ runCode.volumen_estimado }}
+- Registrado: {{ runCode.fecha_registro }}
+
+Ver en admin: https://admin.shopify.com/store/ledsc4-b2b-outlet/customers/{{ customer.id | split: '/' | last }}
+
+Para aprobar: quita el tag 'pendiente', añade 'aprobado'.
+Para rechazar: rellena b2b.motivo_rechazo (opcional) y añade el tag 'rechazado'.
+
+— Flow: W1 (registro)
