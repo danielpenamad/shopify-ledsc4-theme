@@ -72,12 +72,47 @@ export default function main({ draftOrder }) {
 }
 ```
 
-- **Input schema**: pulsa "Configure inputs" y marca `draftOrder` con
-  todos los subcampos que necesita: `id, name, createdAt, totalPrice,
-  note, customAttributes, lineItems, customer { displayName,
-  defaultEmailAddress, defaultPhoneNumber, metafields }`.
-- Si Flow advierte que alguno no existe en la schema, quítalo del
-  input — el Run code ya tiene defaults defensivos.
+- **Selecciona entradas** (GraphQL, sustituye el template por defecto):
+
+```graphql
+query {
+  draftOrder {
+    name
+    note2
+    customAttributes { key value }
+    customer {
+      displayName
+      defaultEmailAddress { emailAddress }
+      defaultPhoneNumber { phoneNumber }
+      metafields { namespace key value }
+    }
+  }
+}
+```
+
+  Notas importantes:
+  - `note` NO existe en DraftOrder de Flow — usar `note2` (legacy).
+  - `metafields` NO acepta argumento `namespace` en Flow schema — se
+    pide el array completo y se filtra en JS (`m.namespace === 'b2b'`).
+  - Si algún campo en `customer` (defaultEmailAddress, defaultPhoneNumber)
+    da error, quítalo y déjalo vacío; el código devuelve `''` por
+    defecto.
+
+- **Definir salidas** (SDL):
+
+```graphql
+"Campos aplanados del draftOrder para los emails posteriores."
+type Output {
+  empresa: String!
+  nif: String!
+  sector: String!
+  cbmTotal: String!
+  note: String!
+  customerEmail: String!
+  customerPhone: String!
+}
+```
+
 - La salida será accesible en los steps siguientes como `runCode.xxx`.
 
 ## 5. Step: Send marketing mail (cliente)
