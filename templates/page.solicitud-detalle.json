@@ -1,0 +1,9 @@
+{
+  "sections": {
+    "detalle": {
+      "type": "b2b-solicitud-detalle",
+      "settings": {}
+    }
+  },
+  "order": ["detalle"]
+}

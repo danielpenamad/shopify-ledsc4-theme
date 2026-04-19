@@ -50,5 +50,19 @@
     "template_suffix": "solicitud-enviada",
     "body_html": "<p>Hemos recibido tu solicitud.</p><p><em>Contenido real renderizado desde el tema (templates/page.solicitud-enviada.json).</em></p>",
     "published": true
+  },
+  {
+    "title": "Mis solicitudes",
+    "handle": "mis-solicitudes",
+    "template_suffix": "mis-solicitudes",
+    "body_html": "<p>Historial de solicitudes B2B.</p><p><em>Contenido real renderizado desde el tema (templates/page.mis-solicitudes.json).</em></p>",
+    "published": true
+  },
+  {
+    "title": "Detalle de solicitud",
+    "handle": "solicitud-detalle",
+    "template_suffix": "solicitud-detalle",
+    "body_html": "<p>Vista de detalle de una solicitud.</p><p><em>Contenido real renderizado desde el tema (templates/page.solicitud-detalle.json).</em></p>",
+    "published": true
   }
 ]

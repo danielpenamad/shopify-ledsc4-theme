@@ -1,0 +1,9 @@
+{
+  "sections": {
+    "lista": {
+      "type": "b2b-mis-solicitudes",
+      "settings": {}
+    }
+  },
+  "order": ["lista"]
+}
