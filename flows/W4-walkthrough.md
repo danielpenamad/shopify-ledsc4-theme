@@ -1,145 +1,63 @@
-# W4 — Walkthrough click-a-click
+# W4 — MOVIDO A SUPABASE (no existe en Flow)
 
-Workflow **W4 — Re-evaluación de whitelist** (scheduled, cada 30 min).
-Busca customers con tag `pendiente` cuyo email ahora matchea la whitelist,
-y les añade `aprobado` + `aprobado_via_whitelist` para disparar W2 en cascada.
-Complementa `W4-whitelist-reeval.md`. Tiempo: **12-18 min** (hay más Run code).
+**W4 (re-evaluación de whitelist cada 30 min) NO está configurado en Shopify
+Flow.** Está implementado como **edge function de Supabase** disparada por
+`pg_cron`.
 
-## Prerrequisitos
+## Por qué
 
-- [ ] **W2 configurado** (W4 depende de W2 para crear la Company)
-- [ ] **Cambio pendiente en W2** (paso 6 del walkthrough W2): la condición
-      "NOT contains `aprobado_via_whitelist`" debe estar ya en W2 antes de
-      activar W4, si no se enviará el email 4 además del 6.
-- [ ] Accesible `email-templates/06-bienvenida-reevaluacion.liquid`
-      para pegar el body inline en el `Send internal email` del loop.
+Diseño original: Flow con trigger `Scheduled time` + Run code que iteraba
+customers pendientes + comparaba con whitelist + aplicaba tagsAdd.
 
----
+Bloqueos encontrados en Fase B (2026-04-19):
 
-## Paso 0 — Crear el workflow
+1. Run code de Flow es sandbox puro: **sin `async`, sin `shopify.graphql()`, sin `fetch()`**. No se puede iterar customers ni aplicar mutaciones desde Run code.
+2. Scheduled trigger no expone lista de customers como input.
+3. No existe trigger "Shop metafield updated" (sería ideal para disparar cuando el admin añade un email a la whitelist).
 
-1. Admin → Apps → Flow → Create workflow
-2. Rename a **`W4 — Re-evaluación whitelist`**
+## Dónde vive ahora
 
-## Paso 1 — Trigger: Scheduled time
+- Edge function: `supabase/functions/promote-whitelist-matches/index.ts`
+- Cron: `supabase/migrations/20260419120000_setup_cron.sql` (jobname `promote-whitelist-matches`, schedule `*/30 * * * *`)
+- Endpoint: `https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/promote-whitelist-matches`
+- Ver [supabase/README.md](../supabase/README.md) para setup completo.
 
-1. Select a trigger → `Scheduled time`
-2. Config:
-   - **Frequency**: `Every 30 minutes`
-   - **Timezone**: Europe/Madrid (o el de tu store)
-3. **Done**
+## Flujo real
 
-## Paso 2 — Run code: `find_and_promote`
+```
+pg_cron (cada 30 min)
+ └→ private.invoke_edge_function('promote-whitelist-matches')
+     └→ net.http_post → edge function
+         ├─ Lee shop.metafields.b2b.whitelist_emails
+         ├─ Pagina customers con tag 'pendiente'
+         ├─ Filtra por email en whitelist
+         └─ tagsAdd 'aprobado' a cada match
+             └→ Dispara W2 en Shopify Flow (mismo path que aprobación manual)
+                 ├─ Remove tag 'pendiente'
+                 ├─ Update fecha_aprobacion
+                 ├─ Send HTTP request → create-company-for-customer
+                 ├─ Send internal email backoffice
+                 └─ [PENDIENTE GROW] Send marketing mail 04
+```
 
-1. **+** → **Action** → **Run code**
-2. Config:
-   - **Name**: `find_and_promote`
-   - **Input query**:
-     ```graphql
-     {
-       shop {
-         whitelist: metafield(namespace: "b2b", key: "whitelist_emails") {
-           value
-         }
-       }
-     }
-     ```
-   - **Code**: pega íntegro el bloque "Acción única — Run code" de
-     `flows/W4-whitelist-reeval.md` (líneas 14-58).
+Cuando W4-Supabase promueve un customer, la cascada ocurre a través de W2 —
+no necesitamos duplicar lógica. El único "downside" es que el email al
+cliente será el 04 ("Cuenta aprobada manual"), no el 06 ("Bienvenida
+re-evaluación"). Si se quiere distinguir:
 
-     > Adaptación mínima para el SDK de Flow Run code: el `input.shop...`
-     > viene ya como JSON; el JS de whitelist_emails es un string JSON que
-     > hay que `JSON.parse()`. Añadir al principio del script:
-     > ```javascript
-     > const rawWl = input.shop?.whitelist?.value;
-     > const parsedWl = rawWl ? JSON.parse(rawWl) : [];
-     > const wl = parsedWl.map(e => String(e).trim().toLowerCase()).filter(Boolean);
-     > if (wl.length === 0) return { promoted: 0, emails: [] };
-     > ```
+**Opción futura**: la edge function añade también un tag marker
+`aprobado_via_whitelist` además de `aprobado`. W2 detecta el marker con
+`Check if` y decide enviar 04 vs 06. Cambio localizado (una mutation en
+la edge function + un Check if en W2). No aplica en Fase B.
 
-3. Output esperado: `{ promoted: <n>, emails: [<email1>, ...] }`
+## Testing
 
-## Paso 3 — Check if: alguien fue promovido
+Manual: invocar la función con curl (ver `supabase/README.md §Verificar`).
 
-1. **+** → **Condition** → **Check if**
-2. Condition: `find_and_promote.promoted` **is greater than** `0`
-3. **Done**
+Scheduled: cada 30 min. Logs en `cron.job_run_details` y
+`supabase functions logs promote-whitelist-matches`.
 
-### Rama Then — hubo promociones
+## Export JSON
 
-#### 3.1 — For each: email en `find_and_promote.emails`
-
-1. **+** → **For each** (iterator)
-2. **List**: `find_and_promote.emails`
-3. Dentro del loop:
-
-   **Action — Send internal email**:
-   - **To**: `{{ loop.item }}`
-   - **Subject**: `Tu cuenta B2B de LedsC4 Outlet está activa`
-   - **Body**: cuerpo de `email-templates/06-bienvenida-reevaluacion.liquid`
-     (omitir `{% comment %}` y la línea `Subject:`)
-
-> Alternativa si Flow no ofrece "For each" nativo: usa un **Run code**
-> adicional que itere `find_and_promote.emails` y llame a la Email API
-> internamente. Menos limpio — prefiere el For each.
-
-#### 3.2 — (Post loop) Run code: `cleanup_tags`
-
-Después del loop, limpiar el tag `aprobado_via_whitelist` para dejar el
-customer con solo `aprobado`.
-
-1. **+** → **Run code**
-2. **Name**: `cleanup_tags`
-3. **Input**: `find_and_promote.emails`
-4. **Code**:
-   ```javascript
-   // Busca customers con aprobado_via_whitelist y les quita ese tag.
-   const customers = await shopify.graphql(`
-     query {
-       customers(first: 100, query: "tag:'aprobado_via_whitelist'") {
-         edges { node { id } }
-       }
-     }
-   `);
-   for (const { node } of customers.customers.edges) {
-     await shopify.graphql(`
-       mutation($id: ID!, $tags: [String!]!) {
-         tagsRemove(id: $id, tags: $tags) { userErrors { message } }
-       }
-     `, { id: node.id, tags: ['aprobado_via_whitelist'] });
-   }
-   return { cleaned: customers.customers.edges.length };
-   ```
-
-### Rama Else — nadie fue promovido
-
-Dejar vacía.
-
-## Paso 4 — Guardar y activar
-
-1. **Save**
-2. Toggle **Turn on**
-
-## Paso 5 — Export
-
-1. `···` → **Export** → `flows/W4-whitelist-reeval.flow.json`
-2. Commit.
-
-## Verificación rápida (no esperar 30 min)
-
-1. Apps → Flow → Workflows → **W4 — Re-evaluación whitelist**
-2. `···` → **Run now**
-3. Run history debe mostrar el run. Si la whitelist tiene emails y hay
-   pendientes que matcheen, deberías ver `promoted > 0`.
-
-## Nota importante sobre el orden de activación
-
-Activa en este orden para evitar efectos raros:
-
-1. W1 (si no está)
-2. **Modifica W2** para respetar `aprobado_via_whitelist` (paso 6 de W2-walkthrough)
-3. W3
-4. W4
-
-Si activas W4 antes del cambio en W2, cuando W4 promueva un customer se
-dispararán email 4 **y** 6. No es dramático pero confunde al receptor.
+No aplica — W4 no vive en Flow. El equivalente versionado es el código
+fuente en `supabase/` (edge function + migración SQL), ya en el repo.

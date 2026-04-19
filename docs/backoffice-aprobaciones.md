@@ -42,21 +42,49 @@ de aprobar.
 
 ## 3. Aprobar
 
-> El workflow **W2** se dispara automáticamente: crea la Company B2B, la
-> asigna al catálogo "Outlet general", fija la fecha de aprobación y
-> envía el email de bienvenida al cliente.
+> El workflow **W2** se dispara automáticamente al cambiar el tag. Fija la
+> `fecha_aprobacion`, **crea la Company B2B automáticamente** (vía edge
+> function de Supabase), la asigna al catálogo "Outlet general", y en Grow
+> envía el email 4 de bienvenida al cliente.
+>
+> **No tienes que crear la Company a mano**. La infraestructura Supabase
+> (`supabase/functions/create-company-for-customer/`) lo hace sola.
 
-Pasos manuales:
+### 3.1 Cambiar el tag
+
+**Importante**: haz **ambos cambios en el mismo guardado** (quitar `pendiente`
++ añadir `aprobado`, un solo click en Save). Si los haces en dos guardados
+separados, W2 no disparará por la condición de tags.
 
 1. En la vista del cliente, **Tags**:
    - Quita `pendiente`
    - Añade `aprobado`
-2. Guarda. Eso dispara W2. En ≤30 segundos deberías ver:
-   - `b2b.fecha_aprobacion` poblado con hoy
-   - Sección **Companies** con una Company nueva
-   - Email 4 enviado (visible en **Timeline** del customer)
+2. **Save**. Eso dispara W2. En ≤30 segundos deberías ver:
+   - Tag `pendiente` fuera, `aprobado` dentro.
+   - `b2b.fecha_aprobacion` = hoy.
+   - Sección **Companies** del customer con una Company nueva (nombre = `b2b.empresa`).
+   - Company location asignada al catálogo "Outlet general".
+   - Email 4 enviado (en Grow; en Development queda en draft, no llega).
 
-Si algo falla en W2, queda registrado en **Apps → Flow → Run history**.
+Si algo falla, revisa:
+- **Apps → Flow → W2 → Run history** — si el step "Send HTTP request" falla,
+  la Company no se crea. El internal email al backoffice igualmente llega.
+- **Supabase Dashboard → Edge Functions → create-company-for-customer → Logs**
+  — detalle de errores (auth secret, GraphQL userErrors, etc.).
+
+### 3.2 Caso de fallo — crear la Company a mano (plan de contingencia)
+
+Solo aplica si el `Send HTTP request` de W2 falla y el backoffice necesita
+desbloquear al cliente antes de debuggear. En condiciones normales no se usa.
+
+1. Admin → **Customers → Companies → Add company**.
+2. **Company name**: copia `b2b.empresa` del cliente.
+3. **Primary location**: mismo nombre; país = España (ES); billing same as shipping.
+4. **Assign customer to company**: el customer que acabas de aprobar.
+5. Abre la Company Location → añadir catálogo **"Outlet general"**.
+
+Tiempo: ~30s por aprobación. Si acabas haciéndolo con frecuencia, hay un bug
+en Supabase o en los secrets — reportar.
 
 ## 4. Rechazar
 

@@ -1,85 +1,58 @@
-# W3 — Walkthrough click-a-click
+# W3 — Walkthrough click-a-click (estado final Fase B)
 
-Workflow **W3 — Rechazo manual**. Se dispara cuando staff añade el tag
-`rechazado` a un cliente. Complementa `W3-rechazo-manual.md`. Tiempo: **5-8 min**.
+Workflow **W3 — Rechazo manual**. Dispara cuando staff añade el tag
+`rechazado` a un customer que aún tiene `pendiente`. Sustituye a
+`W3-rechazo-manual.md`.
 
-## Prerrequisitos
+## Estructura final
 
-- [ ] Accesible `email-templates/05-cuenta-rechazada.liquid` para pegar
-  el body inline. El body contiene un `{% if customer.metafields.b2b.motivo_rechazo != blank %}`
-  que Flow resuelve siempre que la query del trigger incluya el metafield.
+```
+Trigger  Customer tags added
+ └→ Condition  (customer.tags contiene 'pendiente' AND 'rechazado')
+    ├─ Verdadero
+    │   ├─ Remove tag 'pendiente'
+    │   └─ [PENDIENTE GROW] Send marketing mail → template 05
+    └─ Falso (vacío)
+```
 
----
+Es el workflow más corto. Sin Company, sin Supabase, sin internal email: todo lo que pasa es quitar el tag pendiente y, en producción, avisar al cliente con email 05 (que maneja el conditional del motivo).
 
-## Paso 0 — Crear el workflow
+## Paso 0 — Crear
 
-1. Admin → Apps → Flow → Create workflow
-2. Rename a **`W3 — Rechazo manual`**
+1. Apps → Flow → Create workflow → **`W3 — Rechazo manual`**.
 
-## Paso 1 — Trigger: Customer updated
+## Paso 1 — Trigger
 
-1. Select a trigger → `Customer updated`
-2. **Done**
+`Customer tags added`.
 
-## Paso 2 — Check if: acaba de pasar a rechazado
+## Paso 2 — Check if (dos criterios AND)
 
-1. **+** → **Condition** → **Check if**
-2. 2 sub-conditions con **AND**:
+IF: Todos.
 
-   | # | Campo | Operador | Valor |
-   |---|---|---|---|
-   | 1 | `customer.tags` | contains | `rechazado` |
-   | 2 | `customer.tagsPrevious` | does not contain | `rechazado` |
+Criterio 1: `Al menos uno de customer / tags` → Igual a · `pendiente`.
+Criterio 2: `Al menos uno de customer / tags` → Igual a · `rechazado`.
 
-3. **Done**
+Mismo patrón que W2. Mismo caveat (ambos cambios de tag en un solo guardado).
 
-## Paso 3 — Remove customer tags: `pendiente`
+## Paso 3 — Rama Verdadero
 
-Dentro de **Then**:
+### 3.1 Remove tag `pendiente`
 
-1. **+** → **Action** → **Remove customer tags**
-2. Config:
-   - **Customer**: `{{ trigger.customer.id }}`
-   - **Tags**: `pendiente`
+`Quitar etiquetas al cliente`. Tags: `pendiente`.
 
-## Paso 4 — Send email: plantilla 05
+### 3.2 ❌ DESACTIVADO — Send marketing mail (template 05)
 
-1. **+** → **Action** → **Send internal email**
-2. Config:
-   - **To**: `{{ customer.email }}`
-   - **Subject**: `Estado de tu solicitud B2B`
-   - **Body**: cuerpo de `email-templates/05-cuenta-rechazada.liquid`
-     (omitir `{% comment %}` y la línea `Subject:`). El `{% if %}` del
-     motivo se evalúa en Flow al enviar.
+**Pendiente Grow**. Cuando reactives:
 
-Importante: la **query del trigger** del workflow debe incluir
-`metafield(namespace: "b2b", key: "motivo_rechazo") { value }` para que
-el condicional Liquid tenga el dato. Si no lo tiene, el if cae al else
-(mensaje genérico), que es el comportamiento deseado.
+- Template: `B2B · 05 · Cuenta rechazada`
+- To: auto.
 
-## Paso 5 — Guardar y activar
+El template tiene el `{% if customer.metafields.b2b.motivo_rechazo != blank %}` que respeta/omite la línea del motivo según lo que el staff haya poblado antes de cambiar el tag.
 
-1. **Save**
-2. Toggle **Turn on**
+## Paso 4 — Guardar y activar
 
-## Paso 6 — Export
+Save + Turn on.
 
-1. `···` → **Export** → `flows/W3-rechazo-manual.flow.json`
-2. Commit.
+## Export
 
-## Verificación rápida
-
-**Con motivo**:
-
-1. Customer pendiente existente → edita metafield `b2b.motivo_rechazo`
-   con texto `No ha sido posible verificar la actividad profesional`.
-   Guarda.
-2. Tags: quita `pendiente`, añade `rechazado`. Guarda.
-3. Run history de W3 debe mostrar verde.
-4. Customer recibe email 5 con la línea "Motivo: ..." incluida.
-
-**Sin motivo (variante)**:
-
-1. Otro customer, no rellenas `motivo_rechazo`.
-2. Cambias tag a `rechazado`.
-3. Customer recibe email 5 sin la línea "Motivo", con el texto genérico.
+`···` → **Export** → `flows/W3-rechazo-manual.flow.json` (pendiente).

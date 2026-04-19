@@ -7,13 +7,12 @@ pública de Flow no permite crear workflows programáticamente (abril 2026).
 
 ## Orden de configuración
 
-1. `W1-registro.md` — ejecuta al crear un customer. Parse nota/metafields,
-   decide auto-aprobación vs pendiente, dispara emails 1, 2, 3 o 6.
-2. `W2-aprobacion-manual.md` — ejecuta cuando staff añade el tag `aprobado`
-   a un cliente `pendiente`.
-3. `W3-rechazo-manual.md` — ejecuta cuando staff añade el tag `rechazado`.
-4. `W4-whitelist-reeval.md` — scheduled (cada 30 min). Busca pendientes que
-   ahora matcheen la whitelist y los aprueba automáticamente.
+Los `.md` originales (`W1-registro.md` … `W4-whitelist-reeval.md`) describen el **diseño conceptual** de cada workflow. Los `*-walkthrough.md` (el que importa) describen la **config real** tal como quedó en Fase B tras descubrir las limitaciones de Flow. **Al configurar, seguir los walkthroughs, no los specs originales.**
+
+1. [W1-walkthrough.md](W1-walkthrough.md) — ejecuta al crear un customer. Parse metafields, decide auto-aprobación vs pendiente, dispara Supabase para crear Company y emails al backoffice.
+2. [W2-walkthrough.md](W2-walkthrough.md) — ejecuta cuando staff añade el tag `aprobado` a un cliente `pendiente`.
+3. [W3-walkthrough.md](W3-walkthrough.md) — ejecuta cuando staff añade el tag `rechazado`.
+4. [W4-walkthrough.md](W4-walkthrough.md) — **MOVIDO A SUPABASE**. Ver `supabase/`.
 
 ## Dependencias
 

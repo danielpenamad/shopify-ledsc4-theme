@@ -1,12 +1,30 @@
-// Snippet de referencia para el paso "Run code → create_company" de W1 y W2.
-// Crea una Company B2B con 1 miembro, le asocia una CompanyLocation por
-// defecto, y la añade al catálogo "Outlet general".
+// ═════════════════════════════════════════════════════════════════════
+// DEPRECATED — este snippet ya NO se usa en el workflow en producción.
+// ═════════════════════════════════════════════════════════════════════
 //
-// Idempotente: si el customer ya tiene companyContactProfiles, sale sin
-// crear nada.
+// Se escribió asumiendo que el Run code de Shopify Flow permitiría llamadas
+// GraphQL (shopify.graphql). En Fase B descubrimos que NO:
 //
-// Adaptar al SDK de Flow Run code (2026). Asume un objeto `shopify` con
-// método .graphql(query, variables) y un `input` del workflow.
+//   - Flow Run code es sandbox puro (sin async, sin fetch, sin shopify.graphql).
+//   - Solo se pueden hacer computaciones puras sobre el input.
+//
+// La creación automatizada de Company B2B se mueve a una edge function de
+// Supabase:
+//
+//   supabase/functions/create-company-for-customer/index.ts
+//
+// Invocada desde W1 rama Verdadero y W2 rama Verdadero con la acción de Flow
+// `Send HTTP request` con header X-Webhook-Secret. Ver:
+//
+//   flows/W1-walkthrough.md §6.4
+//   flows/W2-walkthrough.md §3.3
+//   supabase/README.md
+//
+// Este fichero se mantiene en el repo como referencia histórica del diseño
+// original y para documentar la decisión (Opción A manual → Opción C
+// Supabase) en el PR. Puede borrarse si molesta.
+
+// ↓ código original (no ejecutado) ↓
 
 const CATALOG_TITLE = 'Outlet general';
 
@@ -31,72 +49,5 @@ module.exports = async function createCompanyForCustomer({ input, shopify }) {
     return { skipped: true, reason: 'already_has_company' };
   }
 
-  // 2. Crear Company + CompanyContact + CompanyLocation en una sola mutation
-  const created = await shopify.graphql(
-    `mutation($input: CompanyCreateInput!) {
-       companyCreate(input: $input) {
-         company {
-           id name
-           contacts(first: 1) { edges { node { id } } }
-           locations(first: 1) { edges { node { id } } }
-         }
-         userErrors { field message code }
-       }
-     }`,
-    {
-      input: {
-        company: { name: companyName },
-        companyContact: {
-          customerId,
-          firstName: input.customer.first_name,
-          lastName: input.customer.last_name,
-          email: input.customer.email,
-          title: 'Contacto principal',
-        },
-        companyLocation: {
-          name: companyName,
-          shippingAddress: { countryCode: 'ES' },
-          billingSameAsShipping: true,
-          buyerExperienceConfiguration: { editableShippingAddress: true },
-        },
-      },
-    }
-  );
-  const errs = created.companyCreate?.userErrors || [];
-  if (errs.length) throw new Error('companyCreate: ' + JSON.stringify(errs));
-  const company = created.companyCreate.company;
-  const locationId = company.locations.edges[0]?.node.id;
-
-  // 3. Encontrar el catálogo "Outlet general"
-  const cat = await shopify.graphql(
-    `query($q: String!) {
-       catalogs(first: 10, query: $q) {
-         edges { node { id title } }
-       }
-     }`,
-    { q: 'title:' + CATALOG_TITLE }
-  );
-  const catalog = cat.catalogs.edges.find(e => e.node.title === CATALOG_TITLE)?.node;
-  if (!catalog) throw new Error('Catálogo "' + CATALOG_TITLE + '" no encontrado');
-
-  // 4. Añadir la CompanyLocation al contexto del catálogo
-  const upd = await shopify.graphql(
-    `mutation($catalogId: ID!, $contextsToAdd: CatalogContextInput!) {
-       catalogContextUpdate(catalogId: $catalogId, contextsToAdd: $contextsToAdd) {
-         userErrors { field message }
-       }
-     }`,
-    {
-      catalogId: catalog.id,
-      contextsToAdd: { companyLocationIds: [locationId] },
-    }
-  );
-  const uErrs = upd.catalogContextUpdate?.userErrors || [];
-  if (uErrs.length) throw new Error('catalogContextUpdate: ' + JSON.stringify(uErrs));
-
-  return {
-    companyId: company.id,
-    companyLocationId: locationId,
-    catalogId: catalog.id,
-  };
+  // (resto del código original omitido — ver historial git si hace falta)
 };

@@ -7,7 +7,10 @@ cerrar Fase B.
 **Precondiciones comunes**:
 - Fase A aplicada (metafields, tags canónicos, catalog "Outlet general", 745 productos)
 - Workflows W1-W4 configurados en Flow y activos
-- Bodies de email 1-6 pegados inline en los pasos `Send internal email` de W1-W4 (ver `email-templates/WALKTHROUGH.md`)
+- Bodies de email internal (03, 05) pegados inline en los pasos `Send internal email` de W1-W2-W3
+- Templates marketing (01, 02, 04, 05, 06) creados como **borrador** en Shopify Messaging (no envían en Development)
+- Edge functions de Supabase deployadas y con secrets seteados (ver [supabase/README.md](../supabase/README.md))
+- **Nota dev**: los steps `Send marketing mail` de W1/W2/W3 están **desactivados** en Fase B (ver [grow-migration-checklist.md](grow-migration-checklist.md)). Los tests validan la lógica completa menos el envío real al cliente.
 - `b2b.whitelist_emails` con al menos un email de pruebas
 - `b2b.email_backoffice` poblado (p.ej. tu propio email con +backoffice en el subdominio)
 - Rol staff "Backoffice Aprobaciones" asignado al usuario de pruebas
@@ -39,14 +42,19 @@ para verificar que no quedan invariantes rotos.
 
 **Resultado esperado**:
 - Customer creado con tag `aprobado` (NO `pendiente`).
-- Metafields `b2b.empresa`, `b2b.nif`, `b2b.sector`, `b2b.pais`, `b2b.volumen_estimado`, `b2b.fecha_registro`, `b2b.fecha_aprobacion` poblados.
-- En **Companies**: aparece una Company nueva "Test Whitelist SL" con 1 location asignada al catálogo "Outlet general".
-- El email del customer recibe el email 1 (Bienvenida).
-- **Admin timeline** del customer muestra los eventos de W1.
+- Metafields `b2b.empresa`, `b2b.nif`, `b2b.sector`, `b2b.pais` poblados (backfill de W1 paso 3 — 4 campos obligatorios).
+- Metafield `b2b.fecha_aprobacion` = hoy.
+- Metafields `b2b.volumen_estimado` y `b2b.fecha_registro` pueden quedar vacíos en alta vía admin (ver nota dev). El form del storefront los rellena en alta real.
+- **Company** creada automáticamente vía Supabase (`create-company-for-customer`): `Test Whitelist SL` con 1 CompanyContact (el customer) y 1 location asignada al catálogo "Outlet general".
+- El email 1 de bienvenida en Grow (draft en Development).
+- `daniel.pena+backoffice@creacciones.es` recibe email interno "FYI: auto-aprobado, Company creada".
+- **Admin timeline** muestra eventos de W1.
+- **Apps → Flow → W1 → Run history** todo verde.
 
 **Qué puede fallar**:
-- Si el customer queda con tag `pendiente` y no `aprobado`: la rama de whitelist match de W1 no se ejecutó. Revisar condición en el builder de Flow (case-insensitive? list-contains?).
-- Si la Company no se crea: Run code del `create-company` falló. Revisar `Apps → Flow → Run history`.
+- Customer con tag `pendiente` y no `aprobado`: la rama de whitelist match de W1 no se ejecutó. Revisar el Run code `whitelistCheck` (runCode1).
+- Company no creada pero tag sí: falló el `Send HTTP request` de W1. Revisar Supabase logs de `create-company-for-customer`.
+- Internal email no llega: el step falló. Revisar Run history de W1.
 
 ---
 
@@ -76,12 +84,12 @@ para verificar que no quedan invariantes rotos.
 3. Tags: quitar `pendiente`, añadir `aprobado`. Guardar.
 
 **Resultado esperado**:
-- W2 se dispara.
-- Tag `pendiente` limpio, solo queda `aprobado`.
+- W2 se dispara (importante: ambos cambios de tag en un solo Save).
+- Tag `pendiente` fuera, `aprobado` dentro.
 - `b2b.fecha_aprobacion` = hoy.
-- Se crea Company con el nombre de `b2b.empresa`.
-- Company location asignada al catálogo "Outlet general".
-- Customer recibe email 4 (Cuenta aprobada).
+- **Company creada automáticamente** vía Supabase `create-company-for-customer` con el nombre de `b2b.empresa`. Customer linkeado como contact. Location asignada al catálogo "Outlet general".
+- Customer recibe email 4 (Cuenta aprobada) en Grow; en Development queda como draft.
+- `daniel.pena+backoffice@creacciones.es` recibe email interno "FYI: aprobado manual, Company creada".
 
 ---
 
