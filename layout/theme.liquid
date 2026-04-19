@@ -296,6 +296,59 @@
         document.documentElement.classList.add('shopify-design-mode');
       }
     </script>
+
+    {%- comment -%}
+      B2B storefront gate (Fase C) — lógica en tema, no Locksmith.
+      Locksmith falla la instalación con "High-level job failure" para
+      scope Entire Store en este proyecto; se usa solo para Rule 2
+      (collection lock de aprobados). Rule 1 (rechazado) y Rule 3 (login)
+      viven aquí.
+
+      Se ejecuta en todas las páginas vía head > script (más rápido que
+      meta refresh, sin flash). En Shopify designMode (editor) NO redirige
+      para no bloquear la edición del theme.
+
+      Excepciones (acceso libre):
+        - homepage (/)
+        - /account/login, register, recover, reset_password/*, activate/*, logout
+        - páginas status (cuenta-en-revision, cuenta-rechazada)
+        - páginas legales (aviso, privacidad, condiciones, canal-denuncias)
+        - /policies/*
+    {%- endcomment -%}
+    {%- unless Shopify.designMode -%}
+      {%- assign gate_path = request.path -%}
+      {%- assign gate_exempt = false -%}
+      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias' | split: ',' -%}
+      {%- for p in gate_exempt_paths -%}
+        {%- if gate_path == p -%}
+          {%- assign gate_exempt = true -%}
+          {%- break -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if gate_path contains '/policies/' -%}{%- assign gate_exempt = true -%}{%- endif -%}
+      {%- if gate_path contains '/account/activate' -%}{%- assign gate_exempt = true -%}{%- endif -%}
+      {%- if gate_path contains '/account/reset_password' -%}{%- assign gate_exempt = true -%}{%- endif -%}
+
+      {%- unless gate_exempt -%}
+        {%- if customer == nil -%}
+          <script>window.location.replace('/account/login');</script>
+        {%- elsif customer.tags contains 'rechazado' -%}
+          <script>window.location.replace('/pages/cuenta-rechazada');</script>
+        {%- endif -%}
+        {%- comment -%}
+          Nota: el caso "logueado pendiente a catálogo" lo maneja Locksmith
+          Rule 2 (collection lock con key aprobado → redirect a cuenta-en-revision).
+          Si Locksmith también falla, descomentar el bloque siguiente:
+        {%- endcomment -%}
+        {%- comment -%}
+        {%- if customer and customer.tags contains 'aprobado' == false and customer.tags contains 'rechazado' == false -%}
+          {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' -%}
+            <script>window.location.replace('/pages/cuenta-en-revision');</script>
+          {%- endif -%}
+        {%- endif -%}
+        {%- endcomment -%}
+      {%- endunless -%}
+    {%- endunless -%}
   </head>
 
   <body class="gradient{% if settings.animations_hover_elements != 'none' %} animate--hover-{{ settings.animations_hover_elements }}{% endif %}">

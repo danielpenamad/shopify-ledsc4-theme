@@ -1,8 +1,17 @@
-# Locksmith — reglas del storefront gate (Fase C)
+# Storefront gate (Fase C) — híbrido Locksmith + Liquid
 
-Guía de configuración de Locksmith para el portal B2B de LedsC4 Outlet.
-3 reglas (locks) cubren todos los casos. Orden de evaluación por
-especificidad del resultado: rechazado gana > aprobado gate > login gate.
+**Realidad tras deploy 2026-04-19**: Locksmith falla instalación con
+"High-level job failure" al intentar 2 locks Entire Store o cierta
+combinación. Solución aplicada: **híbrido** —
+
+- **Locksmith**: gestiona la Rule 2 (gate catálogo por tag `aprobado`).
+  Scope collection-específico, funciona bien.
+- **Theme Liquid** (`layout/theme.liquid`): gestiona Rule 1 (rechazado)
+  + Rule 3 (login required) vía `<script>window.location.replace(...)</script>`
+  en el `<head>`. Ver `## Rules 1 y 3 en theme Liquid` abajo.
+
+La intención original (3 locks en Locksmith) se documenta más abajo por
+si en el futuro Locksmith resuelve el bug y queremos migrar.
 
 ## Prerrequisito
 
@@ -11,8 +20,48 @@ Locksmith app instalada: Admin → **Apps → Shopify App Store → Locksmith �
 Tras instalar:
 - Admin → **Apps → Locksmith**
 - **Create a new lock** en el asistente.
+- Tras configurar locks: **Locksmith → Themes → Install** en el theme activo.
+  - Si "High-level job failure": reducir número de locks, eliminar locks "Entire Store", o contactar `team@uselocksmith.com`.
+
+## Rules 1 y 3 en theme Liquid (implementación actual)
+
+Implementado en `layout/theme.liquid` dentro de `<head>`:
+
+```liquid
+{%- unless Shopify.designMode -%}
+  {%- assign gate_path = request.path -%}
+  {%- assign gate_exempt = false -%}
+  {%- assign gate_exempt_paths = '/,/account/login,/account/register,...' | split: ',' -%}
+  {% for p in gate_exempt_paths %}
+    {% if gate_path == p %}{% assign gate_exempt = true %}{% break %}{% endif %}
+  {% endfor %}
+  {%- unless gate_exempt -%}
+    {% if customer == nil %}
+      <script>window.location.replace('/account/login');</script>
+    {% elsif customer.tags contains 'rechazado' %}
+      <script>window.location.replace('/pages/cuenta-rechazada');</script>
+    {% endif %}
+  {%- endunless -%}
+{%- endunless -%}
+```
+
+URLs exemptas:
+- `/` (homepage pública)
+- `/account/login`, `register`, `recover`, `logout`, `sign_out`
+- `/account/activate/*`, `/account/reset_password/*` (emails)
+- `/pages/cuenta-en-revision`, `/pages/cuenta-rechazada`
+- `/pages/aviso-legal`, `/pages/politica-de-privacidad`, `/pages/condiciones-de-uso`, `/pages/canal-de-denuncias`
+- `/policies/*` (auto de Shopify)
+
+En `Shopify.designMode` (theme editor) no redirige para no bloquear la edición.
+
+**Caveat**: JavaScript client-side. Si el usuario deshabilita JS ve la página antes del redirect. Para B2B con clientes profesionales, aceptable. En alternativa futura, probar meta refresh server-side (`<meta http-equiv="refresh">`).
 
 ---
+
+## [Diseño original — solo referencia, no implementado así]
+
+El resto del documento describe las 3 reglas Locksmith originalmente planificadas. **En producción actual solo Rule 2 vive en Locksmith** — Rules 1 y 3 están en theme Liquid (ver sección arriba). Se conservan aquí por si el bug de Locksmith se resuelve y queremos migrar al esquema limpio.
 
 ## Regla 1 — "Rechazados: redirigir siempre" (prioridad alta)
 
