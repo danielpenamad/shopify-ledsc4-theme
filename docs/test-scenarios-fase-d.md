@@ -150,6 +150,14 @@ Documentar aquí cualquier comportamiento raro durante el testing:
   aprobó, cuándo pasó a confirmada, etc.). Requiere tabla Supabase con
   eventos.
 - [ ] **PDF de la solicitud** descargable desde el detalle.
+- [ ] **UX cambio de estado en 1-click**: actualmente el backoffice
+  cambia estado editando tags del draft (quitar `pendiente-revision`
+  + añadir `en-tramite`). Mejora 1: Flow auxiliar W6 que auto-remueve
+  tags de estado anteriores al añadir uno nuevo (reduce a 1-click).
+  Mejora 2 (post-lanzamiento): app custom embedded en admin con
+  botones "Pasar a trámite / Confirmar / Cancelar" + notificación
+  email automática al cliente cuando cambia el estado (vía Flow o
+  edge function con servicio de email).
 
 ## Post-test
 
