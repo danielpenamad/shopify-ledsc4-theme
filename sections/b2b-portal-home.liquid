@@ -1,0 +1,309 @@
+{% comment %}
+  Homepage del portal B2B LedsC4 Outlet.
+  Contenido condicional según estado del customer:
+    - Anónimo: hero + CTA login/registro
+    - pendiente: mensaje + link a /pages/cuenta-en-revision
+    - rechazado: mensaje + link a /pages/cuenta-rechazada
+    - aprobado: bienvenida + link al catálogo
+
+  Esta sección vive en el tema y es la única en templates/index.json.
+  Dawn original (image-banner + colecciones) se descarta para priorizar
+  el gate B2B. Los customers aprobados navegan al catálogo desde el menu
+  del header.
+{% endcomment %}
+
+<section class="b2b-portal" aria-labelledby="b2b-portal-heading">
+  <div class="b2b-portal__inner">
+    <div class="b2b-portal__brand">
+      {%- if section.settings.logo != blank -%}
+        <img
+          src="{{ section.settings.logo | image_url: width: 240 }}"
+          alt="{{ shop.name | escape }}"
+          width="{{ section.settings.logo_width | default: 160 }}"
+          height="auto"
+          loading="eager"
+        >
+      {%- else -%}
+        <span class="b2b-portal__brand-text">{{ shop.name }}</span>
+      {%- endif -%}
+    </div>
+
+    <div class="b2b-portal__content">
+      {%- if customer == nil -%}
+        {%- comment -%} Anónimo {%- endcomment -%}
+        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
+          {{ section.settings.heading_anon | default: 'Portal B2B · Outlet' }}
+        </h1>
+        <p class="b2b-portal__lead">
+          {{ section.settings.lead_anon | default: 'Acceso exclusivo para profesionales del sector de la iluminación. Inicia sesión con tu cuenta o solicita acceso para ver el catálogo y precios B2B.' }}
+        </p>
+        <div class="b2b-portal__ctas">
+          <a href="/account/login" class="b2b-portal__btn b2b-portal__btn--primary">
+            Iniciar sesión
+          </a>
+          <a href="/account/register" class="b2b-portal__btn b2b-portal__btn--secondary">
+            Solicitar acceso
+          </a>
+        </div>
+      {%- elsif customer.tags contains 'aprobado' -%}
+        {%- comment -%} Aprobado {%- endcomment -%}
+        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
+          Hola, {{ customer.first_name | default: 'colaborador' }}
+        </h1>
+        <p class="b2b-portal__lead">
+          {{ section.settings.lead_aprobado | default: 'Tu cuenta B2B está activa. Explora el catálogo outlet con tus precios especiales.' }}
+        </p>
+        <div class="b2b-portal__ctas">
+          <a href="/collections/coleccion-2026" class="b2b-portal__btn b2b-portal__btn--primary">
+            Ver catálogo outlet
+          </a>
+          <a href="/account" class="b2b-portal__btn b2b-portal__btn--secondary">
+            Mi cuenta
+          </a>
+        </div>
+      {%- elsif customer.tags contains 'rechazado' -%}
+        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
+          Estado de tu cuenta
+        </h1>
+        <p class="b2b-portal__lead">
+          Tu solicitud no pudo activarse. Consulta los detalles.
+        </p>
+        <div class="b2b-portal__ctas">
+          <a href="/pages/cuenta-rechazada" class="b2b-portal__btn b2b-portal__btn--primary">
+            Ver detalles
+          </a>
+          <a href="/account/logout" class="b2b-portal__btn b2b-portal__btn--secondary">
+            Cerrar sesión
+          </a>
+        </div>
+      {%- else -%}
+        {%- comment -%} pendiente (tag 'pendiente' o sin tag) {%- endcomment -%}
+        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
+          Tu cuenta está en revisión
+        </h1>
+        <p class="b2b-portal__lead">
+          Estamos validando los datos que nos diste. Te avisaremos por email en 24-48h hábiles.
+        </p>
+        <div class="b2b-portal__ctas">
+          <a href="/pages/cuenta-en-revision" class="b2b-portal__btn b2b-portal__btn--primary">
+            Ver estado
+          </a>
+          <a href="/account/logout" class="b2b-portal__btn b2b-portal__btn--secondary">
+            Cerrar sesión
+          </a>
+        </div>
+      {%- endif -%}
+    </div>
+
+    <footer class="b2b-portal__footer">
+      <nav class="b2b-portal__footer-nav" aria-label="Enlaces legales">
+        <a href="/pages/aviso-legal">Aviso legal</a>
+        <span aria-hidden="true">·</span>
+        <a href="/pages/politica-de-privacidad">Privacidad</a>
+        <span aria-hidden="true">·</span>
+        <a href="/pages/condiciones-de-uso">Condiciones</a>
+        <span aria-hidden="true">·</span>
+        <a href="/pages/canal-de-denuncias">Canal ético</a>
+      </nav>
+      <p class="b2b-portal__footer-note">
+        © {{ 'now' | date: '%Y' }} {{ shop.name }} · LEDS C4, SA · CIF A59410910
+      </p>
+    </footer>
+  </div>
+</section>
+
+<style>
+  .b2b-portal {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    background:
+      radial-gradient(ellipse at top, rgba(255, 200, 80, 0.08), transparent 60%),
+      linear-gradient(180deg, #0f1217 0%, #1a1f27 100%);
+    color: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .b2b-portal__inner {
+    max-width: 640px;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+
+  .b2b-portal__brand {
+    display: flex;
+    justify-content: center;
+  }
+
+  .b2b-portal__brand img {
+    max-width: 100%;
+    height: auto;
+    filter: brightness(0) invert(1);
+  }
+
+  .b2b-portal__brand-text {
+    font-size: 1.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .b2b-portal__heading {
+    font-size: clamp(1.875rem, 4vw, 2.75rem);
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 1rem;
+    letter-spacing: -0.02em;
+  }
+
+  .b2b-portal__lead {
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
+    line-height: 1.6;
+    color: rgba(245, 245, 247, 0.75);
+    margin: 0 auto;
+    max-width: 480px;
+  }
+
+  .b2b-portal__ctas {
+    display: flex;
+    gap: 0.875rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+
+  .b2b-portal__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.875rem 1.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    min-width: 10rem;
+  }
+
+  .b2b-portal__btn--primary {
+    background: #f5f5f7;
+    color: #0f1217;
+  }
+
+  .b2b-portal__btn--primary:hover {
+    background: #fff;
+    transform: translateY(-1px);
+  }
+
+  .b2b-portal__btn--secondary {
+    background: transparent;
+    color: #f5f5f7;
+    border: 1px solid rgba(245, 245, 247, 0.3);
+  }
+
+  .b2b-portal__btn--secondary:hover {
+    border-color: rgba(245, 245, 247, 0.6);
+    transform: translateY(-1px);
+  }
+
+  .b2b-portal__footer {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(245, 245, 247, 0.08);
+  }
+
+  .b2b-portal__footer-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.8125rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .b2b-portal__footer-nav a {
+    color: rgba(245, 245, 247, 0.6);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .b2b-portal__footer-nav a:hover {
+    color: rgba(245, 245, 247, 0.9);
+  }
+
+  .b2b-portal__footer-note {
+    font-size: 0.75rem;
+    color: rgba(245, 245, 247, 0.4);
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .b2b-portal__btn { transition: none; }
+    .b2b-portal__btn:hover { transform: none; }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "B2B Portal Home",
+  "tag": "section",
+  "class": "section-b2b-portal",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Branding"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo (fondo transparente, se muestra en blanco)"
+    },
+    {
+      "type": "range",
+      "id": "logo_width",
+      "label": "Ancho del logo (px)",
+      "min": 80,
+      "max": 320,
+      "step": 10,
+      "default": 160
+    },
+    {
+      "type": "header",
+      "content": "Textos (anónimo)"
+    },
+    {
+      "type": "text",
+      "id": "heading_anon",
+      "label": "Heading para visitantes no logueados",
+      "default": "Portal B2B · Outlet"
+    },
+    {
+      "type": "textarea",
+      "id": "lead_anon",
+      "label": "Texto lead para visitantes no logueados",
+      "default": "Acceso exclusivo para profesionales del sector de la iluminación. Inicia sesión con tu cuenta o solicita acceso para ver el catálogo y precios B2B."
+    },
+    {
+      "type": "header",
+      "content": "Textos (aprobado)"
+    },
+    {
+      "type": "textarea",
+      "id": "lead_aprobado",
+      "label": "Texto lead para customers aprobados",
+      "default": "Tu cuenta B2B está activa. Explora el catálogo outlet con tus precios especiales."
+    }
+  ],
+  "presets": [
+    {
+      "name": "B2B Portal Home"
+    }
+  ]
+}
+{% endschema %}

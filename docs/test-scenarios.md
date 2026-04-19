@@ -139,7 +139,7 @@ Whitelist NO lo contiene todavía.
 Marcar cuando todo pase:
 
 - [ ] Escenario 1 — auto-aprobación OK
-- [ ] Escenario 2 — pendiente OK (emails 2 y 3)
+- [x] Escenario 2 — pendiente OK (emails 2 y 3) · validado 2026-04-19
 - [ ] Escenario 3 — aprobación manual OK
 - [ ] Escenario 4 — rechazo con motivo OK
 - [ ] Escenario 4b — rechazo sin motivo OK
@@ -147,3 +147,105 @@ Marcar cuando todo pase:
 - [ ] `audit-customer-state.js` corre limpio tras todos los escenarios
 - [ ] Ningún customer aprobado sin Company (check explícito del script de audit)
 - [ ] Todos los customers aprobados tienen `fecha_aprobacion` y catálogo asignado
+
+---
+
+# Fase C — Storefront gate (Locksmith)
+
+Escenarios específicos para verificar que el bloqueo del storefront
+funciona según [docs/locksmith-rules.md](locksmith-rules.md).
+
+**Precondiciones**:
+- Tema B2B desplegado en la tienda (`shopify theme push`).
+- Páginas creadas (`scripts/create-b2b-pages.mjs`).
+- 3 reglas Locksmith configuradas y activas.
+- Al menos 1 customer por estado: `aprobado`, `pendiente`, `rechazado`.
+
+**Ejecutar cada escenario en navegación privada (incógnito)** para evitar cache de sesión.
+
+## Escenario C1 — Anónimo a producto → login
+
+**Pasos**:
+1. Navegación privada nueva.
+2. Ir a `https://<store>/products/<cualquiera>`.
+
+**Resultado esperado**:
+- Redirige a `/account/login`.
+- URL final: `/account/login` (con `?return_url=...` opcional).
+
+## Escenario C2 — Anónimo a homepage → 200
+
+**Pasos**:
+1. Navegación privada.
+2. Ir a `/`.
+
+**Resultado esperado**:
+- 200 OK.
+- Ve el portal B2B con botones "Iniciar sesión" y "Solicitar acceso".
+- No se ve el catálogo ni productos.
+
+## Escenario C3 — Anónimo a /pages/aviso-legal → 200
+
+**Pasos**:
+1. Navegación privada.
+2. Ir a `/pages/aviso-legal`.
+
+**Resultado esperado**:
+- 200 OK con contenido legal.
+- Igual para `/pages/politica-de-privacidad`, `/pages/condiciones-de-uso`, `/pages/canal-de-denuncias`.
+
+## Escenario C4 — Logueado pendiente a /collections/all → cuenta-en-revision
+
+**Pasos**:
+1. Login con customer de prueba con tag `pendiente`.
+2. Ir a `/collections/coleccion-2026`.
+
+**Resultado esperado**:
+- Redirige a `/pages/cuenta-en-revision`.
+- Se ven los datos del customer (empresa, NIF, sector, email).
+
+## Escenario C5 — Logueado rechazado a cualquier URL → cuenta-rechazada
+
+**Pasos**:
+1. Login con customer rechazado.
+2. Ir a `/`.
+
+**Resultado esperado**:
+- Redirige a `/pages/cuenta-rechazada`.
+- Si el customer tiene `b2b.motivo_rechazo` poblado, se muestra.
+
+## Escenario C6 — Logueado aprobado → ve catálogo normal
+
+**Pasos**:
+1. Login con customer `aprobado`.
+2. Ir a `/collections/coleccion-2026`.
+
+**Resultado esperado**:
+- 200 OK con la colección outlet.
+- Precios B2B (0% sobre shop, igual que retail en Fase B porque aún no configuramos precio B2B distinto).
+- En el homepage ve saludo personalizado + CTA al catálogo.
+
+## Escenario C7 — Password recovery no filtra info
+
+**Pasos**:
+1. Navegación privada.
+2. Ir a `/account/recover`.
+3. Ingresar email existente → Submit. Anotar mensaje.
+4. Navegación privada nueva.
+5. Ingresar email NO registrado → Submit. Anotar mensaje.
+
+**Resultado esperado**:
+- Mismo mensaje en ambos casos, sin pista de si el email existe.
+- Esperado (Dawn default): "We've sent you an email with a link to update your password." o su traducción ES.
+- Si Dawn distingue entre existente y no existente, hay que sobrescribir el template.
+
+## Checklist global Fase C
+
+- [ ] C1 anónimo → login
+- [ ] C2 anónimo → home 200
+- [ ] C3 anónimo → legales 200
+- [ ] C4 pendiente → cuenta-en-revision
+- [ ] C5 rechazado → cuenta-rechazada
+- [ ] C6 aprobado → catálogo 200
+- [ ] C7 password recovery sin filtración
+- [ ] Capturas de configuración Locksmith en `docs/locksmith/screenshots/`

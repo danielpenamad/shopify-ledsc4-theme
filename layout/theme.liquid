@@ -307,13 +307,34 @@
       {%- render 'cart-drawer' -%}
     {%- endif -%}
 
-    {% sections 'header-group' %}
+    {%- comment -%}
+      B2B gate header logic:
+      - Template 'index' (homepage) → NO header; la sección b2b-portal-home ya
+        tiene branding propio full-page.
+      - Customer aprobado → Dawn header-group completo.
+      - Anónimo o no-aprobado (pendiente/rechazado) → header simple con logo
+        + login/logout. Evita filtrar navegación comercial a clientes no autorizados.
+    {%- endcomment -%}
+    {%- if template == 'index' -%}
+      {%- comment -%} Sin header en homepage — la sección hero ocupa toda la pantalla. {%- endcomment -%}
+    {%- elsif customer.tags contains 'aprobado' -%}
+      {% sections 'header-group' %}
+    {%- else -%}
+      {% section 'b2b-header-simple' %}
+    {%- endif -%}
 
     <main id="MainContent" class="content-for-layout focus-none" role="main" tabindex="-1">
       {{ content_for_layout }}
     </main>
 
-    {% sections 'footer-group' %}
+    {%- comment -%}
+      B2B gate footer logic: solo mostramos el footer de Dawn a aprobados.
+      Los no-aprobados tienen su propio footer dentro de las páginas status /
+      portal. En legales se oculta también para evitar links comerciales.
+    {%- endcomment -%}
+    {%- if customer.tags contains 'aprobado' -%}
+      {% sections 'footer-group' %}
+    {%- endif -%}
 
     <ul hidden>
       <li id="a11y-refresh-page-message">{{ 'accessibility.refresh_page' | t }}</li>
