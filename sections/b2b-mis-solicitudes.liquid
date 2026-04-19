@@ -11,27 +11,27 @@
 -%}
 
 <style>
-  .b2b-lista { max-width: 960px; margin: 0 auto; padding: 48px 24px; font-family: var(--font-body-family); }
-  .b2b-lista h1 { font-family: var(--font-heading-family); font-size: 2rem; margin: 0 0 8px 0; letter-spacing: -0.01em; }
-  .b2b-lista__lead { color: #666; margin: 0 0 32px 0; font-size: 0.95rem; line-height: 1.5; }
+  .b2b-lista { max-width: 1000px; margin: 0 auto; padding: 48px 24px; font-family: var(--font-body-family); font-size: 1.0625rem; line-height: 1.55; }
+  .b2b-lista h1 { font-family: var(--font-heading-family); font-size: 2.25rem; margin: 0 0 12px 0; letter-spacing: -0.01em; }
+  .b2b-lista__lead { color: #555; margin: 0 0 32px 0; font-size: 1.0625rem; line-height: 1.6; max-width: 720px; }
   .b2b-lista__table { width: 100%; border-collapse: collapse; }
-  .b2b-lista__table thead th { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 8px; border-bottom: 2px solid #1a1f27; text-align: left; font-weight: 600; }
+  .b2b-lista__table thead th { font-size: 0.8125rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; padding: 14px 10px; border-bottom: 2px solid #1a1f27; text-align: left; font-weight: 600; }
   .b2b-lista__table thead th.num { text-align: right; }
   .b2b-lista__table tbody tr { border-bottom: 1px solid #eee; cursor: pointer; }
   .b2b-lista__table tbody tr:hover { background: #fafaf7; }
-  .b2b-lista__table td { padding: 16px 8px; font-size: 0.95rem; vertical-align: middle; }
+  .b2b-lista__table td { padding: 18px 10px; font-size: 1.0625rem; vertical-align: middle; }
   .b2b-lista__table td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .b2b-lista__table td.ref { font-family: 'Courier New', monospace; font-weight: 600; }
-  .b2b-lista__status { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .b2b-lista__table td.ref { font-family: 'Courier New', monospace; font-weight: 600; font-size: 1rem; }
+  .b2b-lista__status { display: inline-block; padding: 5px 12px; border-radius: 12px; font-size: 0.8125rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
   .b2b-lista__status--pendiente-revision { background: #fef3c7; color: #92400e; }
   .b2b-lista__status--en-tramite { background: #dbeafe; color: #1e40af; }
   .b2b-lista__status--confirmada { background: #d1fae5; color: #065f46; }
   .b2b-lista__status--cancelada { background: #f3f4f6; color: #6b7280; }
-  .b2b-lista__loading { text-align: center; padding: 60px 24px; color: #666; }
+  .b2b-lista__loading { text-align: center; padding: 60px 24px; color: #666; font-size: 1.0625rem; }
   .b2b-lista__empty { text-align: center; padding: 60px 24px; }
-  .b2b-lista__empty p { color: #666; margin: 0 0 16px 0; }
-  .b2b-lista__btn { display: inline-block; padding: 10px 20px; background: #1a1f27; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.95rem; font-weight: 500; }
-  .b2b-lista__back { display: inline-block; margin-top: 24px; color: #666; text-decoration: underline; font-size: 0.9rem; }
+  .b2b-lista__empty p { color: #555; margin: 0 0 20px 0; font-size: 1.0625rem; }
+  .b2b-lista__btn { display: inline-block; padding: 12px 24px; background: #1a1f27; color: #fff; text-decoration: none; border-radius: 6px; font-size: 1.0625rem; font-weight: 500; }
+  .b2b-lista__back { display: inline-block; margin-top: 28px; color: #666; text-decoration: underline; font-size: 1rem; }
 </style>
 
 <div class="b2b-lista">

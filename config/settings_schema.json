@@ -1459,7 +1459,7 @@
         "type": "text",
         "id": "order_request_endpoint",
         "label": "URL submit-order-request",
-        "default": "https://wijtubggquiopmxrmimy.supabase.co/functions/v1/submit-order-request",
+        "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/submit-order-request",
         "info": "Endpoint Supabase que recibe el POST del form /pages/solicitud."
       },
       {
@@ -1472,7 +1472,7 @@
         "type": "text",
         "id": "list_order_requests_endpoint",
         "label": "URL list-order-requests",
-        "default": "https://wijtubggquiopmxrmimy.supabase.co/functions/v1/list-order-requests",
+        "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
         "info": "Endpoint que devuelve el historial de solicitudes del customer."
       }
     ]
