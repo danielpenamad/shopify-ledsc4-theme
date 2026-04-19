@@ -75,6 +75,15 @@ Alta pre-requisito para que los metafields `volumen_estimado` y `fecha_registro`
 
 ---
 
+## 4b. Actualizar email backoffice hardcoded en Flow
+
+Flow `Send internal email` no acepta variables en To, así que el email
+del backoffice está hardcoded en varios workflows (W1, W2, W3, W5).
+Ver [docs/hardcoded-emails.md](hardcoded-emails.md) con la lista exacta
+de ubicaciones y el procedimiento de cutover.
+
+---
+
 ## 5. Ajustar el rol staff "Backoffice Aprobaciones"
 
 Solo aplica si ya en Fase B no estaba creado. Verificar los toggles según [docs/data-model.md §6](data-model.md#6-staff-role-backoffice-aprobaciones).

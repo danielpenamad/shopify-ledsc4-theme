@@ -90,6 +90,15 @@
     "pin": true
   },
   {
+    "ownerType": "PRODUCT",
+    "namespace": "b2b",
+    "key": "cbm_caja",
+    "name": "CBM por caja",
+    "description": "Volumen en metros cubicos de la caja/unidad de venta. Usado para calcular CBM total en solicitudes B2B.",
+    "type": "number_decimal",
+    "pin": true
+  },
+  {
     "ownerType": "PAGE",
     "namespace": "b2b",
     "key": "cuenta_revision_mensaje",
