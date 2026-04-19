@@ -4,6 +4,15 @@ Flow que dispara los 2 emails (cliente + backoffice) al crearse un draft
 order con tag `solicitud-b2b`. El draft lo crea la edge function
 `submit-order-request` desde el storefront `/pages/solicitud`.
 
+> **Lección Fase B repetida en W5**: Flow Liquid sandbox (el que se usa
+> en Subject/To/Body de `Send internal email`) no accede a metafields
+> dotted (`draftOrder.customer.metafields.b2b.empresa` → error
+> "b2b no es válido"), ni a `draftOrder.note` directamente. Solución:
+> un step `Run code` antes de los emails que aplana esos campos en
+> `runCode.xxx`. Los `Send marketing mail` (email 07 al cliente) SÍ
+> aceptan metafields directos porque usan Messaging Liquid, que es
+> otro sandbox.
+
 ## 1. Crear el workflow
 
 Apps → Flow → Create workflow → Start from scratch.
@@ -20,60 +29,119 @@ Apps → Flow → Create workflow → Start from scratch.
 - Rama **Then** → sigue el flujo.
 - Rama **Otherwise** → fin (no hacer nada).
 
-## 4. Step: Send marketing mail (cliente)
+## 4. Step: Run code (aplanar campos para los emails)
 
-En la rama Then, añadir `Send marketing mail`:
+En la rama Then, añadir `Run code` (description libre, p.ej.
+"Flatten draftOrder fields"):
 
-- **Template**: `B2B · 07 · Solicitud recibida`  
-  (crear antes el template en admin → Marketing → Messaging → Marketing
-  emails → Create template, pegando el cuerpo de
-  `email-templates/07-solicitud-b2b-recibida.liquid`. Asunto:
-  `Solicitud recibida · ref {{ draft_order.name }} · LedsC4 Outlet`).
+```javascript
+export default function main({ draftOrder }) {
+  var customer = (draftOrder && draftOrder.customer) || {};
+  var metafields = customer.metafields || [];
 
-- **To**: `{{ draft_order.customer.email }}`
+  function getMf(key) {
+    for (var i = 0; i < metafields.length; i++) {
+      var m = metafields[i];
+      if (m && m.namespace === 'b2b' && m.key === key) {
+        return m.value || '';
+      }
+    }
+    return '';
+  }
+
+  var attrs = (draftOrder && draftOrder.customAttributes) || [];
+  function getAttr(key) {
+    for (var i = 0; i < attrs.length; i++) {
+      var a = attrs[i];
+      if (a && a.key === key) return a.value || '';
+    }
+    return '';
+  }
+
+  return {
+    empresa: getMf('empresa') || (customer.displayName || ''),
+    nif: getMf('nif'),
+    sector: getMf('sector') || '—',
+    cbmTotal: getAttr('cbm_total') || '0',
+    note: (draftOrder && draftOrder.note) || '',
+    customerEmail:
+      (customer.defaultEmailAddress && customer.defaultEmailAddress.emailAddress) || '',
+    customerPhone:
+      (customer.defaultPhoneNumber && customer.defaultPhoneNumber.phoneNumber) || ''
+  };
+}
+```
+
+- **Input schema**: pulsa "Configure inputs" y marca `draftOrder` con
+  todos los subcampos que necesita: `id, name, createdAt, totalPrice,
+  note, customAttributes, lineItems, customer { displayName,
+  defaultEmailAddress, defaultPhoneNumber, metafields }`.
+- Si Flow advierte que alguno no existe en la schema, quítalo del
+  input — el Run code ya tiene defaults defensivos.
+- La salida será accesible en los steps siguientes como `runCode.xxx`.
+
+## 5. Step: Send marketing mail (cliente)
+
+Tras el Run code, añadir `Send marketing mail`:
+
+- **Template**: `B2B · 07 · Solicitud recibida` (ID `10751852872007`,
+  ya creado en Messaging).
+- **To**: `{{ draftOrder.customer.defaultEmailAddress.emailAddress }}`
+  (Flow Liquid sandbox: usar esta ruta, NO `customer.email` que está
+  deprecada).
 
 > **Nota plan Grow**: en plan development este step queda como draft y
 > no envía. Al pasar a Grow se envía efectivo. Ya documentado en
 > `docs/grow-migration-checklist.md`.
 
-## 5. Step: Send internal email (backoffice)
+## 6. Step: Send internal email (backoffice)
 
 Tras el Send marketing mail, añadir `Send internal email`:
 
 - **To**: `daniel.pena@creacciones.es`  
-  (literal hardcoded — ver `docs/hardcoded-emails.md` para el
-  procedimiento de cutover a producción.)
+  (literal hardcoded — ver `docs/hardcoded-emails.md`).
 
-- **Subject**: `Nueva solicitud B2B · {{ draft_order.customer.metafields.b2b.empresa }} · {{ draft_order.name }}`
+- **Subject**:
+  `Nueva solicitud B2B · {{ runCode.empresa }} · {{ draftOrder.name }}`
 
 - **Email body**: pegar el contenido completo de
-  `email-templates/07b-backoffice-nueva-solicitud.liquid` en el campo
-  body (Flow acepta Liquid inline, sin problemas con metafields del
-  customer accedidos vía `draft_order.customer.metafields.b2b.*`).
+  `email-templates/07b-backoffice-nueva-solicitud.liquid`. El body ya
+  usa `{{ runCode.xxx }}` para empresa, nif, sector, note, emails,
+  teléfonos, cbmTotal — no tocar.
 
-## 6. Guardar y activar
+## 7. Guardar y activar
 
 - Save workflow.
 - Activate (toggle ON).
 - Naming sugerido: `W5 · Solicitud B2B creada`.
 
-## 7. Test
+## 8. Test
 
-1. Desde storefront (tema con Fase D) con customer aprobado:
-   añadir 2 productos al cart → /pages/solicitud → enviar.
+1. Desde storefront preview (tema staging con Fase D) con customer
+   aprobado: añadir 2 productos al cart → /pages/solicitud → enviar.
 2. Verificar en admin → Orders → Drafts que el draft existe con tag
    `solicitud-b2b` + `pendiente-revision`.
-3. Apps → Flow → W5 → Runs → verificar ejecución sin errores.
+3. Apps → Flow → W5 → Runs → verificar ejecución sin errores. El
+   paso Run code debería mostrar el output JSON con empresa, nif, etc.
 4. El email al backoffice llega (dev plan OK).
 5. El marketing mail al cliente queda como draft en
    Marketing → Messaging (se enviará al pasar a Grow).
 
-## Gotchas conocidas de Flow (lecciones Fase A/B)
+## Gotchas conocidas de Flow (lecciones Fase A/B/D)
 
-- `draft_order.customer.metafields.b2b.empresa` debe funcionar porque
-  metafields está disponible en el objeto customer del trigger
-  `Draft order created`. Si devuelve vacío, probar con Run code para
-  debug.
-- `Send internal email` NO acepta variables Liquid en el campo To —
-  solo literales.
-- Asunto del Send marketing mail SÍ acepta variables.
+- **draftOrder** camelCase en sandbox Flow (NO `draft_order`
+  snake_case — ese es el alias de Messaging Liquid en los marketing
+  mails).
+- **Metafields**: no accesibles directamente en Liquid — usar Run code
+  para aplanarlos. El array llega como `[{namespace, key, value}, ...]`.
+- **`draftOrder.note`** tampoco accesible en Liquid directo. Usar Run
+  code.
+- **`customer.email`** deprecated. En Flow 2026 usar
+  `customer.defaultEmailAddress.emailAddress`.
+- **`Send internal email` To**: solo acepta literales, nunca Liquid.
+- **`lineItems`** en draftOrder (camelCase); campo es `variantTitle`
+  (no `variant_title`) y no expone `line_price` calculado — solo
+  `quantity`, `sku`, `title`, `variantTitle`. Para importes, referir
+  al CTA "Abrir en admin".
+- **`draftOrder.legacyResourceId`**: numérico del draft para
+  componer URL admin directa.
