@@ -56,13 +56,16 @@ programa el cron.
 
 ### 5. Setear la URL base del proyecto
 
-Una vez. Desde **SQL Editor** del dashboard, o vía `supabase db execute`:
+La migración inserta un seed en `private.config` con la URL del proyecto origen.
+Tras migrar al proyecto del cliente, actualízala:
 
 ```sql
-ALTER DATABASE postgres SET app.supabase_url = 'https://<project-ref>.supabase.co';
+update private.config set value = 'https://<client-project-ref>.supabase.co'
+where key = 'supabase_url';
 ```
 
-Sin este paso el cron fallará al no saber dónde mandar el POST.
+(Usamos una tabla `private.config` en vez de `ALTER DATABASE SET app.*` porque
+Supabase bloquea esos GUCs con el rol del MCP.)
 
 ### 6. Deploy de la edge function
 
