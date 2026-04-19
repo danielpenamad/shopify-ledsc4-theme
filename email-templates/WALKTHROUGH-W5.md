@@ -63,7 +63,7 @@ export default function main({ draftOrder }) {
     nif: getMf('nif'),
     sector: getMf('sector') || '—',
     cbmTotal: getAttr('cbm_total') || '0',
-    note: (draftOrder && draftOrder.note) || '',
+    note: (draftOrder && draftOrder.note2) || '',
     customerEmail:
       (customer.defaultEmailAddress && customer.defaultEmailAddress.emailAddress) || '',
     customerPhone:
@@ -135,7 +135,9 @@ Tras el Send marketing mail, añadir `Send internal email`:
 - **Metafields**: no accesibles directamente en Liquid — usar Run code
   para aplanarlos. El array llega como `[{namespace, key, value}, ...]`.
 - **`draftOrder.note`** tampoco accesible en Liquid directo. Usar Run
-  code.
+  code. Y ojo: en la schema el campo se llama `note2` (legacy Shopify).
+  En Liquid / input GraphQL escribir `note2`; en el output del Run code
+  lo renombramos a `note` para los emails.
 - **`customer.email`** deprecated. En Flow 2026 usar
   `customer.defaultEmailAddress.emailAddress`.
 - **`Send internal email` To**: solo acepta literales, nunca Liquid.
