@@ -3,11 +3,17 @@
   dark hero + features + footer legal. Typography mix (serif display +
   sans body). Fully responsive, sin dependencias externas.
 
-  Estados de customer:
-    - Anónimo: hero value prop + CTAs login/registro
-    - pendiente: mensaje "en revisión" + link al status page + logout
-    - rechazado: mensaje breve + link al status page (rechazo) + logout
-    - aprobado: bienvenida + CTA al catálogo
+  Diseño estable (rethink 2026-04-19): contenido del hero NO depende del
+  customer state. Mismo mensaje para anon, pendiente, rechazado y aprobado.
+  La diferenciación vive en:
+    - El header (sections/b2b-header-simple para no-aprobados; header-group
+      Dawn para aprobados) — ver layout/theme.liquid.
+    - Los CTAs del hero (cambian según login state para ahorrar clicks).
+    - Los emails 01-06 (comunicación fuera de web).
+    - Las páginas /pages/cuenta-* (safety net si acaban ahí).
+
+  Esto simplifica la lógica y reduce bugs como el descubierto el 2026-04-19
+  (customer sin tag se colaba al catálogo por falta de safety net).
 {% endcomment %}
 
 <section class="b2b-portal" aria-labelledby="b2b-portal-heading">
@@ -36,77 +42,32 @@
     </header>
 
     <div class="b2b-portal__hero-body">
-      {%- if customer == nil -%}
-        <p class="b2b-portal__eyebrow">Portal B2B · acceso exclusivo</p>
-        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
-          Catálogo outlet
-          <em>para profesionales</em>
-        </h1>
-        <p class="b2b-portal__lead">
-          Stocks excedentes y descatalogados de LEDS C4 a precios reducidos.
-          Acceso limitado a instaladores, arquitectos, distribuidores y retail del sector de la iluminación.
-        </p>
-        <div class="b2b-portal__ctas">
-          <a href="/account/login" class="b2b-portal__btn b2b-portal__btn--primary">
-            Iniciar sesión
-          </a>
-          <a href="/account/register" class="b2b-portal__btn b2b-portal__btn--secondary">
-            Solicitar acceso
-          </a>
-        </div>
-
-      {%- elsif customer.tags contains 'aprobado' -%}
-        <p class="b2b-portal__eyebrow">Cuenta activa</p>
-        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
-          Hola, <em>{{ customer.first_name | default: customer.email | truncate: 18 }}</em>
-        </h1>
-        <p class="b2b-portal__lead">
-          Tu cuenta B2B está activa. Explora el catálogo outlet con tus precios especiales.
-        </p>
-        <div class="b2b-portal__ctas">
+      <p class="b2b-portal__eyebrow">Portal B2B · acceso exclusivo</p>
+      <h1 id="b2b-portal-heading" class="b2b-portal__heading">
+        Catálogo outlet
+        <em>para profesionales</em>
+      </h1>
+      <p class="b2b-portal__lead">
+        Stocks excedentes y descatalogados de LEDS C4 a precios reducidos.
+        Acceso limitado a instaladores, arquitectos, distribuidores y retail del sector de la iluminación.
+      </p>
+      <div class="b2b-portal__ctas">
+        {%- if customer and customer.tags contains 'aprobado' -%}
           <a href="/collections/coleccion-2026" class="b2b-portal__btn b2b-portal__btn--primary">
             Ver catálogo
           </a>
           <a href="/account" class="b2b-portal__btn b2b-portal__btn--secondary">
             Mi cuenta
           </a>
-        </div>
-
-      {%- elsif customer.tags contains 'rechazado' -%}
-        <p class="b2b-portal__eyebrow">Estado de tu cuenta</p>
-        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
-          <em>Tu solicitud no pudo activarse</em>
-        </h1>
-        <p class="b2b-portal__lead">
-          Consulta los detalles y cómo contactarnos si crees que es un error.
-        </p>
-        <div class="b2b-portal__ctas">
-          <a href="/pages/cuenta-rechazada" class="b2b-portal__btn b2b-portal__btn--primary">
-            Ver detalles
+        {%- else -%}
+          <a href="/account/login" class="b2b-portal__btn b2b-portal__btn--primary">
+            Iniciar sesión
           </a>
-          <a href="/account/logout" class="b2b-portal__btn b2b-portal__btn--secondary">
-            Cerrar sesión
+          <a href="/account/register" class="b2b-portal__btn b2b-portal__btn--secondary">
+            Solicitar acceso
           </a>
-        </div>
-
-      {%- else -%}
-        {%- comment -%} pendiente (tag 'pendiente' o sin tag) {%- endcomment -%}
-        <p class="b2b-portal__eyebrow">Tu cuenta está en revisión</p>
-        <h1 id="b2b-portal-heading" class="b2b-portal__heading">
-          Estamos <em>validando tu solicitud</em>
-        </h1>
-        <p class="b2b-portal__lead">
-          Nuestro equipo la revisará y te avisaremos por email en 24-48h hábiles. No necesitas hacer nada más por ahora.
-        </p>
-        <div class="b2b-portal__ctas">
-          <a href="/pages/cuenta-en-revision" class="b2b-portal__btn b2b-portal__btn--primary">
-            Ver estado
-          </a>
-          <a href="/account/logout" class="b2b-portal__btn b2b-portal__btn--secondary">
-            Cerrar sesión
-          </a>
-        </div>
-      {%- endif -%}
+        {%- endif -%}
+      </div>
     </div>
 
     <div class="b2b-portal__scroll-hint" aria-hidden="true">
