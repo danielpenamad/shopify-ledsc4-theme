@@ -334,19 +334,16 @@
           <script>window.location.replace('/account/login');</script>
         {%- elsif customer.tags contains 'rechazado' -%}
           <script>window.location.replace('/pages/cuenta-rechazada');</script>
-        {%- endif -%}
-        {%- comment -%}
-          Nota: el caso "logueado pendiente a catálogo" lo maneja Locksmith
-          Rule 2 (collection lock con key aprobado → redirect a cuenta-en-revision).
-          Si Locksmith también falla, descomentar el bloque siguiente:
-        {%- endcomment -%}
-        {%- comment -%}
-        {%- if customer and customer.tags contains 'aprobado' == false and customer.tags contains 'rechazado' == false -%}
-          {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' -%}
+        {%- elsif customer.tags contains 'aprobado' == false -%}
+          {%- comment -%}
+            No aprobado (pendiente explícito o sin tag). Solo afecta URLs
+            comerciales (products/collections/cart/search). Safety net
+            adicional a Locksmith Rule 2 por si no enforza.
+          {%- endcomment -%}
+          {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' or gate_path contains '/search' -%}
             <script>window.location.replace('/pages/cuenta-en-revision');</script>
           {%- endif -%}
         {%- endif -%}
-        {%- endcomment -%}
       {%- endunless -%}
     {%- endunless -%}
   </head>
