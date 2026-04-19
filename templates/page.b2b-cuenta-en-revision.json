@@ -1,0 +1,13 @@
+{
+  "sections": {
+    "main": {
+      "type": "b2b-cuenta-revision",
+      "settings": {
+        "default_message": "El equipo de LedsC4 validará tu solicitud en un plazo de 24-48h hábiles. Te avisaremos por email cuando esté lista."
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

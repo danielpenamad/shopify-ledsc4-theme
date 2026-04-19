@@ -127,6 +127,33 @@ Fuera del alcance de Fase B — este paso lo cubre Fase C (storefront + Locksmit
 
 ---
 
+## 10. Dawn upstream — sync automático (ya configurado)
+
+El repo incluye un workflow de GitHub Actions que cada lunes revisa si Shopify ha publicado un update de Dawn y, si lo hay, crea un PR automáticamente con el merge.
+
+**Ubicación**: `.github/workflows/dawn-sync.yml`
+
+**Cómo funciona**:
+1. Cron semanal (lunes 08:00 UTC). También se puede disparar a mano desde Actions → "Sync Dawn upstream" → Run workflow.
+2. Añade `https://github.com/Shopify/dawn` como remote `upstream`.
+3. Si hay commits nuevos, intenta merge en la rama `automated/dawn-sync`.
+4. Crea o actualiza un PR con label `dawn-upstream`.
+5. Si hay conflictos en archivos customizados (theme.liquid, header.liquid, etc.), el PR queda con markers para resolución manual.
+
+**Qué hacer cuando aparezca un PR `dawn-upstream`**:
+- Revisa los diffs en la pestaña Files changed.
+- Si el PR dice "merge limpio" → puedes mergear directo (tras comprobar tests manuales).
+- Si dice "conflictos" → checkout local, resolver, force-push al branch del PR.
+- Tras merge a `main`, la GitHub Connection del tema live sincroniza automáticamente.
+
+**Cuando migres al repo del cliente**: el workflow viaja con el repo. Actions se activa solo al hacer fork/clone + habilitar Actions en el nuevo repo.
+
+**Disparo manual** (útil si quieres traer Dawn updates antes del lunes):
+```bash
+gh workflow run "Sync Dawn upstream"
+```
+o desde la UI: Actions → Sync Dawn upstream → Run workflow.
+
 ## Checklist rápida
 
 - [ ] Plan subido a Grow

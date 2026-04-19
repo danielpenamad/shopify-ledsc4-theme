@@ -1,0 +1,114 @@
+name: Sync Dawn upstream
+
+# Sincroniza el repo con Shopify/dawn (https://github.com/Shopify/dawn)
+# para recibir updates del tema base. Cada lunes a las 08:00 UTC (09:00/10:00 ES),
+# o bajo demanda desde la pestaña Actions.
+#
+# Comportamiento:
+# 1. Fetch upstream main.
+# 2. Si hay commits nuevos, intenta merge en una rama automated/dawn-sync.
+# 3. Crea/actualiza PR con los cambios.
+# 4. Si hay conflictos, el PR queda con marcadores — se resuelven a mano antes de merge.
+#
+# Tras merge manual a main:
+#   - GitHub Connection theme en Shopify sincroniza automáticamente.
+#   - El tema live recibe los updates de Dawn sin theme push manual.
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # Lunes 08:00 UTC
+  workflow_dispatch:      # disparo manual desde la pestaña Actions
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configurar git
+        run: |
+          git config user.name "dawn-sync-bot"
+          git config user.email "dawn-sync@users.noreply.github.com"
+
+      - name: Fetch Dawn upstream
+        id: check
+        run: |
+          git remote add upstream https://github.com/Shopify/dawn.git
+          git fetch upstream main
+          BEHIND=$(git rev-list --count HEAD..upstream/main)
+          echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
+          if [ "$BEHIND" -eq 0 ]; then
+            echo "✅ Ya estamos al día con Dawn."
+          else
+            echo "ℹ️ $BEHIND commits por detrás de Dawn upstream."
+            git log --oneline HEAD..upstream/main | head -20
+          fi
+
+      - name: Attempt merge
+        if: steps.check.outputs.behind != '0'
+        id: merge
+        continue-on-error: true
+        run: |
+          if git merge upstream/main --no-edit -m "chore(dawn): sync con Shopify/dawn upstream"; then
+            echo "status=clean" >> "$GITHUB_OUTPUT"
+            echo "✅ Merge limpio sin conflictos."
+          else
+            echo "status=conflicts" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Conflictos. El PR incluirá los markers para resolución manual."
+            # Commit del estado de conflictos para que peter-evans pueda crear el PR
+            git add -A
+            git commit -m "chore(dawn): sync con Shopify/dawn upstream (con conflictos — resolver a mano)" || true
+          fi
+
+      - name: Create or update PR
+        if: steps.check.outputs.behind != '0'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automated/dawn-sync
+          delete-branch: false
+          title: "⬆️ Sync Shopify Dawn upstream (${{ steps.check.outputs.behind }} commits)"
+          labels: |
+            dawn-upstream
+            automated
+          body: |
+            Sync automática con [Shopify/dawn](https://github.com/Shopify/dawn).
+
+            **Status**: `${{ steps.merge.outputs.status }}` · **${{ steps.check.outputs.behind }} commits** behind upstream.
+
+            ## Qué revisar
+
+            - Pestaña **Files changed** — mira qué cambia Dawn vs tu fork.
+            - Si el status es `conflicts`, hay markers `<<<<<<<` en algunos archivos. Resolver localmente:
+              ```bash
+              git fetch origin automated/dawn-sync
+              git checkout automated/dawn-sync
+              # Resolver conflictos en tu editor
+              git add .
+              git commit --amend --no-edit
+              git push --force-with-lease origin automated/dawn-sync
+              ```
+            - Archivos propios (customizaciones LedsC4) con alta probabilidad de conflicto:
+              - `layout/theme.liquid`
+              - `sections/header.liquid`, `sections/footer.liquid`
+              - `sections/main-product.liquid`
+              - `assets/base.css`, `assets/section-product-custom.css`
+              - `config/settings_data.json`, `config/settings_schema.json`
+            - Secciones nuevas del proyecto B2B (`sections/b2b-*.liquid`, `snippets/b2b-*`, `templates/page.b2b-*`) NO deberían tener conflictos — Dawn no las toca.
+
+            ## Tras merge
+
+            1. GitHub Connection en Shopify sincroniza `main` → tema live.
+            2. Verificar en preview que nada se ha roto.
+            3. Si el tema live está en una rama que no es `main`, hacer también merge/rebase a esa rama.
+
+            ---
+
+            Generado por `.github/workflows/dawn-sync.yml`. Editable.

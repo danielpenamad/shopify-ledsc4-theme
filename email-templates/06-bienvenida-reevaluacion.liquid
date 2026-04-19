@@ -1,36 +1,68 @@
 <!--
-  Email 6 — Bienvenida tras re-evaluación (whitelist actualizada aprueba un pendiente).
-  Disparador: W4 (Send marketing mail).
-  To: {{ customer.email }} (gestionado por Shopify Messaging).
-
-  Mismo contenido base que email 01. Plantilla separada para evolución
-  independiente (p.ej. añadir "gracias por esperar").
-
-  Plantilla Shopify Messaging / marketing. Obligatorio incluir:
-    {{ unsubscribe_link }}
-    {{ open_tracking_block }}
-
-  Asunto (campo "Asunto" del correo):
-    Tu cuenta B2B de LedsC4 Outlet está activa
+  Email 6 — Bienvenida tras re-evaluación de whitelist.
+  Disparador: W4 via Supabase → W2 (Send marketing mail).
+  Asunto: Tu cuenta B2B de LedsC4 Outlet está activa
 -->
 
-<p>Hola {{ customer.first_name }},</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafaf7;margin:0;padding:0;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
 
-<p>¡Buenas noticias! Tu cuenta B2B para <strong>LedsC4 Outlet</strong> acaba de activarse. Ya puedes acceder al portal y empezar a pedir al precio de outlet.</p>
+        <tr>
+          <td align="center" style="padding:36px 40px 24px 40px;border-bottom:1px solid #eeeeee;">
+            {% if shop.brand.logo %}
+              <img src="{{ shop.brand.logo.src | image_url: width: 400 }}" alt="{{ shop.name }}" width="160" style="display:block;margin:0 auto;border:0;">
+            {% else %}
+              <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:0.08em;color:#1a1f27;">LEDS C4 · Outlet</div>
+            {% endif %}
+          </td>
+        </tr>
 
-<p><a href="{{ shop.url }}/account/login">Acceder al portal</a></p>
+        <tr>
+          <td style="padding:32px 40px 8px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;">
+            <h1 style="font-size:22px;font-weight:600;margin:0 0 16px 0;line-height:1.3;letter-spacing:-0.01em;">Buenas noticias · tu cuenta está activa</h1>
+            <p style="font-size:16px;line-height:1.55;margin:0 0 16px 0;">Hola {{ customer.first_name }},</p>
+            <p style="font-size:16px;line-height:1.55;margin:0 0 16px 0;">Tu cuenta B2B para <strong>LedsC4 Outlet</strong> acaba de activarse tras la última revisión. Gracias por esperar. Ya puedes acceder al portal y empezar a pedir al precio de outlet.</p>
+          </td>
+        </tr>
 
-<p><strong>Datos registrados</strong></p>
-<ul>
-  <li>Empresa: {{ customer.metafields.b2b.empresa }}</li>
-  <li>NIF: {{ customer.metafields.b2b.nif }}</li>
-</ul>
+        <tr>
+          <td align="center" style="padding:16px 40px 28px 40px;">
+            <a href="{{ shop.url }}/account/login?checkout_url=%2Fcollections%2Fcoleccion-2026" style="display:inline-block;background:#1a1f27;color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;">Ver catálogo outlet</a>
+          </td>
+        </tr>
 
-<p>Para cualquier duda, escríbenos a <a href="mailto:daniel.pena+backoffice@creacciones.es">daniel.pena+backoffice@creacciones.es</a>.</p>
+        <tr>
+          <td style="padding:0 40px 32px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafaf7;border-radius:6px;">
+              <tr>
+                <td style="padding:16px 20px;">
+                  <p style="font-size:13px;color:#666;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.05em;">Datos registrados</p>
+                  <p style="font-size:15px;margin:0 0 4px 0;"><strong>Empresa:</strong> {{ customer.metafields.b2b.empresa }}</p>
+                  <p style="font-size:15px;margin:0;"><strong>NIF / CIF:</strong> {{ customer.metafields.b2b.nif }}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-<p>Un saludo,<br>
-Equipo LedsC4 Outlet</p>
+        <tr>
+          <td style="padding:0 40px 24px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#666;font-size:14px;line-height:1.55;">
+            <p style="margin:0;">¿Dudas? Escríbenos a <a href="mailto:{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}" style="color:#1a1f27;">{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}</a>.</p>
+          </td>
+        </tr>
 
-<p style="font-size:12px;color:#888;">Puedes darte de baja en {{ unsubscribe_link }}</p>
+        <tr>
+          <td style="padding:24px 40px;background:#fafaf7;border-top:1px solid #eeeeee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#888;font-size:11px;text-align:center;line-height:1.55;">
+            <p style="margin:0 0 6px 0;"><strong style="color:#666;">LEDS C4, SA</strong> · CIF A59410910</p>
+            <p style="margin:0 0 10px 0;">Carretera de Rubí 88, 2ª planta, Sant Cugat del Vallés</p>
+            <p style="margin:0;"><a href="{{ unsubscribe_link }}" style="color:#888;text-decoration:underline;">Darte de baja</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
 {{ open_tracking_block }}

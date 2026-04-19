@@ -1,0 +1,415 @@
+{% comment %}
+  Homepage del portal B2B LedsC4 Outlet. Estética editorial sobria:
+  dark hero + features + footer legal. Typography mix (serif display +
+  sans body). Fully responsive, sin dependencias externas.
+
+  Diseño estable (rethink 2026-04-19): contenido del hero NO depende del
+  customer state. Mismo mensaje para anon, pendiente, rechazado y aprobado.
+  La diferenciación vive en:
+    - El header (sections/b2b-header-simple para no-aprobados; header-group
+      Dawn para aprobados) — ver layout/theme.liquid.
+    - Los CTAs del hero (cambian según login state para ahorrar clicks).
+    - Los emails 01-06 (comunicación fuera de web).
+    - Las páginas /pages/cuenta-* (safety net si acaban ahí).
+
+  Esto simplifica la lógica y reduce bugs como el descubierto el 2026-04-19
+  (customer sin tag se colaba al catálogo por falta de safety net).
+{% endcomment %}
+
+<section class="b2b-portal" aria-labelledby="b2b-portal-heading">
+
+  <div class="b2b-portal__hero">
+    <header class="b2b-portal__brand">
+      {%- if shop.brand.logo != blank -%}
+        <img
+          src="{{ shop.brand.logo | image_url: width: 400 }}"
+          alt="{{ shop.name | escape }}"
+          width="180"
+          height="auto"
+          loading="eager"
+        >
+      {%- elsif section.settings.logo != blank -%}
+        <img
+          src="{{ section.settings.logo | image_url: width: 400 }}"
+          alt="{{ shop.name | escape }}"
+          width="{{ section.settings.logo_width | default: 180 }}"
+          height="auto"
+          loading="eager"
+        >
+      {%- else -%}
+        <span class="b2b-portal__brand-wordmark">LEDS C4 <em>Outlet</em></span>
+      {%- endif -%}
+    </header>
+
+    <div class="b2b-portal__hero-body">
+      <p class="b2b-portal__eyebrow">Portal B2B · acceso exclusivo</p>
+      <h1 id="b2b-portal-heading" class="b2b-portal__heading">
+        Catálogo outlet
+        <em>para profesionales</em>
+      </h1>
+      <p class="b2b-portal__lead">
+        Stocks excedentes y descatalogados de LEDS C4 a precios reducidos.
+        Acceso limitado a instaladores, arquitectos, distribuidores y retail del sector de la iluminación.
+      </p>
+      <div class="b2b-portal__ctas">
+        {%- if customer and customer.tags contains 'aprobado' -%}
+          <a href="/collections/coleccion-2026" class="b2b-portal__btn b2b-portal__btn--primary">
+            Ver catálogo
+          </a>
+          <a href="/account" class="b2b-portal__btn b2b-portal__btn--secondary">
+            Mi cuenta
+          </a>
+        {%- else -%}
+          <a href="/account/login" class="b2b-portal__btn b2b-portal__btn--primary">
+            Iniciar sesión
+          </a>
+          <a href="/account/register" class="b2b-portal__btn b2b-portal__btn--secondary">
+            Solicitar acceso
+          </a>
+        {%- endif -%}
+      </div>
+    </div>
+
+    <div class="b2b-portal__scroll-hint" aria-hidden="true">
+      <span>Más info</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    </div>
+  </div>
+
+  {%- comment -%} Value prop features — solo visible si no es customer aprobado (a aprobado le interesa ver el catálogo directo). {%- endcomment -%}
+  {%- unless customer.tags contains 'aprobado' -%}
+    <div class="b2b-portal__features">
+      <div class="b2b-portal__features-grid">
+        <article class="b2b-portal__feature">
+          <svg class="b2b-portal__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <h3>Stock outlet</h3>
+          <p>Excedentes, fin de serie y descatalogados de LEDS C4 a precios reducidos. Actualizado cada semana.</p>
+        </article>
+
+        <article class="b2b-portal__feature">
+          <svg class="b2b-portal__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <h3>Alta en 24-48h</h3>
+          <p>Rellenas el formulario de solicitud y validamos tus datos profesionales. Sin mínimos en el primer pedido.</p>
+        </article>
+
+        <article class="b2b-portal__feature">
+          <svg class="b2b-portal__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <h3>Envío península 24-48h</h3>
+          <p>Almacén ibérico con stock disponible. Envío directo y sin intermediarios para pedidos profesionales.</p>
+        </article>
+      </div>
+    </div>
+  {%- endunless -%}
+
+  <footer class="b2b-portal__footer">
+    <nav class="b2b-portal__footer-nav" aria-label="Enlaces legales">
+      <a href="/pages/aviso-legal">Aviso legal</a>
+      <span aria-hidden="true">·</span>
+      <a href="/pages/politica-de-privacidad">Privacidad</a>
+      <span aria-hidden="true">·</span>
+      <a href="/pages/condiciones-de-uso">Condiciones</a>
+      <span aria-hidden="true">·</span>
+      <a href="/pages/canal-de-denuncias">Canal ético</a>
+    </nav>
+    <p class="b2b-portal__footer-note">
+      © {{ 'now' | date: '%Y' }} LEDS C4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés
+    </p>
+  </footer>
+
+</section>
+
+<style>
+  .b2b-portal {
+    --bg: #0c0e12;
+    --bg-alt: #14171c;
+    --fg: #f5f5f7;
+    --fg-muted: rgba(245, 245, 247, 0.68);
+    --fg-dim: rgba(245, 245, 247, 0.45);
+    --accent: #d4a84a;
+    --border: rgba(245, 245, 247, 0.08);
+
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .b2b-portal *,
+  .b2b-portal *::before,
+  .b2b-portal *::after {
+    box-sizing: border-box;
+  }
+
+  /* HERO */
+  .b2b-portal__hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem 4rem;
+    position: relative;
+    min-height: calc(100vh - 1px);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(212, 168, 74, 0.08), transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-alt) 100%);
+  }
+
+  .b2b-portal__brand {
+    margin-bottom: 3.5rem;
+  }
+
+  .b2b-portal__brand img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    filter: brightness(0) invert(1);
+  }
+
+  .b2b-portal__brand-wordmark {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg);
+  }
+  .b2b-portal__brand-wordmark em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.85em;
+  }
+
+  .b2b-portal__hero-body {
+    text-align: center;
+    max-width: 680px;
+    width: 100%;
+  }
+
+  .b2b-portal__eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.25rem;
+  }
+
+  .b2b-portal__heading {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.25rem, 5.5vw, 4rem);
+    font-weight: 400;
+    line-height: 1.1;
+    margin: 0 0 1.5rem;
+    color: var(--fg);
+    letter-spacing: -0.015em;
+  }
+  .b2b-portal__heading em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+    display: block;
+  }
+  @media (min-width: 768px) {
+    .b2b-portal__heading em {
+      display: inline;
+    }
+  }
+
+  .b2b-portal__lead {
+    font-size: clamp(1rem, 1.4vw, 1.125rem);
+    line-height: 1.65;
+    color: var(--fg-muted);
+    margin: 0 auto 2.5rem;
+    max-width: 520px;
+  }
+
+  .b2b-portal__ctas {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .b2b-portal__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 10.5rem;
+    padding: 0.9375rem 1.75rem;
+    border-radius: 999px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .b2b-portal__btn--primary {
+    background: var(--fg);
+    color: var(--bg);
+    border: 1px solid var(--fg);
+  }
+  .b2b-portal__btn--primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    transform: translateY(-1px);
+  }
+
+  .b2b-portal__btn--secondary {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--fg-dim);
+  }
+  .b2b-portal__btn--secondary:hover {
+    border-color: var(--fg);
+    background: rgba(245, 245, 247, 0.04);
+    transform: translateY(-1px);
+  }
+
+  .b2b-portal__scroll-hint {
+    position: absolute;
+    bottom: 1.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--fg-dim);
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    animation: b2b-bounce 2.5s ease-in-out infinite;
+  }
+  @keyframes b2b-bounce {
+    0%, 100% { transform: translate(-50%, 0); }
+    50% { transform: translate(-50%, 6px); }
+  }
+
+  /* FEATURES */
+  .b2b-portal__features {
+    background: var(--bg-alt);
+    padding: 5rem 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .b2b-portal__features-grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 2.5rem;
+  }
+
+  .b2b-portal__feature {
+    text-align: left;
+  }
+
+  .b2b-portal__feature-icon {
+    width: 32px;
+    height: 32px;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+    stroke-width: 1.25;
+  }
+
+  .b2b-portal__feature h3 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.375rem;
+    font-weight: 400;
+    margin: 0 0 0.625rem;
+    color: var(--fg);
+    letter-spacing: -0.005em;
+  }
+
+  .b2b-portal__feature p {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--fg-muted);
+    margin: 0;
+  }
+
+  /* FOOTER */
+  .b2b-portal__footer {
+    background: var(--bg);
+    padding: 2rem 1.5rem 2.5rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .b2b-portal__footer-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+    font-size: 0.8125rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .b2b-portal__footer-nav a {
+    color: var(--fg-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .b2b-portal__footer-nav a:hover {
+    color: var(--fg);
+  }
+
+  .b2b-portal__footer-note {
+    font-size: 0.75rem;
+    color: var(--fg-dim);
+    margin: 0;
+    letter-spacing: 0.01em;
+    line-height: 1.55;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .b2b-portal__btn,
+    .b2b-portal__scroll-hint {
+      transition: none;
+      animation: none;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "B2B Portal Home",
+  "tag": "section",
+  "class": "section-b2b-portal",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Branding"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo (fallback)",
+      "info": "Se usa si Online Store > Brand > Logo está vacío. Fondo transparente; blanco sobre hero oscuro."
+    },
+    {
+      "type": "range",
+      "id": "logo_width",
+      "label": "Ancho del logo (px)",
+      "min": 80,
+      "max": 320,
+      "step": 10,
+      "default": 180
+    }
+  ],
+  "presets": [
+    {
+      "name": "B2B Portal Home"
+    }
+  ]
+}
+{% endschema %}

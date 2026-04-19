@@ -1,0 +1,40 @@
+[
+  {
+    "title": "Tu cuenta está en revisión",
+    "handle": "cuenta-en-revision",
+    "template_suffix": "b2b-cuenta-en-revision",
+    "body_html": "<p>Estamos validando los datos de tu solicitud. Te avisaremos por email en 24-48h hábiles.</p><p><em>Esta página usa un template custom — el contenido real se renderiza desde el tema.</em></p>",
+    "published": true
+  },
+  {
+    "title": "Estado de tu solicitud",
+    "handle": "cuenta-rechazada",
+    "template_suffix": "b2b-cuenta-rechazada",
+    "body_html": "<p>Tu solicitud no ha podido activarse.</p><p><em>Esta página usa un template custom — el contenido real se renderiza desde el tema.</em></p>",
+    "published": true
+  },
+  {
+    "title": "Aviso legal",
+    "handle": "aviso-legal",
+    "body_file": "pages/legal/aviso-legal.html",
+    "published": true
+  },
+  {
+    "title": "Política de privacidad",
+    "handle": "politica-de-privacidad",
+    "body_file": "pages/legal/politica-de-privacidad.html",
+    "published": true
+  },
+  {
+    "title": "Condiciones de uso",
+    "handle": "condiciones-de-uso",
+    "body_file": "pages/legal/condiciones-de-uso.html",
+    "published": true
+  },
+  {
+    "title": "Canal ético (denuncias)",
+    "handle": "canal-de-denuncias",
+    "body_file": "pages/legal/canal-de-denuncias.html",
+    "published": true
+  }
+]

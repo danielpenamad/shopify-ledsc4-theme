@@ -471,8 +471,8 @@
     },
     "recover_password": {
       "title": "Restablecer tu contraseña",
-      "subtext": "Te enviaremos un correo electrónico para restablecer tu contraseña",
-      "success": "Te hemos enviado un correo electrónico con un enlace para actualizar tu contraseña."
+      "subtext": "Si tu email está registrado, recibirás un enlace para restablecer tu contraseña.",
+      "success": "Si tu email está registrado, recibirás un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada."
     },
     "register": {
       "title": "Crear cuenta",
