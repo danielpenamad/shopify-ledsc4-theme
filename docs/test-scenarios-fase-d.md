@@ -135,8 +135,21 @@ el aviso de duplicado funciona en ambas direcciones.
 Documentar aquí cualquier comportamiento raro durante el testing:
 
 - [ ] ___
-- [ ] ___
-- [ ] ___
+
+## Mejoras futuras (si queda tiempo o post-MVP)
+
+- [ ] **Confirmación "solicitud reciente" con modal custom**: actualmente el
+  aviso "Tienes una solicitud muy reciente, ¿seguro?" usa `window.confirm()`
+  nativo del navegador — feo y no matchea la estética LedsC4. Reemplazar
+  por un modal propio (dialog HTML5) en `sections/b2b-solicitud-form.liquid`.
+- [ ] **Bloqueo real de /checkout**: actualmente /checkout es accesible
+  teclando la URL (el tema no controla esa ruta). Requiere Shopify Cart
+  Validation Function para bloquear a nivel plataforma. Ver
+  https://shopify.dev/docs/apps/build/checkout/cart-checkout-validation
+- [ ] **Timeline de cambios de estado** en detalle de solicitud (quién
+  aprobó, cuándo pasó a confirmada, etc.). Requiere tabla Supabase con
+  eventos.
+- [ ] **PDF de la solicitud** descargable desde el detalle.
 
 ## Post-test
 
