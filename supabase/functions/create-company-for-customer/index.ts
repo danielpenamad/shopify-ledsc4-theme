@@ -163,14 +163,16 @@ Deno.serve(async (req) => {
       return jsonResponse({ startedAt, error: "customer has no default email", customerId }, 400);
     }
 
-    // 6. companyCreate (Company + Contact + Location en una sola mutation)
+    // 6. companyCreate — solo Company + Location. El Contact lo creamos
+    // en un paso separado con companyAssignCustomerAsContact porque el
+    // companyContact de companyCreate crearía un NUEVO customer en vez de
+    // linkear el existente.
     const createRes = await gql<{
       companyCreate: {
         company: {
           id: string;
           name: string;
           locations: { edges: Array<{ node: { id: string } }> };
-          contacts: { edges: Array<{ node: { id: string } }> };
         } | null;
         userErrors: Array<{ field: string[]; message: string; code: string }>;
       };
@@ -182,7 +184,6 @@ Deno.serve(async (req) => {
             id
             name
             locations(first: 1) { edges { node { id } } }
-            contacts(first: 1) { edges { node { id } } }
           }
           userErrors { field message code }
         }
@@ -191,16 +192,14 @@ Deno.serve(async (req) => {
       {
         input: {
           company: { name: empresa },
-          companyContact: {
-            customerId,
-            firstName: customer.firstName,
-            lastName: customer.lastName,
-            email,
-            title: "Contacto principal",
-          },
           companyLocation: {
             name: empresa,
-            shippingAddress: { countryCode: "ES" },
+            shippingAddress: {
+              address1: "Por completar al primer pedido",
+              city: "Madrid",
+              zip: "28001",
+              countryCode: "ES",
+            },
             billingSameAsShipping: true,
           },
         },
@@ -223,6 +222,35 @@ Deno.serve(async (req) => {
         startedAt,
         error: "company created but no location returned",
         companyId: company.id,
+      }, 500);
+    }
+
+    // 6.5 Asignar el customer existente como contacto de la Company
+    const assignRes = await gql<{
+      companyAssignCustomerAsContact: {
+        companyContact: { id: string } | null;
+        userErrors: Array<{ field: string[]; message: string; code: string }>;
+      };
+    }>(
+      `
+      mutation($companyId: ID!, $customerId: ID!) {
+        companyAssignCustomerAsContact(companyId: $companyId, customerId: $customerId) {
+          companyContact { id }
+          userErrors { field message code }
+        }
+      }
+      `,
+      { companyId: company.id, customerId },
+    );
+
+    const assignErrs = assignRes.companyAssignCustomerAsContact.userErrors;
+    if (assignErrs.length) {
+      return jsonResponse({
+        startedAt,
+        error: "companyAssignCustomerAsContact userErrors — company creada pero customer NO linkeado como contact",
+        userErrors: assignErrs,
+        companyId: company.id,
+        companyLocationId,
       }, 500);
     }
 
