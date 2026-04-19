@@ -257,9 +257,15 @@
                 role="list"
               >
                 {%- assign skip_card_product_styles = false -%}
+                {%- comment %}<locksmith:f8f0>{% endcomment -%}
+                  {%- assign locksmith_a7c9_forloop__size = 0 %}{%- for item in search.results -%}{% capture var %}{% render 'locksmith-variables', scope: 'subject', subject: item, subject_parent: search, variable: 'transparent' %}{% endcapture %}{% if var == 'true' %}{% assign locksmith_a7c9_forloop__size = locksmith_a7c9_forloop__size | plus: 1 %}{% endif %}{% endfor %}{% assign locksmith_a7c9_forloop__index = nil -%}
+                {%- comment %}</locksmith:f8f0>{% endcomment -%}
                 {%- for item in search.results -%}
+                  {%- comment %}<locksmith:ef8b>{% endcomment -%}
+                    {%- capture var %}{% render 'locksmith-variables', scope: 'subject', subject: item, subject_parent: search, variable: 'transparent' %}{% endcapture %}{% if var == "true" %}{% if locksmith_a7c9_forloop__index == nil %}{% assign locksmith_a7c9_forloop__index = 1 %}{% assign locksmith_a7c9_forloop__index0 = 0 %}{% else %}{% assign locksmith_a7c9_forloop__index = locksmith_a7c9_forloop__index | plus: 1 %}{% assign locksmith_a7c9_forloop__index0 = locksmith_a7c9_forloop__index0 | plus: 1 %}{% endif %}{% if locksmith_a7c9_forloop__index == 1 %}{% assign locksmith_a7c9_forloop__first = true %}{% else %}{% assign locksmith_a7c9_forloop__first = false %}{% endif %}{% if locksmith_a7c9_forloop__index == locksmith_a7c9_forloop__size %}{% assign locksmith_a7c9_forloop__last = true %}{% else %}{% assign locksmith_a7c9_forloop__last = false %}{% endif %}{% assign locksmith_a7c9_forloop__rindex = locksmith_a7c9_forloop__size | minus: locksmith_a7c9_forloop__index | minus: 1 %}{% assign locksmith_a7c9_forloop__rindex0 = locksmith_a7c9_forloop__size | minus: locksmith_a7c9_forloop__index0 | minus: 1 %}{% else %}{% continue %}{% endif -%}
+                  {%- comment %}</locksmith:ef8b>{% endcomment -%}
                   {% assign lazy_load = false %}
-                  {%- if forloop.index > 2 -%}
+                  {%- if locksmith_a7c9_forloop__index > 2 -%}
                     {%- assign lazy_load = true -%}
                   {%- endif -%}
 
