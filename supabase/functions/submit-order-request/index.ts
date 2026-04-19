@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
       }>(
         `
         query($q: String!) {
-          draftOrders(first: 5, query: $q, sortKey: CREATED_AT, reverse: true) {
+          draftOrders(first: 5, query: $q, sortKey: ID, reverse: true) {
             edges {
               node { id name createdAt tags }
             }

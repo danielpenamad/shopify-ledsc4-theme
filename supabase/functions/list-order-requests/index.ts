@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
     }>(
       `
       query($q: String!) {
-        draftOrders(first: 50, query: $q, sortKey: CREATED_AT, reverse: true) {
+        draftOrders(first: 50, query: $q, sortKey: ID, reverse: true) {
           edges {
             node {
               id name createdAt tags totalPrice
