@@ -1466,8 +1466,7 @@
         "type": "text",
         "id": "order_request_hmac_secret",
         "label": "HMAC secret",
-        "default": "",
-        "info": "DEBE coincidir con ORDER_REQUEST_HMAC_SECRET en Supabase env. No compartir."
+        "info": "DEBE coincidir con ORDER_REQUEST_HMAC_SECRET en Supabase env. No compartir. Seteado en settings_data.json."
       },
       {
         "type": "text",
