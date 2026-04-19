@@ -88,5 +88,23 @@
     "description": "Destinatario de avisos de nuevo registro B2B pendiente de aprobación.",
     "type": "single_line_text_field",
     "pin": true
+  },
+  {
+    "ownerType": "PAGE",
+    "namespace": "b2b",
+    "key": "cuenta_revision_mensaje",
+    "name": "Mensaje cuenta en revisión",
+    "description": "Texto mostrado en /pages/cuenta-en-revision. Editable por staff.",
+    "type": "multi_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "PAGE",
+    "namespace": "b2b",
+    "key": "cuenta_rechazada_mensaje",
+    "name": "Mensaje cuenta rechazada",
+    "description": "Texto mostrado en /pages/cuenta-rechazada. Editable por staff.",
+    "type": "multi_line_text_field",
+    "pin": true
   }
 ]
