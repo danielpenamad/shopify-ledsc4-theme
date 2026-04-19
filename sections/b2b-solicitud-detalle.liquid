@@ -6,30 +6,31 @@
 
 {%- liquid
   assign now_ts = 'now' | date: '%s'
-  assign hmac_payload = customer.id | append: ':' | append: now_ts
+  assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
+  assign hmac_payload = customer_gid | append: ':' | append: now_ts
   assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
 -%}
 
 <style>
-  .b2b-detalle { max-width: 900px; margin: 0 auto; padding: 48px 24px; font-family: var(--font-body-family); }
-  .b2b-detalle__back { display: inline-block; color: #666; text-decoration: underline; font-size: 0.9rem; margin-bottom: 16px; }
-  .b2b-detalle h1 { font-family: var(--font-heading-family); font-size: 2rem; margin: 0 0 8px 0; letter-spacing: -0.01em; }
-  .b2b-detalle__meta { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; margin: 16px 0 32px 0; color: #666; font-size: 0.9rem; }
-  .b2b-detalle__status { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .b2b-detalle { max-width: 960px; margin: 0 auto; padding: 48px 24px; font-family: var(--font-body-family); font-size: 1.5rem; line-height: 1.55; }
+  .b2b-detalle__back { display: inline-block; color: #666; text-decoration: underline; font-size: 1.4rem; margin-bottom: 20px; }
+  .b2b-detalle h1 { font-family: var(--font-heading-family); font-size: 3rem; margin: 0 0 16px 0; letter-spacing: -0.01em; line-height: 1.15; }
+  .b2b-detalle__meta { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; margin: 20px 0 36px 0; color: #666; font-size: 1.4rem; }
+  .b2b-detalle__status { display: inline-block; padding: 6px 14px; border-radius: 12px; font-size: 1.15rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
   .b2b-detalle__status--pendiente-revision { background: #fef3c7; color: #92400e; }
   .b2b-detalle__status--en-tramite { background: #dbeafe; color: #1e40af; }
   .b2b-detalle__status--confirmada { background: #d1fae5; color: #065f46; }
   .b2b-detalle__status--cancelada { background: #f3f4f6; color: #6b7280; }
-  .b2b-detalle__table { width: 100%; border-collapse: collapse; margin: 0 0 24px 0; font-size: 0.95rem; }
-  .b2b-detalle__table th, .b2b-detalle__table td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #eee; }
-  .b2b-detalle__table th { font-weight: 600; color: #666; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+  .b2b-detalle__table { width: 100%; border-collapse: collapse; margin: 0 0 32px 0; font-size: 1.4rem; }
+  .b2b-detalle__table th, .b2b-detalle__table td { padding: 16px 12px; text-align: left; border-bottom: 1px solid #eee; }
+  .b2b-detalle__table th { font-weight: 600; color: #666; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 0.05em; }
   .b2b-detalle__table td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .b2b-detalle__totals { background: #fafaf7; padding: 16px 20px; border-radius: 6px; margin: 0 0 24px 0; }
-  .b2b-detalle__totals .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; }
-  .b2b-detalle__totals .row--big { font-weight: 600; font-size: 1.1rem; border-top: 1px solid #e0e0e0; margin-top: 8px; padding-top: 12px; }
-  .b2b-detalle__note { background: #fff8e1; border-left: 3px solid #d4a84a; padding: 16px; margin: 0 0 24px 0; font-style: italic; color: #555; }
-  .b2b-detalle__note-label { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px 0; font-style: normal; }
-  .b2b-detalle__loading { text-align: center; padding: 60px 24px; color: #666; }
+  .b2b-detalle__totals { background: #fafaf7; padding: 24px 28px; border-radius: 6px; margin: 0 0 32px 0; }
+  .b2b-detalle__totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 1.5rem; }
+  .b2b-detalle__totals .row--big { font-weight: 600; font-size: 1.7rem; border-top: 1px solid #e0e0e0; margin-top: 10px; padding-top: 14px; }
+  .b2b-detalle__note { background: #fff8e1; border-left: 3px solid #d4a84a; padding: 20px 24px; margin: 0 0 32px 0; font-style: italic; color: #555; font-size: 1.4rem; line-height: 1.6; border-radius: 4px; }
+  .b2b-detalle__note-label { font-size: 1.1rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0; font-style: normal; }
+  .b2b-detalle__loading { text-align: center; padding: 80px 24px; color: #666; font-size: 1.5rem; }
 </style>
 
 <div class="b2b-detalle">
@@ -42,7 +43,7 @@
 <script>
   (function () {
     const ENDPOINT = {{ settings.list_order_requests_endpoint | json }};
-    const CUSTOMER_ID = {{ customer.id | json }};
+    const CUSTOMER_ID = {{ customer_gid | json }};
     const TIMESTAMP = {{ now_ts | json }};
     const SIGNATURE = {{ hmac_sig | json }};
 

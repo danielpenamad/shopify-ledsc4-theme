@@ -11,36 +11,37 @@
 
 {%- liquid
   assign now_ts = 'now' | date: '%s'
-  assign hmac_payload = customer.id | append: ':' | append: now_ts
+  assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
+  assign hmac_payload = customer_gid | append: ':' | append: now_ts
   assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
 -%}
 
 <style>
-  .b2b-solicitud { max-width: 960px; margin: 0 auto; padding: 48px 24px; font-family: var(--font-body-family); font-size: 1.0625rem; line-height: 1.55; }
-  .b2b-solicitud h1 { font-family: var(--font-heading-family); font-size: 2.25rem; margin: 0 0 12px 0; letter-spacing: -0.01em; }
-  .b2b-solicitud__lead { color: #555; margin: 0 0 32px 0; font-size: 1.0625rem; line-height: 1.6; max-width: 640px; }
-  .b2b-solicitud__table { width: 100%; border-collapse: collapse; margin: 0 0 24px 0; }
-  .b2b-solicitud__table th, .b2b-solicitud__table td { padding: 14px 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 1rem; }
-  .b2b-solicitud__table th { font-weight: 600; color: #666; text-transform: uppercase; font-size: 0.8125rem; letter-spacing: 0.05em; }
+  .b2b-solicitud { max-width: 960px; margin: 0 auto; padding: 48px 24px; font-family: var(--font-body-family); font-size: 1.5rem; line-height: 1.55; }
+  .b2b-solicitud h1 { font-family: var(--font-heading-family); font-size: 3rem; margin: 0 0 16px 0; letter-spacing: -0.01em; line-height: 1.15; }
+  .b2b-solicitud__lead { color: #555; margin: 0 0 36px 0; font-size: 1.5rem; line-height: 1.6; max-width: 720px; }
+  .b2b-solicitud__table { width: 100%; border-collapse: collapse; margin: 0 0 32px 0; }
+  .b2b-solicitud__table th, .b2b-solicitud__table td { padding: 16px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 1.4rem; }
+  .b2b-solicitud__table th { font-weight: 600; color: #666; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 0.05em; }
   .b2b-solicitud__table td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .b2b-solicitud__totals { background: #fafaf7; padding: 20px 24px; border-radius: 6px; margin: 0 0 32px 0; }
-  .b2b-solicitud__totals .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 1.0625rem; }
-  .b2b-solicitud__totals .row--big { font-weight: 600; font-size: 1.2rem; border-top: 1px solid #e0e0e0; margin-top: 8px; padding-top: 12px; }
-  .b2b-solicitud__warn { font-size: 0.9375rem; color: #666; margin-top: 10px; font-style: italic; }
-  .b2b-solicitud__field { margin: 0 0 24px 0; }
-  .b2b-solicitud__field label { display: block; margin-bottom: 8px; font-weight: 500; font-size: 1rem; }
-  .b2b-solicitud__field textarea { width: 100%; min-height: 140px; padding: 14px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 1rem; line-height: 1.55; resize: vertical; }
-  .b2b-solicitud__checkbox { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; background: #fff8e1; border-left: 3px solid #d4a84a; margin: 0 0 28px 0; border-radius: 4px; }
-  .b2b-solicitud__checkbox input { margin-top: 4px; flex-shrink: 0; width: 18px; height: 18px; }
-  .b2b-solicitud__checkbox label { font-size: 1rem; line-height: 1.55; cursor: pointer; }
-  .b2b-solicitud__actions { display: flex; gap: 16px; align-items: center; }
-  .b2b-solicitud__submit { background: #1a1f27; color: #fff; border: 0; padding: 16px 36px; border-radius: 6px; font-size: 1.0625rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .b2b-solicitud__totals { background: #fafaf7; padding: 24px 28px; border-radius: 6px; margin: 0 0 36px 0; }
+  .b2b-solicitud__totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 1.5rem; }
+  .b2b-solicitud__totals .row--big { font-weight: 600; font-size: 1.7rem; border-top: 1px solid #e0e0e0; margin-top: 10px; padding-top: 14px; }
+  .b2b-solicitud__warn { font-size: 1.3rem; color: #666; margin-top: 12px; font-style: italic; line-height: 1.5; }
+  .b2b-solicitud__field { margin: 0 0 28px 0; }
+  .b2b-solicitud__field label { display: block; margin-bottom: 10px; font-weight: 500; font-size: 1.4rem; }
+  .b2b-solicitud__field textarea { width: 100%; min-height: 160px; padding: 16px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 1.4rem; line-height: 1.55; resize: vertical; }
+  .b2b-solicitud__checkbox { display: flex; align-items: flex-start; gap: 14px; padding: 20px 24px; background: #fff8e1; border-left: 3px solid #d4a84a; margin: 0 0 32px 0; border-radius: 4px; }
+  .b2b-solicitud__checkbox input { margin-top: 5px; flex-shrink: 0; width: 20px; height: 20px; }
+  .b2b-solicitud__checkbox label { font-size: 1.4rem; line-height: 1.55; cursor: pointer; }
+  .b2b-solicitud__actions { display: flex; gap: 20px; align-items: center; }
+  .b2b-solicitud__submit { background: #1a1f27; color: #fff; border: 0; padding: 18px 40px; border-radius: 6px; font-size: 1.5rem; font-weight: 500; cursor: pointer; font-family: inherit; }
   .b2b-solicitud__submit:hover { background: #000; }
   .b2b-solicitud__submit:disabled { opacity: 0.5; cursor: not-allowed; }
-  .b2b-solicitud__cancel { color: #666; text-decoration: underline; font-size: 1rem; }
-  .b2b-solicitud__error { background: #fef2f2; border-left: 3px solid #dc2626; padding: 16px 20px; margin: 0 0 24px 0; color: #991b1b; font-size: 1rem; display: none; line-height: 1.5; border-radius: 4px; }
+  .b2b-solicitud__cancel { color: #666; text-decoration: underline; font-size: 1.4rem; }
+  .b2b-solicitud__error { background: #fef2f2; border-left: 3px solid #dc2626; padding: 18px 22px; margin: 0 0 24px 0; color: #991b1b; font-size: 1.4rem; display: none; line-height: 1.5; border-radius: 4px; }
   .b2b-solicitud__error.visible { display: block; }
-  .b2b-solicitud__empty { text-align: center; padding: 60px 24px; font-size: 1.0625rem; }
+  .b2b-solicitud__empty { text-align: center; padding: 80px 24px; font-size: 1.5rem; }
 </style>
 
 <div class="b2b-solicitud">
@@ -114,7 +115,7 @@
     <script>
       (function () {
         const ENDPOINT = {{ settings.order_request_endpoint | json }};
-        const CUSTOMER_ID = {{ customer.id | json }};
+        const CUSTOMER_ID = {{ customer_gid | json }};
         const TIMESTAMP = {{ now_ts | json }};
         const SIGNATURE = {{ hmac_sig | json }};
 
