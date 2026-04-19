@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
               name: string;
               createdAt: string;
               tags: string[];
-              note: string | null;
+              note2: string | null;
               totalPrice: string;
               subtotalPrice: string;
               customAttributes: Array<{ key: string; value: string }>;
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
           draftOrders(first: 1, query: $q) {
             edges {
               node {
-                id name createdAt tags note totalPrice subtotalPrice
+                id name createdAt tags note2 totalPrice subtotalPrice
                 customAttributes { key value }
                 lineItems(first: 100) {
                   edges { node {
@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
         name: node.name,
         createdAt: node.createdAt,
         status: mapStatus(node.tags),
-        note: node.note,
+        note: node.note2,
         totalPrice: node.totalPrice,
         subtotalPrice: node.subtotalPrice,
         customAttributes: node.customAttributes,
