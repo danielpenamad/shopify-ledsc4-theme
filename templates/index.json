@@ -1,11 +1,18 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
 {
   "sections": {
     "portal": {
       "type": "b2b-portal-home",
       "settings": {
-        "heading_anon": "Portal B2B · Outlet",
-        "lead_anon": "Acceso exclusivo para profesionales del sector de la iluminación. Inicia sesión con tu cuenta o solicita acceso para ver el catálogo y precios B2B.",
-        "lead_aprobado": "Tu cuenta B2B está activa. Explora el catálogo outlet con tus precios especiales.",
+        "logo": "shopify://shop_images/logo-ledsc4.svg",
         "logo_width": 160
       }
     }
