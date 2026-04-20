@@ -1,0 +1,101 @@
+<!--
+  Email 7 — Solicitud B2B recibida (cliente).
+  Disparador: Flow W5 via trigger "Draft order created" con tag 'solicitud-b2b'.
+  Marketing mail de Shopify Messaging. Requiere {{ unsubscribe_link }} y
+  {{ open_tracking_block }}. Plan Grow para envio efectivo.
+  Asunto: Solicitud recibida · ref {{ draft_order.name }} · LedsC4 Outlet
+-->
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafaf7;margin:0;padding:0;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
+
+        <tr>
+          <td align="center" style="padding:36px 40px 24px 40px;border-bottom:1px solid #eeeeee;">
+            {% if shop.brand.logo %}
+              <img src="{{ shop.brand.logo.src | image_url: width: 400 }}" alt="{{ shop.name }}" width="160" style="display:block;margin:0 auto;border:0;">
+            {% else %}
+              <div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;letter-spacing:0.08em;color:#1a1f27;">LEDS C4 · Outlet</div>
+            {% endif %}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:32px 40px 8px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;">
+            <h1 style="font-size:22px;font-weight:600;margin:0 0 16px 0;line-height:1.3;letter-spacing:-0.01em;">Hemos recibido tu solicitud</h1>
+            <p style="font-size:16px;line-height:1.55;margin:0 0 16px 0;">Hola {{ customer.first_name }},</p>
+            <p style="font-size:16px;line-height:1.55;margin:0 0 16px 0;">Gracias por tu solicitud. Nuestro equipo comercial la está revisando y se pondrá en contacto contigo en las próximas <strong>48h laborables</strong> para confirmar disponibilidad, precios finales (IVA y portes) y fechas de entrega.</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 40px 16px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafaf7;border-radius:6px;">
+              <tr>
+                <td style="padding:16px 20px;">
+                  <p style="font-size:13px;color:#666;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.05em;">Datos de la solicitud</p>
+                  <p style="font-size:15px;margin:0 0 4px 0;"><strong>Referencia:</strong> {{ draft_order.name }}</p>
+                  <p style="font-size:15px;margin:0 0 4px 0;"><strong>Fecha:</strong> {{ draft_order.created_at | date: '%d/%m/%Y %H:%M' }}</p>
+                  <p style="font-size:15px;margin:0;"><strong>Importe estimado:</strong> {{ draft_order.total_price | money }} <span style="color:#888;font-size:13px;">(sin IVA ni portes)</span></p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 40px 16px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;">
+            <p style="font-size:13px;color:#666;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.05em;">Líneas solicitadas</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-size:14px;">
+              {% for line in draft_order.line_items %}
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                  <td style="padding:10px 0;vertical-align:top;">
+                    <strong>{{ line.title }}</strong>
+                    {% if line.variant_title and line.variant_title != 'Default Title' %}<br><span style="color:#888;font-size:12px;">{{ line.variant_title }}</span>{% endif %}
+                    {% if line.sku %}<br><span style="color:#999;font-size:12px;">SKU: {{ line.sku }}</span>{% endif %}
+                  </td>
+                  <td style="padding:10px 0;text-align:right;vertical-align:top;white-space:nowrap;">
+                    <span style="color:#666;">× {{ line.quantity }}</span><br>
+                    <strong>{{ line.line_price | money }}</strong>
+                  </td>
+                </tr>
+              {% endfor %}
+            </table>
+          </td>
+        </tr>
+
+        {% if draft_order.note != blank %}
+          <tr>
+            <td style="padding:0 40px 24px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1f27;">
+              <p style="font-size:13px;color:#666;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.05em;">Tu comentario</p>
+              <p style="font-size:14px;line-height:1.55;margin:0;padding:12px 16px;background:#fff8e1;border-left:3px solid #d4a84a;border-radius:3px;color:#555;font-style:italic;">{{ draft_order.note }}</p>
+            </td>
+          </tr>
+        {% endif %}
+
+        <tr>
+          <td align="center" style="padding:8px 40px 28px 40px;">
+            <a href="{{ shop.url }}/pages/mis-solicitudes" style="display:inline-block;background:#1a1f27;color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:500;">Ver mis solicitudes</a>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 40px 24px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#666;font-size:14px;line-height:1.55;">
+            <p style="margin:0;">¿Dudas? Escríbenos a <a href="mailto:{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}" style="color:#1a1f27;">{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}</a>.</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:24px 40px;background:#fafaf7;border-top:1px solid #eeeeee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#888;font-size:11px;text-align:center;line-height:1.55;">
+            <p style="margin:0 0 6px 0;"><strong style="color:#666;">LEDS C4, SA</strong> · CIF A59410910</p>
+            <p style="margin:0 0 10px 0;">Carretera de Rubí 88, 2ª planta, Sant Cugat del Vallés</p>
+            <p style="margin:0;color:#888;">{{ unsubscribe_link }}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+{{ open_tracking_block }}

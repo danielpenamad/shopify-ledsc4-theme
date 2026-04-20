@@ -18,7 +18,7 @@ Verifica que los templates listados en `email-templates/WALKTHROUGH.md` existen 
 
 ---
 
-## 2. Re-añadir los `Send marketing mail` en W1, W2, W3
+## 2. Re-añadir los `Send marketing mail` en W1, W2, W3, W5
 
 En Fase B borramos 4 steps para evitar que Flow bloqueara la activación (error "correo en estado de borrador").
 
@@ -47,6 +47,17 @@ Para cada workflow, abrir en Apps → Flow → Edit:
 - **Dónde**: al final de la rama Verdadero, después del `Remove tag pendiente`.
 - **Template**: `B2B · 05 · Cuenta rechazada`
 
+### W5 — Solicitud B2B creada (Fase D)
+
+En dev plan W5 ya está creado con el Send marketing mail incluido, pero
+no se puede activar por "correo en borrador". Al pasar a Grow:
+
+- Abre el template `B2B · 07 · Solicitud recibida` en Messaging →
+  Save as active / Publish.
+- **Activa W5** (toggle ON) — no hace falta tocar los steps, solo
+  activar. Ver `email-templates/WALKTHROUGH-W5.md` para la
+  configuración completa del workflow.
+
 Guardar y **activar** cada workflow. Si la activación sigue fallando por "correo en borrador", abre la plantilla en Shopify Messaging → **Save as active** / **Publish**.
 
 ---
@@ -72,6 +83,15 @@ Alta pre-requisito para que los metafields `volumen_estimado` y `fecha_registro`
 - Asegúrate que los 5 inputs B2B + el checkbox de términos están visibles.
 - Asegúrate que el hidden `customer[note]` existe (fallback JSON).
 - Publica el tema en la tienda Grow (Themes → Actions → Publish).
+
+---
+
+## 4b. Actualizar email backoffice hardcoded en Flow
+
+Flow `Send internal email` no acepta variables en To, así que el email
+del backoffice está hardcoded en varios workflows (W1, W2, W3, W5).
+Ver [docs/hardcoded-emails.md](hardcoded-emails.md) con la lista exacta
+de ubicaciones y el procedimiento de cutover.
 
 ---
 

@@ -561,19 +561,16 @@
 
         <!-- CTAs -->
 
+        {%- comment -%}B2B override (Fase D): link al flujo de solicitud.{%- endcomment -%}
         <div class="cart__ctas" {{ block.shopify_attributes }}>
-          <button
-            type="submit"
+          <a
+            href="/pages/solicitud"
             id="CartDrawer-Checkout"
             class="cart__checkout-button button"
-            name="checkout"
-            form="CartDrawer-Form"
-            {% if cart == empty %}
-              disabled
-            {% endif %}
+            {% if cart == empty %}aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:0.5;"{% endif %}
           >
-            {{ 'sections.cart.checkout' | t }}
-          </button>
+            Enviar solicitud de pedido
+          </a>
         </div>
       </div>
     </div>

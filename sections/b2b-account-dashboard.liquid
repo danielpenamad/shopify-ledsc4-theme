@@ -1,0 +1,63 @@
+{%- comment -%}
+  B2B · Fase D — dashboard post-login en /account.
+  Reemplaza el main-account de Dawn con una vista B2B minimal con
+  los CTAs principales (catalogo, mis solicitudes) y logout.
+{%- endcomment -%}
+
+<style>
+  .b2b-account { max-width: 720px; margin: 0 auto; padding: 64px 24px; font-family: var(--font-body-family); }
+  .b2b-account h1 { font-family: var(--font-heading-family); font-size: 2.25rem; margin: 0 0 8px 0; letter-spacing: -0.01em; }
+  .b2b-account__hello { color: #555; font-size: 1.125rem; margin: 0 0 40px 0; line-height: 1.55; }
+  .b2b-account__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .b2b-account__card { display: block; background: #fafaf7; padding: 28px 24px; border-radius: 8px; text-decoration: none; color: #1a1f27; border: 1px solid transparent; transition: border-color 0.15s ease, transform 0.15s ease; }
+  .b2b-account__card:hover { border-color: #1a1f27; transform: translateY(-2px); }
+  .b2b-account__card h2 { font-family: var(--font-heading-family); font-size: 1.375rem; font-weight: 500; margin: 0 0 8px 0; }
+  .b2b-account__card p { font-size: 0.9375rem; color: #666; margin: 0; line-height: 1.5; }
+  .b2b-account__card--primary { background: #1a1f27; color: #fff; }
+  .b2b-account__card--primary h2 { color: #fff; }
+  .b2b-account__card--primary p { color: #ccc; }
+  .b2b-account__footer { display: flex; gap: 20px; align-items: center; padding-top: 28px; border-top: 1px solid #eee; font-size: 0.9375rem; color: #666; flex-wrap: wrap; }
+  .b2b-account__footer a { color: #666; text-decoration: underline; }
+  .b2b-account__footer a:hover { color: #1a1f27; }
+  .b2b-account__empresa { font-size: 0.9375rem; color: #666; margin: -24px 0 32px 0; }
+  .b2b-account__empresa strong { color: #1a1f27; }
+</style>
+
+<div class="b2b-account">
+  <h1>Hola, {{ customer.first_name | default: customer.name | default: 'bienvenido' }}</h1>
+  <p class="b2b-account__hello">Tu portal B2B LedsC4 Outlet.</p>
+
+  {%- if customer.metafields.b2b.empresa != blank -%}
+    <p class="b2b-account__empresa"><strong>{{ customer.metafields.b2b.empresa }}</strong>{% if customer.metafields.b2b.nif != blank %} · {{ customer.metafields.b2b.nif }}{% endif %}</p>
+  {%- endif -%}
+
+  {%- if customer.tags contains 'aprobado' -%}
+    <div class="b2b-account__grid">
+      <a href="/collections/coleccion-2026" class="b2b-account__card b2b-account__card--primary">
+        <h2>Ver catálogo</h2>
+        <p>Explora la colección outlet 2026 con tus precios B2B.</p>
+      </a>
+      <a href="/pages/mis-solicitudes" class="b2b-account__card">
+        <h2>Mis solicitudes</h2>
+        <p>Consulta el estado de tus solicitudes de pedido.</p>
+      </a>
+    </div>
+  {%- elsif customer.tags contains 'rechazado' -%}
+    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud de acceso B2B no ha podido activarse. <a href="/pages/cuenta-rechazada" style="color:#1a1f27;">Más información →</a></p>
+  {%- else -%}
+    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud está siendo revisada por nuestro equipo. <a href="/pages/cuenta-en-revision" style="color:#1a1f27;">Ver estado →</a></p>
+  {%- endif -%}
+
+  <div class="b2b-account__footer">
+    <span>Sesión iniciada como <strong>{{ customer.email }}</strong></span>
+    <a href="/account/logout">Cerrar sesión</a>
+    <a href="/">Volver al portal</a>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "B2B Cuenta",
+  "settings": []
+}
+{% endschema %}
