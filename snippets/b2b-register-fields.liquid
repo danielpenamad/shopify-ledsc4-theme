@@ -1,0 +1,144 @@
+{% comment %}
+  B2B register form extension.
+  Include inside {% form 'create_customer' %}, after the password field.
+
+  Primary submission strategy:
+    customer[metafields][b2b][<key>] inputs are accepted by create_customer
+    since Shopify 2024-01. The server stores them as customer metafields.
+
+  Fallback (defensive, parsed by Flow W1 if metafield missing):
+    b2b-register.js also packs all extra fields into a JSON string placed in
+    customer[note]. Flow W1 prefers metafield values, falls back to the note.
+
+  Required by JS: data-b2b-register on the containing <form>.
+{% endcomment %}
+
+<hr class="b2b-register__separator">
+<h2 class="b2b-register__section-title">{{ 'customer.register.b2b.section_title' | t: default: 'Datos de tu empresa' }}</h2>
+
+<div class="field">
+  <input
+    type="tel"
+    name="customer[phone]"
+    id="RegisterForm-phone"
+    value="{{ form.phone }}"
+    autocomplete="tel"
+    placeholder="{{ 'customer.register.b2b.phone' | t: default: 'Teléfono' }}"
+    required
+  >
+  <label for="RegisterForm-phone">{{ 'customer.register.b2b.phone' | t: default: 'Teléfono' }}</label>
+</div>
+
+<div class="field">
+  <input
+    type="text"
+    name="customer[metafields][b2b][empresa]"
+    id="RegisterForm-b2b-empresa"
+    data-b2b-field="empresa"
+    value="{{ form['metafields[b2b][empresa]'] }}"
+    autocomplete="organization"
+    placeholder="{{ 'customer.register.b2b.empresa' | t: default: 'Razón social' }}"
+    required
+  >
+  <label for="RegisterForm-b2b-empresa">{{ 'customer.register.b2b.empresa' | t: default: 'Razón social' }}</label>
+</div>
+
+<div class="field">
+  <input
+    type="text"
+    name="customer[metafields][b2b][nif]"
+    id="RegisterForm-b2b-nif"
+    data-b2b-field="nif"
+    data-b2b-validate="nif"
+    value="{{ form['metafields[b2b][nif]'] }}"
+    autocapitalize="characters"
+    spellcheck="false"
+    placeholder="{{ 'customer.register.b2b.nif' | t: default: 'NIF / CIF' }}"
+    aria-describedby="RegisterForm-b2b-nif-error"
+    required
+  >
+  <label for="RegisterForm-b2b-nif">{{ 'customer.register.b2b.nif' | t: default: 'NIF / CIF' }}</label>
+  <span id="RegisterForm-b2b-nif-error" class="form__message" hidden>
+    <span class="svg-wrapper">{{- 'icon-error.svg' | inline_asset_content -}}</span>
+    <span data-b2b-error-text></span>
+  </span>
+</div>
+
+<div class="field">
+  <select
+    name="customer[metafields][b2b][sector]"
+    id="RegisterForm-b2b-sector"
+    data-b2b-field="sector"
+    required
+  >
+    <option value="" disabled {% if form['metafields[b2b][sector]'] == blank %}selected{% endif %}>
+      {{ 'customer.register.b2b.sector_placeholder' | t: default: 'Sector…' }}
+    </option>
+    {%- assign sectors = 'instalador,arquitecto_interiorismo,retail_tienda,distribuidor,empresa_final,otro' | split: ',' -%}
+    {%- for s in sectors -%}
+      <option value="{{ s }}" {% if form['metafields[b2b][sector]'] == s %}selected{% endif %}>
+        {{ s | replace: '_', ' / ' | replace: '-', ' ' | capitalize }}
+      </option>
+    {%- endfor -%}
+  </select>
+  <label for="RegisterForm-b2b-sector">{{ 'customer.register.b2b.sector' | t: default: 'Sector' }}</label>
+</div>
+
+<div class="field">
+  <select
+    name="customer[metafields][b2b][pais]"
+    id="RegisterForm-b2b-pais"
+    data-b2b-field="pais"
+    required
+  >
+    <option value="" disabled {% if form['metafields[b2b][pais]'] == blank %}selected{% endif %}>
+      {{ 'customer.register.b2b.pais_placeholder' | t: default: 'País…' }}
+    </option>
+    {{ all_country_option_tags }}
+  </select>
+  <label for="RegisterForm-b2b-pais">{{ 'customer.register.b2b.pais' | t: default: 'País' }}</label>
+</div>
+
+<div class="field">
+  <select
+    name="customer[metafields][b2b][volumen_estimado]"
+    id="RegisterForm-b2b-volumen"
+    data-b2b-field="volumen_estimado"
+  >
+    <option value="" {% if form['metafields[b2b][volumen_estimado]'] == blank %}selected{% endif %}>
+      {{ 'customer.register.b2b.volumen_placeholder' | t: default: 'Volumen anual estimado (opcional)' }}
+    </option>
+    {%- assign volumenes = '<5k|< 5.000 €,5k-25k|5.000 - 25.000 €,25k-100k|25.000 - 100.000 €,>100k|> 100.000 €,no_se|No lo sé' | split: ',' -%}
+    {%- for v in volumenes -%}
+      {%- assign pair = v | split: '|' -%}
+      <option value="{{ pair[0] }}" {% if form['metafields[b2b][volumen_estimado]'] == pair[0] %}selected{% endif %}>{{ pair[1] }}</option>
+    {%- endfor -%}
+  </select>
+  <label for="RegisterForm-b2b-volumen">{{ 'customer.register.b2b.volumen' | t: default: 'Volumen anual estimado' }}</label>
+</div>
+
+<div class="field field--checkbox">
+  <input
+    type="checkbox"
+    name="b2b_terms"
+    id="RegisterForm-b2b-terms"
+    data-b2b-field="terms"
+    required
+  >
+  <label for="RegisterForm-b2b-terms">
+    {{ 'customer.register.b2b.terms_html' | t: default: 'He leído y acepto las condiciones de venta y la política de privacidad.' }}
+  </label>
+</div>
+
+{%- comment -%} Fallback para Flow W1 si customer[metafields] fuera ignorado por Shopify. {%- endcomment -%}
+<input type="hidden" name="customer[note]" id="RegisterForm-b2b-note" data-b2b-note value="">
+
+<style>
+  .b2b-register__separator { margin: 24px 0 8px; border: 0; border-top: 1px solid rgba(var(--color-foreground), 0.08); }
+  .b2b-register__section-title { font-size: 1.1rem; margin: 0 0 12px; }
+  .field--checkbox { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+  .field--checkbox input { margin-top: 4px; }
+  .field--checkbox label { font-size: 0.9rem; }
+</style>
+
+<script src="{{ 'b2b-register.js' | asset_url }}" defer></script>

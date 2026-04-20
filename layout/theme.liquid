@@ -1,6 +1,11 @@
+{%- comment %}<locksmith:1a7a>{% endcomment -%}
+  {%- include 'locksmith' -%}
+{%- comment %}</locksmith:1a7a>{% endcomment -%}
+
 <!doctype html>
 <html class="js" lang="{{ request.locale.iso_code }}">
   <head>
+    {{ locksmith_initializations }}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -23,7 +28,10 @@
     </title>
 
     {% if page_description %}
-      <meta name="description" content="{{ page_description | escape }}">
+      {%- comment %}<locksmith:e10f>{% endcomment -%}
+        {%- capture var %}{% render 'locksmith-variables', variable: 'transparent', hiding_scope: 'resource' %}{% endcapture %}{% if var == 'true' %}<meta name="description" content="{{ page_description | escape }}">{% endif -%}
+        {%- comment %}original: <meta name="description" content="{{ page_description | escape }}">{%- endcomment %}
+      {%- comment %}</locksmith:e10f>{% endcomment -%}
     {% endif %}
 
     {% render 'meta-tags' %}
@@ -296,6 +304,65 @@
         document.documentElement.classList.add('shopify-design-mode');
       }
     </script>
+
+    {%- comment -%}
+      B2B storefront gate (Fase C) — lógica en tema, no Locksmith.
+      Locksmith falla la instalación con "High-level job failure" para
+      scope Entire Store en este proyecto; se usa solo para Rule 2
+      (collection lock de aprobados). Rule 1 (rechazado) y Rule 3 (login)
+      viven aquí.
+
+      Se ejecuta en todas las páginas vía head > script (más rápido que
+      meta refresh, sin flash). En Shopify designMode (editor) NO redirige
+      para no bloquear la edición del theme.
+
+      Excepciones (acceso libre):
+        - homepage (/)
+        - /account/login, register, recover, reset_password/*, activate/*, logout
+        - páginas status (cuenta-en-revision, cuenta-rechazada)
+        - páginas legales (aviso, privacidad, condiciones, canal-denuncias)
+        - /policies/*
+    {%- endcomment -%}
+    {%- unless Shopify.designMode -%}
+      {%- assign gate_path = request.path -%}
+      {%- assign gate_exempt = false -%}
+      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias' | split: ',' -%}
+      {%- for p in gate_exempt_paths -%}
+        {%- if gate_path == p -%}
+          {%- assign gate_exempt = true -%}
+          {%- break -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if gate_path contains '/policies/' -%}{%- assign gate_exempt = true -%}{%- endif -%}
+      {%- if gate_path contains '/account/activate' -%}{%- assign gate_exempt = true -%}{%- endif -%}
+      {%- if gate_path contains '/account/reset_password' -%}{%- assign gate_exempt = true -%}{%- endif -%}
+
+      {%- unless gate_exempt -%}
+        {%- if customer == nil -%}
+          <script>window.location.replace('/account/login');</script>
+        {%- elsif customer.tags contains 'rechazado' -%}
+          <script>window.location.replace('/pages/cuenta-rechazada');</script>
+        {%- elsif customer.tags contains 'aprobado' -%}
+          {%- comment -%}
+            Aprobado. Fase D: checkout nativo deshabilitado. Cualquier
+            intento de acceder directamente a /checkout redirige al carrito,
+            donde encontrara el boton "Enviar solicitud de pedido".
+          {%- endcomment -%}
+          {%- if gate_path contains '/checkout' -%}
+            <script>window.location.replace('/cart');</script>
+          {%- endif -%}
+        {%- else -%}
+          {%- comment -%}
+            No aprobado (pendiente explícito o sin tag). Solo afecta URLs
+            comerciales (products/collections/cart/search/solicitud).
+            Safety net adicional a Locksmith Rule 2 por si no enforza.
+          {%- endcomment -%}
+          {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' or gate_path contains '/search' or gate_path contains '/pages/solicitud' or gate_path contains '/pages/mis-solicitudes' or gate_path contains '/checkout' -%}
+            <script>window.location.replace('/pages/cuenta-en-revision');</script>
+          {%- endif -%}
+        {%- endif -%}
+      {%- endunless -%}
+    {%- endunless -%}
   </head>
 
   <body class="gradient{% if settings.animations_hover_elements != 'none' %} animate--hover-{{ settings.animations_hover_elements }}{% endif %}">
@@ -307,13 +374,34 @@
       {%- render 'cart-drawer' -%}
     {%- endif -%}
 
-    {% sections 'header-group' %}
+    {%- comment -%}
+      B2B gate header logic:
+      - Template 'index' (homepage) → NO header; la sección b2b-portal-home ya
+        tiene branding propio full-page.
+      - Customer aprobado → Dawn header-group completo.
+      - Anónimo o no-aprobado (pendiente/rechazado) → header simple con logo
+        + login/logout. Evita filtrar navegación comercial a clientes no autorizados.
+    {%- endcomment -%}
+    {%- if template == 'index' -%}
+      {%- comment -%} Sin header en homepage — la sección hero ocupa toda la pantalla. {%- endcomment -%}
+    {%- elsif customer.tags contains 'aprobado' -%}
+      {% sections 'header-group' %}
+    {%- else -%}
+      {% section 'b2b-header-simple' %}
+    {%- endif -%}
 
     <main id="MainContent" class="content-for-layout focus-none" role="main" tabindex="-1">
       {{ content_for_layout }}
     </main>
 
-    {% sections 'footer-group' %}
+    {%- comment -%}
+      B2B gate footer logic: solo mostramos el footer de Dawn a aprobados.
+      Los no-aprobados tienen su propio footer dentro de las páginas status /
+      portal. En legales se oculta también para evitar links comerciales.
+    {%- endcomment -%}
+    {%- if customer.tags contains 'aprobado' -%}
+      {% sections 'footer-group' %}
+    {%- endif -%}
 
     <ul hidden>
       <li id="a11y-refresh-page-message">{{ 'accessibility.refresh_page' | t }}</li>

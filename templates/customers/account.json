@@ -10,14 +10,9 @@
 {
   "sections": {
     "main": {
-      "type": "main-account",
-      "settings": {
-        "padding_top": 36,
-        "padding_bottom": 36
-      }
+      "type": "b2b-account-dashboard",
+      "settings": {}
     }
   },
-  "order": [
-    "main"
-  ]
+  "order": ["main"]
 }

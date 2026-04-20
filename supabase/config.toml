@@ -1,0 +1,11 @@
+# Supabase project config for the LedsC4 B2B companion infra.
+# Solo contiene lo necesario para el cron de re-evaluación de whitelist (W4).
+
+project_id = "mbjvmhaglbhnxoccwyex"
+
+[functions.promote-whitelist-matches]
+# pg_cron invoca la función vía pg_net sin JWT. Deshabilitamos verify_jwt.
+# Riesgo mitigado: la URL no es pública y la función solo promueve customers
+# que ya están en la whitelist (la cual controla el admin de la tienda).
+# TODO producción: añadir header X-Cron-Secret y validar en el handler.
+verify_jwt = false

@@ -127,6 +127,7 @@
         {{ form.errors.messages.password }}.
       </span>
     {%- endif -%}
+    {%- render 'b2b-register-fields', form: form -%}
     <button>
       {{ 'customer.register.submit' | t }}
     </button>

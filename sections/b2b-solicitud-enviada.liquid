@@ -1,0 +1,55 @@
+{%- comment -%}
+  B2B · Fase D — confirmacion de solicitud enviada.
+  Renderiza /pages/solicitud-enviada?ref=DNNNN.
+  El ref se lee de request.query_string por URL param.
+{%- endcomment -%}
+
+<style>
+  .b2b-enviada { max-width: 720px; margin: 0 auto; padding: 96px 24px; text-align: center; font-family: var(--font-body-family); }
+  .b2b-enviada__icon { width: 80px; height: 80px; margin: 0 auto 28px auto; border-radius: 50%; background: #d1fae5; display: flex; align-items: center; justify-content: center; }
+  .b2b-enviada h1 { font-family: var(--font-heading-family); font-size: 3rem; margin: 0 0 16px 0; letter-spacing: -0.01em; line-height: 1.15; }
+  .b2b-enviada__lead { color: #444; font-size: 1.55rem; line-height: 1.55; margin: 0 0 20px 0; }
+  .b2b-enviada__ref { background: #fafaf7; padding: 28px; border-radius: 6px; margin: 40px 0; }
+  .b2b-enviada__ref-label { font-size: 1.1rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px 0; }
+  .b2b-enviada__ref-value { font-family: 'Courier New', monospace; font-size: 1.9rem; font-weight: 600; color: #1a1f27; margin: 0; }
+  .b2b-enviada__next { font-size: 1.4rem; color: #555; line-height: 1.6; margin: 0 0 40px 0; }
+  .b2b-enviada__ctas { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .b2b-enviada__btn { display: inline-block; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 1.4rem; font-weight: 500; }
+  .b2b-enviada__btn--primary { background: #1a1f27; color: #fff; }
+  .b2b-enviada__btn--secondary { background: #fff; color: #1a1f27; border: 1px solid #1a1f27; }
+</style>
+
+<div class="b2b-enviada">
+  <div class="b2b-enviada__icon">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+  </div>
+
+  <h1>Solicitud enviada</h1>
+  <p class="b2b-enviada__lead">Gracias, {{ customer.first_name | default: 'cliente' }}. Hemos recibido tu solicitud de pedido.</p>
+
+  {%- assign ref_raw = request.query_string | split: 'ref=' | last | split: '&' | first -%}
+  {%- if ref_raw != blank and ref_raw != request.query_string -%}
+    <div class="b2b-enviada__ref">
+      <p class="b2b-enviada__ref-label">Referencia</p>
+      <p class="b2b-enviada__ref-value">{{ ref_raw | url_decode }}</p>
+    </div>
+  {%- endif -%}
+
+  <p class="b2b-enviada__next">
+    Recibirás una confirmación por email en breve. Nuestro equipo comercial revisará tu solicitud en las próximas 48h laborables y se pondrá en contacto contigo para confirmar disponibilidad, precios finales y fechas de entrega.
+  </p>
+
+  <div class="b2b-enviada__ctas">
+    <a href="/pages/mis-solicitudes" class="b2b-enviada__btn b2b-enviada__btn--primary">Ver mis solicitudes</a>
+    <a href="/collections/coleccion-2026" class="b2b-enviada__btn b2b-enviada__btn--secondary">Volver al catálogo</a>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "B2B Solicitud enviada",
+  "settings": []
+}
+{% endschema %}

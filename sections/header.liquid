@@ -172,7 +172,15 @@
             }}
           </div>
         {%- else -%}
-          <span class="h2">{{ shop.name }}</span>
+          <div class="header__heading-logo-wrapper">
+            <img
+              src="{{ 'logo-ledsc4-white.svg' | asset_url }}"
+              alt="LedsC4"
+              class="header__heading-logo motion-reduce"
+              width="{{ settings.logo_width }}"
+              loading="eager"
+            >
+          </div>
         {%- endif -%}
       </a>
       {%- if request.page_type == 'index' -%}
@@ -215,7 +223,15 @@
             }}
           </div>
         {%- else -%}
-          <span class="h2">{{ shop.name }}</span>
+          <div class="header__heading-logo-wrapper">
+            <img
+              src="{{ 'logo-ledsc4-white.svg' | asset_url }}"
+              alt="LedsC4"
+              class="header__heading-logo"
+              width="{{ settings.logo_width }}"
+              loading="eager"
+            >
+          </div>
         {%- endif -%}
       </a>
       {%- if request.page_type == 'index' -%}

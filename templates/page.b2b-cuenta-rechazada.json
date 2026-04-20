@@ -1,0 +1,13 @@
+{
+  "sections": {
+    "main": {
+      "type": "b2b-cuenta-rechazada",
+      "settings": {
+        "default_message": "Nuestro equipo ha revisado tu solicitud y no ha sido posible activar la cuenta en esta ocasión."
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}
