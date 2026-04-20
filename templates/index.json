@@ -12,7 +12,6 @@
     "portal": {
       "type": "b2b-portal-home",
       "settings": {
-        "logo": "shopify://shop_images/logo-ledsc4.svg",
         "logo_width": 160
       }
     }
