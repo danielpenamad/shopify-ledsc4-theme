@@ -2,6 +2,16 @@
   B2B · Fase D — dashboard post-login en /account.
   Reemplaza el main-account de Dawn con una vista B2B minimal con
   los CTAs principales (catalogo, mis solicitudes) y logout.
+
+  ⚠️ NO SE RENDERIZA con "New customer accounts" (el default en 2026):
+  Shopify hostea /account en shopify.com/<shop>/account, ignorando el
+  theme. Este template solo se vería si la tienda cambia a "Classic
+  customer accounts" en Settings.
+
+  Alternativa adoptada (Fase D post-launch, opción E): ocultamos /account
+  del flujo user-facing. Todos los CTAs linkan directos a /pages/
+  mis-solicitudes (o /account/login?checkout_url=%2Fpages%2Fmis-solicitudes
+  para usuarios no logueados). Ver docs/backoffice-solicitudes.md.
 {%- endcomment -%}
 
 <style>

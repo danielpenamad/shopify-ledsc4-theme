@@ -60,7 +60,12 @@
             Mis solicitudes
           </a>
         {%- else -%}
-          <a href="/account/login" class="b2b-portal__btn b2b-portal__btn--primary">
+          {%- comment -%}
+            Opción C (Fase D post-launch): pasamos checkout_url para que
+            Shopify new customer accounts redirija a nuestra page tras
+            login, en vez de a shopify.com/<shop>/account.
+          {%- endcomment -%}
+          <a href="/account/login?checkout_url=%2Fpages%2Fmis-solicitudes" class="b2b-portal__btn b2b-portal__btn--primary">
             Iniciar sesión
           </a>
           <a href="/account/register" class="b2b-portal__btn b2b-portal__btn--secondary">
