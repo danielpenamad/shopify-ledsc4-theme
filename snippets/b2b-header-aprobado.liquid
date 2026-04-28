@@ -1,8 +1,13 @@
 {% comment %}
   Header simplificado SOLO para customer aprobado en el template 'index'
-  (la home rediseñada como dashboard B2B). Logo a la izquierda, "Mi cuenta"
-  + "Cerrar sesión" a la derecha. Sin nav comercial — la nav vive en
-  header-group de Dawn cuando entran a /collections/*.
+  (la home rediseñada como dashboard B2B). Logo a la izquierda,
+  "Mis solicitudes" + "Cerrar sesión" a la derecha. Sin nav comercial — la
+  nav vive en header-group de Dawn cuando entran a /collections/*.
+
+  IMPORTANTE: NO incluir link a /account (Opción E de Fase D — commit
+  e67d31c). Customer Accounts new vive en shopify.com y la página por
+  defecto es horrible; todos los CTAs user-facing van a
+  /pages/mis-solicitudes o /collections/coleccion-2026.
 
   Se renderiza desde layout/theme.liquid antes del <main> y no se carga en
   ninguna otra ruta. Se usa como snippet (no section) para evitar entrar
@@ -22,7 +27,7 @@
     </a>
 
     <nav class="b2b-header-aprobado__nav" aria-label="Cuenta">
-      <a href="/account" class="b2b-header-aprobado__link">Mi cuenta</a>
+      <a href="/pages/mis-solicitudes" class="b2b-header-aprobado__link">Mis solicitudes</a>
       <a href="/account/logout" class="b2b-header-aprobado__link b2b-header-aprobado__link--ghost">
         Cerrar sesión
       </a>

@@ -339,7 +339,14 @@
 
       {%- unless gate_exempt -%}
         {%- if customer == nil -%}
-          <script>window.location.replace('/account/login');</script>
+          {%- comment -%}
+            checkout_url alinea con Opción E (Fase D): tras login, Shopify
+            redirige al storefront /pages/mis-solicitudes en vez de a su
+            /account/orders hosted en shopify.com. Si el customer post-login
+            no es aprobado, el gate de mis-solicitudes (línea ~360) lo manda
+            a /pages/cuenta-en-revision.
+          {%- endcomment -%}
+          <script>window.location.replace('/account/login?checkout_url=%2Fpages%2Fmis-solicitudes');</script>
         {%- elsif customer.tags contains 'rechazado' -%}
           <script>window.location.replace('/pages/cuenta-rechazada');</script>
         {%- elsif customer.tags contains 'aprobado' -%}

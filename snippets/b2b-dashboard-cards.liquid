@@ -1,0 +1,208 @@
+{% comment %}
+  Grid de colecciones reutilizable para customers aprobados.
+  Itera sobre linklists.main-menu.links y muestra cards. Si el menú tiene
+  <2 entradas, fallback a un único card "Ver catálogo completo".
+
+  Se usa en:
+  - sections/b2b-portal-home.liquid (rama aprobado, home /)
+  - sections/b2b-mis-solicitudes.liquid (estado vacío de /pages/mis-solicitudes)
+
+  Estilos en {% style %} con clase .b2b-dash-cards (compartida). NO depende
+  de section settings — solo del menú principal y la collection fallback.
+
+  Variable opcional: dashboard_class (string) que añade una clase extra al
+  wrapper si el caller necesita scoping específico.
+{% endcomment %}
+
+{%- assign menu_links = linklists['main-menu'].links -%}
+{%- assign tiene_menu = false -%}
+{%- if menu_links.size >= 2 -%}{%- assign tiene_menu = true -%}{%- endif -%}
+
+<div class="b2b-dash-cards {{ dashboard_class }}">
+  {%- if tiene_menu -%}
+    <ul class="b2b-dash-cards__grid" role="list">
+      {%- for link in menu_links -%}
+        {%- assign link_collection = nil -%}
+        {%- if link.type == 'collection_link' and link.object -%}
+          {%- assign link_collection = link.object -%}
+        {%- endif -%}
+
+        <li class="b2b-dash-cards__item">
+          <a href="{{ link.url }}" class="b2b-dash-cards__card">
+            <div class="b2b-dash-cards__media">
+              {%- if link_collection and link_collection.featured_image != blank -%}
+                <img
+                  src="{{ link_collection.featured_image | image_url: width: 600 }}"
+                  alt="{{ link.title | escape }}"
+                  width="600"
+                  height="400"
+                  loading="lazy"
+                >
+              {%- elsif link_collection and link_collection.products.first.featured_image != blank -%}
+                <img
+                  src="{{ link_collection.products.first.featured_image | image_url: width: 600 }}"
+                  alt="{{ link.title | escape }}"
+                  width="600"
+                  height="400"
+                  loading="lazy"
+                >
+              {%- else -%}
+                <span class="b2b-dash-cards__placeholder" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                  </svg>
+                </span>
+              {%- endif -%}
+            </div>
+            <div class="b2b-dash-cards__body">
+              <h3 class="b2b-dash-cards__title">{{ link.title }}</h3>
+              {%- if link_collection -%}
+                <p class="b2b-dash-cards__meta">
+                  {{ link_collection.products_count }}
+                  {%- if link_collection.products_count == 1 %} producto{% else %} productos{% endif -%}
+                </p>
+              {%- endif -%}
+            </div>
+          </a>
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- else -%}
+    {%- assign fallback_count = collections['coleccion-2026'].products_count | default: 0 -%}
+    <a href="/collections/coleccion-2026" class="b2b-dash-cards__fallback">
+      <div>
+        <h3 class="b2b-dash-cards__fallback-title">Ver catálogo completo</h3>
+        <p class="b2b-dash-cards__fallback-meta">
+          {%- if fallback_count > 0 -%}
+            {{ fallback_count }} productos disponibles
+          {%- else -%}
+            Stocks excedentes y descatalogados de LEDS C4
+          {%- endif -%}
+        </p>
+      </div>
+      <span class="b2b-dash-cards__fallback-arrow" aria-hidden="true">→</span>
+    </a>
+  {%- endif -%}
+</div>
+
+{% style %}
+  .b2b-dash-cards {
+    --b2b-dash-radius: 14px;
+    font-family: var(--font-ledsc4-body);
+    color: rgb(var(--color-foreground));
+  }
+  .b2b-dash-cards *,
+  .b2b-dash-cards *::before,
+  .b2b-dash-cards *::after { box-sizing: border-box; }
+
+  .b2b-dash-cards__grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  @media (min-width: 768px) {
+    .b2b-dash-cards__grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+  }
+
+  .b2b-dash-cards__item { margin: 0; }
+  .b2b-dash-cards__card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    text-decoration: none;
+    color: inherit;
+    background: rgb(var(--color-background));
+    border: 1px solid rgba(var(--color-foreground), 0.1);
+    border-radius: var(--b2b-dash-radius);
+    overflow: hidden;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .b2b-dash-cards__card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--color-foreground), 0.25);
+    box-shadow: 0 8px 24px rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-dash-cards__media {
+    aspect-ratio: 3 / 2;
+    background: rgba(var(--color-foreground), 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .b2b-dash-cards__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .b2b-dash-cards__placeholder {
+    color: rgba(var(--color-foreground), 0.3);
+    display: inline-flex;
+  }
+  .b2b-dash-cards__body { padding: 1.25rem 1.5rem 1.5rem; }
+  .b2b-dash-cards__title {
+    font-family: var(--font-ledsc4-heading);
+    font-size: 1.625rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.5rem;
+    color: rgb(var(--color-foreground));
+  }
+  .b2b-dash-cards__meta {
+    font-family: var(--font-ledsc4-ui);
+    font-size: 0.9375rem;
+    letter-spacing: 0.02em;
+    color: rgba(var(--color-foreground), 0.6);
+    margin: 0;
+  }
+
+  .b2b-dash-cards__fallback {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    text-decoration: none;
+    color: inherit;
+    background: rgba(var(--color-foreground), 0.03);
+    border: 1px solid rgba(var(--color-foreground), 0.1);
+    border-radius: var(--b2b-dash-radius);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .b2b-dash-cards__fallback:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--color-foreground), 0.25);
+  }
+  .b2b-dash-cards__fallback-title {
+    font-family: var(--font-ledsc4-heading);
+    font-size: clamp(1.875rem, 3vw, 2.375rem);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.5rem;
+    color: rgb(var(--color-foreground));
+  }
+  .b2b-dash-cards__fallback-meta {
+    font-family: var(--font-ledsc4-ui);
+    font-size: 1.0625rem;
+    color: rgba(var(--color-foreground), 0.65);
+    margin: 0;
+  }
+  .b2b-dash-cards__fallback-arrow {
+    font-size: 1.75rem;
+    color: rgba(var(--color-foreground), 0.5);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .b2b-dash-cards__card,
+    .b2b-dash-cards__fallback { transition: none; }
+  }
+{% endstyle %}
