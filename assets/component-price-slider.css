@@ -1,0 +1,51 @@
+.price-slider {
+  padding: 1.6rem 1.2rem 0.4rem;
+}
+
+.price-slider__track {
+  position: relative;
+  height: 0.4rem;
+  background: rgba(var(--color-foreground), 0.12);
+  border-radius: var(--inputs-radius, 0.4rem);
+  margin: 0 0.8rem;
+}
+
+.price-slider__range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgb(var(--color-foreground));
+  border-radius: var(--inputs-radius, 0.4rem);
+}
+
+.price-slider__thumb {
+  position: absolute;
+  top: 50%;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-left: -0.8rem;
+  padding: 0;
+  background: rgb(var(--color-background));
+  border: 0.2rem solid rgb(var(--color-foreground));
+  border-radius: 50%;
+  cursor: grab;
+  transform: translateY(-50%);
+  transition: transform 0.1s ease;
+  touch-action: none;
+}
+
+.price-slider__thumb:hover,
+.price-slider__thumb:focus-visible {
+  transform: translateY(-50%) scale(1.15);
+  outline: none;
+  box-shadow: 0 0 0 0.3rem rgba(var(--color-foreground), 0.15);
+}
+
+.price-slider__thumb:active {
+  cursor: grabbing;
+  transform: translateY(-50%) scale(1.2);
+}
+
+.price-slider__thumb--max {
+  z-index: 1;
+}
