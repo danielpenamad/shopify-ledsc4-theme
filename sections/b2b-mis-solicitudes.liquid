@@ -21,9 +21,7 @@
   assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
   assign hmac_payload = customer_gid | append: ':' | append: now_ts
   assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
-  assign saludo = customer.metafields.b2b.empresa
-    | default: customer.first_name
-    | default: 'Bienvenido'
+  assign saludo = customer.metafields.b2b.empresa | default: customer.first_name | default: 'Bienvenido'
 -%}
 
 <section class="b2b-lista" aria-labelledby="b2b-lista-heading">
