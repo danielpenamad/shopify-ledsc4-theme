@@ -22,6 +22,9 @@
   {%- if tiene_menu -%}
     <ul class="b2b-dash-cards__grid" role="list">
       {%- for link in menu_links -%}
+        {%- comment %}<locksmith:5d9a>{% endcomment -%}
+          {%- capture var %}{% render 'locksmith-variables', scope: 'subject', subject: link, variable: 'transparent' %}{% endcapture %}{% if var == "true" %}{% else %}{% continue %}{% endif -%}
+        {%- comment %}</locksmith:5d9a>{% endcomment -%}
         {%- assign link_collection = nil -%}
         {%- if link.type == 'collection_link' and link.object -%}
           {%- assign link_collection = link.object -%}
