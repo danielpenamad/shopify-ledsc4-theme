@@ -10,8 +10,11 @@
 
   Alternativa adoptada (Fase D post-launch, opción E): ocultamos /account
   del flujo user-facing. Todos los CTAs linkan directos a /pages/
-  mis-solicitudes (o /account/login?checkout_url=%2Fpages%2Fmis-solicitudes
-  para usuarios no logueados). Ver docs/backoffice-solicitudes.md.
+  mis-solicitudes (o /customer_authentication/login?return_to=
+  %2Fpages%2Fmis-solicitudes para no logueados — el endpoint que sí
+  respeta el redirect post-login con new customer accounts; /account/login
+  ignora la querystring y manda al hosted /account/orders).
+  Ver docs/backoffice-solicitudes.md.
 {%- endcomment -%}
 
 <style>
