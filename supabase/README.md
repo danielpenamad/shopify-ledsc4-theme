@@ -1,6 +1,6 @@
 # Supabase — LedsC4 B2B companion infra
 
-Dos edge functions + cron que cubren las piezas que Shopify Flow no puede
+Cuatro edge functions + cron que cubren las piezas que Shopify Flow no puede
 hacer por limitaciones de su sandbox de Run code (sin async, sin `fetch`,
 sin `shopify.graphql`). Ver memoria `shopify-flow-schema.md`.
 
@@ -8,13 +8,50 @@ sin `shopify.graphql`). Ver memoria `shopify-flow-schema.md`.
 
 ```
 supabase/
-  config.toml                                            verify_jwt=false para ambas functions
+  config.toml                                            verify_jwt=false para las 4 funciones (ver §verify_jwt)
   functions/
     promote-whitelist-matches/index.ts                  W4 — cron cada 30 min
     create-company-for-customer/index.ts                W1/W2 — crea Company + Contact + Location
+    submit-order-request/index.ts                       Fase D — crea draft order desde /pages/solicitud
+    list-order-requests/index.ts                        Fase D — lista/detalle desde /pages/mis-solicitudes
   migrations/
     20260419120000_setup_cron.sql                       pg_cron + pg_net + private.config + schedule
   .env.example                                           secrets a setear
+```
+
+## ⚠️ `verify_jwt` y deploy — gotchas críticos
+
+Supabase Gateway por defecto exige header `Authorization: Bearer <anon_jwt>` y
+rechaza con **HTTP 401 Unauthorized antes de ejecutar la función** si no llega.
+
+Las 4 funciones del proyecto se invocan SIN ese header (storefront JS, Flow
+webhook, pg_cron). Por eso `config.toml` declara `verify_jwt = false` para
+las 4 — la auth real se valida dentro de cada función (HMAC, X-Webhook-Secret).
+
+**Cualquier deploy CLI (`supabase functions deploy`) lee `config.toml` y
+sobrescribe los valores que el dashboard pueda haber tenido manualmente**.
+Si una función pierde su `verify_jwt = false` del fichero, su próximo deploy
+romperá la integración con 401 a nivel gateway. La fuente de verdad es el
+fichero — no el dashboard.
+
+### Cuándo redeployear
+
+- Cambio de código en `functions/<f>/index.ts`.
+- Cambio en `config.toml` (incluida la flag `verify_jwt`).
+- **Rotación de un secret leído por la función**. Sin redeploy, el container
+  caliente sigue con el valor viejo en RAM y devuelve errores aunque el
+  secret nuevo ya esté en Supabase. **Esto es la causa #1 de bugs falsos
+  tipo "el token está mal pero ya lo cambié"**.
+
+Comando para redeployearlas todas tras rotar un secret compartido (`SHOPIFY_ADMIN_TOKEN`):
+
+```bash
+supabase functions deploy \
+  list-order-requests \
+  submit-order-request \
+  create-company-for-customer \
+  promote-whitelist-matches \
+  --project-ref <project-ref>
 ```
 
 ## Funciones
@@ -35,6 +72,24 @@ Flow la invoca vía `Send HTTP request` tras tagear al customer como `aprobado`.
 - **Auth**: header `X-Webhook-Secret` con valor de env `CREATE_COMPANY_WEBHOOK_SECRET`.
 - **Body**: `{ "customerId": "gid://shopify/Customer/123..." }`
 - **Secrets requeridos**: los 3 Shopify + `CREATE_COMPANY_WEBHOOK_SECRET`.
+
+### 3. `submit-order-request` (Fase D)
+
+`/pages/solicitud` la invoca desde JS al pulsar "Confirmar y enviar solicitud". Valida HMAC + tag aprobado + duplicate check (60min), calcula CBM total, crea Draft Order con tags `solicitud-b2b` + `pendiente-revision`. Trigger del email transaccional `02-solicitud-recibida` (W5).
+
+- **URL**: `https://<project-ref>.supabase.co/functions/v1/submit-order-request`
+- **Auth**: HMAC SHA256 de `customerId:timestamp` firmado por Liquid SSR con `ORDER_REQUEST_HMAC_SECRET`. TTL 600s. Constant-time compare.
+- **Secrets requeridos**: los 3 Shopify + `ORDER_REQUEST_HMAC_SECRET`. Mismo valor en `settings.order_request_hmac_secret` de `config/settings_data.json` (compartido entre Liquid y edge).
+- **Scopes Shopify**: `read_customers`, `read_draft_orders`, `write_draft_orders`, `read_products`.
+
+### 4. `list-order-requests` (Fase D)
+
+`/pages/mis-solicitudes` y `/pages/solicitud-detalle` la invocan para listar solicitudes del customer logueado o ver una concreta por `ref`.
+
+- **URL**: `https://<project-ref>.supabase.co/functions/v1/list-order-requests`
+- **Auth**: mismo HMAC que `submit-order-request`.
+- **Secrets requeridos**: los 3 Shopify + `ORDER_REQUEST_HMAC_SECRET`.
+- **Scopes Shopify**: `read_customers`, `read_draft_orders`.
 
 Respuesta:
 ```json
@@ -98,11 +153,14 @@ where key = 'supabase_url';
 
 (La migración inserta la URL del proyecto de desarrollo; al migrar, actualizar.)
 
-### 6. Deploy de las dos functions
+### 6. Deploy de las cuatro functions
 
 ```bash
-supabase functions deploy promote-whitelist-matches
-supabase functions deploy create-company-for-customer
+supabase functions deploy \
+  promote-whitelist-matches \
+  create-company-for-customer \
+  submit-order-request \
+  list-order-requests
 ```
 
 ### 7. Actualizar el `Send HTTP request` de W1 y W2 en Shopify Flow

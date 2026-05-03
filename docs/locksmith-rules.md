@@ -59,6 +59,24 @@ En `Shopify.designMode` (theme editor) no redirige para no bloquear la edición.
 
 ---
 
+## ⚠️ Gotcha — `redirect_url` en KEY vs LOCK (deploy 2026-04-29)
+
+Locksmith permite poner `redirect_url` tanto en la **lock** como en la **key**. **Tienen comportamientos opuestos**:
+
+- `redirect_url` en la **lock**: se aplica a visitantes que **NO** tienen la key (acceso denegado). Es el caso normal "redirige a no-aprobados a /pages/cuenta-en-revision".
+- `redirect_url` en la **key**: se aplica a visitantes que **SÍ** abren el lock con esa key (acceso concedido). Para casos raros tipo "tras autenticarse, mandar a una página específica".
+
+En este proyecto la regla 2 (lock 806866 + key 1084647) tuvo configurada por error `redirect_url = /pages/cuenta-en-revision` **en la key**, no en la lock. Resultado: customers aprobados eran redirigidos a en-revisión cada vez que abrían una ficha de producto o `/collections/all` (Locksmith mapea product → product_in_collection con `collection.handle == "all"`).
+
+**Reglas para el futuro**:
+
+- En la **key 1084647** (condition `customer_signed_in` + `customer_tag = aprobado`): dejar Redirect URL **siempre vacío**. Su único trabajo es abrir el lock.
+- En la **lock 806866**: configurar Redirect URL como `/pages/cuenta-en-revision` para que los no-aprobados caigan ahí. Eso es redundante con el gate del theme pero no estorba.
+
+Si en el futuro se recrea la key (por reset, otro entorno, etc.), revisar este punto antes de publicar el tema.
+
+---
+
 ## [Diseño original — solo referencia, no implementado así]
 
 El resto del documento describe las 3 reglas Locksmith originalmente planificadas. **En producción actual solo Rule 2 vive en Locksmith** — Rules 1 y 3 están en theme Liquid (ver sección arriba). Se conservan aquí por si el bug de Locksmith se resuelve y queremos migrar al esquema limpio.
