@@ -1,7 +1,21 @@
 # Supabase project config for the LedsC4 B2B companion infra.
-# Solo contiene lo necesario para el cron de re-evaluación de whitelist (W4).
 
 project_id = "mbjvmhaglbhnxoccwyex"
+
+[functions.list-order-requests]
+# Storefront JS (mis-solicitudes, solicitud-detalle) la invoca sin JWT.
+# Auth real: HMAC del customer.id firmado por Liquid SSR + tag 'aprobado'.
+verify_jwt = false
+
+[functions.submit-order-request]
+# Storefront JS (solicitud) la invoca sin JWT al enviar la solicitud.
+# Auth real: HMAC del customer.id firmado por Liquid SSR + tag 'aprobado'.
+verify_jwt = false
+
+[functions.create-company-for-customer]
+# Shopify Flow webhook la invoca sin JWT.
+# Auth real: header X-Webhook-Secret == CREATE_COMPANY_WEBHOOK_SECRET.
+verify_jwt = false
 
 [functions.promote-whitelist-matches]
 # pg_cron invoca la función vía pg_net sin JWT. Deshabilitamos verify_jwt.
