@@ -313,8 +313,11 @@
       viven aquí.
 
       Se ejecuta en todas las páginas vía head > script (más rápido que
-      meta refresh, sin flash). En Shopify designMode (editor) NO redirige
-      para no bloquear la edición del theme.
+      meta refresh, sin flash). NO redirige en:
+        - Shopify designMode (theme editor)
+        - request.host *.shopifypreview.com (preview de theme; el OAuth de
+          new customer accounts rechaza redirect_uri de dominios preview)
+        - request.page_type == 'password' (tienda en password protection)
 
       Excepciones (acceso libre):
         - homepage (/)
@@ -323,7 +326,7 @@
         - páginas legales (aviso, privacidad, condiciones, canal-denuncias)
         - /policies/*
     {%- endcomment -%}
-    {%- unless Shopify.designMode -%}
+    {%- unless Shopify.designMode or request.host contains '.shopifypreview.com' or request.page_type == 'password' -%}
       {%- assign gate_path = request.path -%}
       {%- assign gate_exempt = false -%}
       {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias' | split: ',' -%}
