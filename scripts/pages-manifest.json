@@ -64,5 +64,12 @@
     "template_suffix": "solicitud-detalle",
     "body_html": "<p>Vista de detalle de una solicitud.</p><p><em>Contenido real renderizado desde el tema (templates/page.solicitud-detalle.json).</em></p>",
     "published": true
+  },
+  {
+    "title": "Acceso profesional",
+    "handle": "acceso-profesional",
+    "template_suffix": "acceso-profesional",
+    "body_html": "<p>Información sobre el acceso al portal B2B LedsC4.</p><p><em>Contenido renderizado desde el tema (templates/page.acceso-profesional.json).</em></p>",
+    "published": true
   }
 ]
