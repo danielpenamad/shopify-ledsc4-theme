@@ -45,6 +45,11 @@ Implementado en `layout/theme.liquid` dentro de `<head>`:
 {%- endunless -%}
 ```
 
+> Para el look & feel de la propia pantalla `/account/login` (logo, fuentes,
+> colores) ver [shopify-customer-accounts-branding.md](shopify-customer-accounts-branding.md).
+> Esa pantalla está hospedada por Shopify (new customer accounts) y se
+> personaliza vía Branding API, no por el tema.
+
 URLs exemptas:
 - `/` (homepage pública)
 - `/account/login`, `register`, `recover`, `logout`, `sign_out`
