@@ -329,7 +329,7 @@
     {%- unless Shopify.designMode or request.host contains '.shopifypreview.com' or request.page_type == 'password' -%}
       {%- assign gate_path = request.path -%}
       {%- assign gate_exempt = false -%}
-      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional' | split: ',' -%}
+      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional,/pages/registro-recibido' | split: ',' -%}
       {%- for p in gate_exempt_paths -%}
         {%- if gate_path == p -%}
           {%- assign gate_exempt = true -%}

@@ -1,0 +1,9 @@
+{
+  "sections": {
+    "main": {
+      "type": "main-registro-recibido",
+      "settings": {}
+    }
+  },
+  "order": ["main"]
+}

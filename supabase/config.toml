@@ -23,3 +23,12 @@ verify_jwt = false
 # que ya están en la whitelist (la cual controla el admin de la tienda).
 # TODO producción: añadir header X-Cron-Secret y validar en el handler.
 verify_jwt = false
+
+[functions.register-b2b-customer]
+# Storefront JS (form en /pages/acceso-profesional#registro) la invoca sin
+# JWT al enviar el formulario de alta B2B. Auth real: HMAC-SHA256 de
+# `<timestamp>:<nonce>` firmado por Liquid SSR con
+# settings.register_b2b_hmac_secret. Mismo secret en env
+# REGISTER_B2B_HMAC_SECRET. TTL 5 min. Sustituye al /account/register
+# clásico que Shopify rompió al forzar new customer accounts.
+verify_jwt = false

@@ -1,0 +1,339 @@
+// B2B register form v2 — handler para el form de /pages/acceso-profesional#registro.
+//
+// Sustituye al flujo /account/register clásico (que Shopify rompió al
+// forzar new customer accounts). El form ya no envía a Shopify directo
+// sino a la edge function `register-b2b-customer` (Supabase) que crea el
+// customer en Admin API con metafields completos y lanza el invite por
+// email.
+//
+// Activado por: <form id="b2b-registro-form" data-endpoint="...">
+// Graceful: si el form no está en la página, este script es no-op.
+//
+// Validación client-side (NIF/CIF/NIE, email, requeridos) reutiliza la
+// lógica de assets/b2b-register.js (replicada inline aquí, no se
+// importa para mantener boundary limpio — el b2b-register.js antiguo
+// terminará borrándose cuando el form classic deje de existir).
+
+(function () {
+  'use strict';
+
+  var form = document.getElementById('b2b-registro-form');
+  if (!form) return;
+
+  var submitBtn = document.getElementById('b2b-registro-submit');
+  var banner = document.getElementById('b2b-registro-banner');
+
+  // --- NIF / NIE / CIF (port directo de assets/b2b-register.js) ---
+
+  var DNI_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+  var CIF_CONTROL_LETTERS = 'JABCDEFGHI';
+
+  function isValidDNI(v) {
+    var m = /^([0-9]{8})([A-Z])$/.exec(v);
+    if (!m) return false;
+    return DNI_LETTERS[parseInt(m[1], 10) % 23] === m[2];
+  }
+  function isValidNIE(v) {
+    var m = /^([XYZ])([0-9]{7})([A-Z])$/.exec(v);
+    if (!m) return false;
+    var prefix = { X: '0', Y: '1', Z: '2' }[m[1]];
+    return DNI_LETTERS[parseInt(prefix + m[2], 10) % 23] === m[3];
+  }
+  function isValidCIF(v) {
+    var m = /^([ABCDEFGHJKLMNPQRSUVW])([0-9]{7})([0-9A-J])$/.exec(v);
+    if (!m) return false;
+    var d = m[2], se = 0, so = 0;
+    for (var i = 0; i < d.length; i++) {
+      var n = parseInt(d[i], 10);
+      if (i % 2 === 0) {
+        var doubled = n * 2;
+        so += doubled > 9 ? Math.floor(doubled / 10) + (doubled % 10) : doubled;
+      } else {
+        se += n;
+      }
+    }
+    var ctrl = (10 - ((se + so) % 10)) % 10;
+    var p = m[3];
+    if (/[0-9]/.test(p)) return parseInt(p, 10) === ctrl;
+    return CIF_CONTROL_LETTERS[ctrl] === p;
+  }
+  function validateTaxId(raw) {
+    if (!raw) return { ok: false };
+    var v = String(raw).toUpperCase().replace(/[\s-]/g, '');
+    if (isValidDNI(v) || isValidNIE(v) || isValidCIF(v)) {
+      return { ok: true, normalized: v };
+    }
+    return { ok: false };
+  }
+
+  // --- Field error UI ---
+
+  var ERRORS = {
+    required: 'Este campo es obligatorio.',
+    email: 'Email no válido.',
+    nif: 'NIF / CIF / NIE no válido (revisa formato y dígito de control).',
+    terms: 'Debes aceptar las condiciones para continuar.',
+  };
+
+  function findErrorNode(fieldName) {
+    return form.querySelector('[data-field="' + fieldName + '"]');
+  }
+
+  function setFieldError(input, fieldName, message) {
+    var node = findErrorNode(fieldName);
+    if (message) {
+      if (node) {
+        node.textContent = message;
+        node.hidden = false;
+      }
+      if (input) input.setAttribute('aria-invalid', 'true');
+    } else {
+      if (node) {
+        node.textContent = '';
+        node.hidden = true;
+      }
+      if (input) input.removeAttribute('aria-invalid');
+    }
+  }
+
+  function clearAllErrors() {
+    Array.prototype.forEach.call(
+      form.querySelectorAll('[data-field]'),
+      function (node) {
+        node.textContent = '';
+        node.hidden = true;
+      }
+    );
+    Array.prototype.forEach.call(
+      form.querySelectorAll('[aria-invalid]'),
+      function (input) {
+        input.removeAttribute('aria-invalid');
+      }
+    );
+    if (banner) {
+      banner.hidden = true;
+      banner.textContent = '';
+      banner.classList.remove('b2b-acceso__form-banner--success');
+    }
+  }
+
+  function setBanner(html, options) {
+    if (!banner) return;
+    var opts = options || {};
+    banner.innerHTML = html;
+    banner.hidden = false;
+    if (opts.success) banner.classList.add('b2b-acceso__form-banner--success');
+    else banner.classList.remove('b2b-acceso__form-banner--success');
+  }
+
+  // --- Validation ---
+
+  function validateClient(values) {
+    var errors = {};
+    if (!values.nombre) errors.nombre = ERRORS.required;
+    if (!values.apellidos) errors.apellidos = ERRORS.required;
+    if (!values.email) {
+      errors.email = ERRORS.required;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+      errors.email = ERRORS.email;
+    }
+    if (!values.empresa) errors.empresa = ERRORS.required;
+    var taxRes = validateTaxId(values.nif);
+    if (!taxRes.ok) errors.nif = ERRORS.nif;
+    if (!values.sector) errors.sector = ERRORS.required;
+    if (!values.pais) errors.pais = ERRORS.required;
+    if (!values.condiciones) errors.condiciones = ERRORS.terms;
+    return { errors: errors, normalized: { nif: taxRes.normalized } };
+  }
+
+  function readFormValues() {
+    var fd = new FormData(form);
+    return {
+      timestamp: fd.get('timestamp'),
+      nonce: fd.get('nonce'),
+      signature: fd.get('signature'),
+      nombre: (fd.get('nombre') || '').toString().trim(),
+      apellidos: (fd.get('apellidos') || '').toString().trim(),
+      email: (fd.get('email') || '').toString().trim().toLowerCase(),
+      telefono: (fd.get('telefono') || '').toString().trim(),
+      empresa: (fd.get('empresa') || '').toString().trim(),
+      nif: (fd.get('nif') || '').toString().trim(),
+      sector: (fd.get('sector') || '').toString(),
+      pais: (fd.get('pais') || '').toString(),
+      volumen_estimado: (fd.get('volumen_estimado') || '').toString(),
+      condiciones: form.querySelector('#reg-terms') ? form.querySelector('#reg-terms').checked : false,
+    };
+  }
+
+  // --- NIF live validation on blur ---
+
+  var nifInput = document.getElementById('reg-nif');
+  if (nifInput) {
+    nifInput.addEventListener('blur', function () {
+      if (!nifInput.value) return; // no validar campo vacío al perder foco
+      var res = validateTaxId(nifInput.value);
+      if (res.ok) {
+        nifInput.value = res.normalized;
+        setFieldError(nifInput, 'nif', null);
+      } else {
+        setFieldError(nifInput, 'nif', ERRORS.nif);
+      }
+    });
+  }
+
+  // --- Submit handler ---
+
+  function setLoading(isLoading) {
+    if (!submitBtn) return;
+    submitBtn.disabled = isLoading;
+    var spinner = submitBtn.querySelector('.b2b-acceso__btn-spinner');
+    var label = submitBtn.querySelector('.b2b-acceso__btn-label');
+    if (spinner) spinner.hidden = !isLoading;
+    if (label) label.textContent = isLoading ? 'Enviando…' : 'Enviar solicitud';
+    Array.prototype.forEach.call(
+      form.querySelectorAll('input, select, button'),
+      function (el) {
+        if (el !== submitBtn) el.disabled = isLoading;
+      }
+    );
+  }
+
+  function truncateEmail(email) {
+    if (!email) return '';
+    var parts = email.split('@');
+    if (parts.length !== 2) return email;
+    var local = parts[0];
+    var domain = parts[1];
+    var visible = local.slice(0, 3);
+    return visible + '…@' + domain;
+  }
+
+  function focusFirstError() {
+    var firstInvalid = form.querySelector('[aria-invalid="true"]');
+    if (firstInvalid) {
+      firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      firstInvalid.focus({ preventScroll: true });
+    }
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    clearAllErrors();
+
+    var values = readFormValues();
+    var validation = validateClient(values);
+
+    if (Object.keys(validation.errors).length > 0) {
+      Object.keys(validation.errors).forEach(function (field) {
+        var input = form.querySelector('[name="' + field + '"]') ||
+                    form.querySelector('#reg-' + field);
+        setFieldError(input, field, validation.errors[field]);
+      });
+      focusFirstError();
+      return;
+    }
+
+    if (validation.normalized.nif) values.nif = validation.normalized.nif;
+
+    var endpoint = form.getAttribute('data-endpoint');
+    if (!endpoint) {
+      setBanner(
+        'Configuración incompleta del tema. Avisa al equipo y vuelve a intentarlo más tarde.'
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    var payload = {
+      timestamp: Number(values.timestamp),
+      nonce: values.nonce,
+      signature: values.signature,
+      nombre: values.nombre,
+      apellidos: values.apellidos,
+      email: values.email,
+      telefono: values.telefono || undefined,
+      empresa: values.empresa,
+      nif: values.nif,
+      sector: values.sector,
+      pais: values.pais,
+      volumen_estimado: values.volumen_estimado || undefined,
+      condiciones: values.condiciones === true,
+    };
+
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (res) {
+        return res.json().then(function (body) {
+          return { status: res.status, body: body };
+        });
+      })
+      .then(function (result) {
+        var s = result.status;
+        var b = result.body || {};
+
+        if (s === 200 && b.ok) {
+          var redirectTo = '/pages/registro-recibido?email=' +
+            encodeURIComponent(truncateEmail(values.email));
+          window.location.assign(redirectTo);
+          return;
+        }
+
+        if (s === 409 && b.code === 'EMAIL_ALREADY_EXISTS') {
+          setBanner(
+            'Ya existe una cuenta con este email. ' +
+            '<a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes">Iniciar sesión</a>.'
+          );
+          var emailInput = form.querySelector('#reg-email');
+          if (emailInput) emailInput.setAttribute('aria-invalid', 'true');
+          return;
+        }
+
+        if (s === 400 && b.code === 'VALIDATION_ERROR' && b.fieldErrors) {
+          Object.keys(b.fieldErrors).forEach(function (field) {
+            var input = form.querySelector('[name="' + field + '"]') ||
+                        form.querySelector('#reg-' + field);
+            setFieldError(input, field, b.fieldErrors[field]);
+          });
+          focusFirstError();
+          return;
+        }
+
+        if (s === 401 && (b.code === 'SIGNATURE_EXPIRED' || b.code === 'INVALID_SIGNATURE')) {
+          setBanner(
+            'Tu sesión en el formulario ha caducado. ' +
+            '<a href="" onclick="window.location.reload(); return false;">Recarga la página</a> ' +
+            'y vuelve a intentarlo.'
+          );
+          return;
+        }
+
+        if (s === 502) {
+          setBanner(
+            'Servicio temporalmente no disponible. Vuelve a intentarlo en unos minutos. ' +
+            'Si persiste, escribe a <a href="mailto:soporte@ledsc4.com">soporte@ledsc4.com</a>.'
+            // TODO: confirmar email de soporte con Dani / docs/hardcoded-emails.md
+          );
+          return;
+        }
+
+        // Fallback genérico.
+        setBanner(
+          (b.message || 'Algo ha ido mal al enviar la solicitud. Vuelve a intentarlo.')
+        );
+      })
+      .catch(function (err) {
+        setBanner(
+          'No hemos podido conectar con el servidor. Comprueba tu conexión y vuelve a intentarlo.'
+        );
+        // Log a consola para debugging — el banner es lo que ve el usuario.
+        if (window.console && console.error) console.error('[b2b-register-v2]', err);
+      })
+      .then(function () {
+        setLoading(false);
+      });
+  });
+})();

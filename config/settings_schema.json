@@ -1474,6 +1474,19 @@
         "label": "URL list-order-requests",
         "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
         "info": "Endpoint que devuelve el historial de solicitudes del customer."
+      },
+      {
+        "type": "text",
+        "id": "register_b2b_endpoint",
+        "label": "URL register-b2b-customer",
+        "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/register-b2b-customer",
+        "info": "Endpoint Supabase que recibe el POST del form /pages/acceso-profesional#registro. Sustituye al /account/register clásico inservible con new customer accounts."
+      },
+      {
+        "type": "text",
+        "id": "register_b2b_hmac_secret",
+        "label": "HMAC secret · register-b2b",
+        "info": "DEBE coincidir con REGISTER_B2B_HMAC_SECRET en Supabase env. Distinto del HMAC de solicitudes (rotación independiente)."
       }
     ]
   }
