@@ -84,6 +84,47 @@ terminología que usa el resto del portal (`/pages/cuenta-en-revision`,
 5. En la home `/` (anónimo) aparece el link "¿Tienes dudas sobre el
    acceso? Mira cómo funciona →" bajo los CTAs.
 
+## Form de registro real `#registro` (post 2026-05-04)
+
+`/account/register` clásico está roto en new customer accounts (Shopify
+redirige al OAuth y pierde los campos B2B custom). Esta página alberga
+ahora el **form de registro funcional** en el anchor `#registro`:
+
+- Frontend: `sections/main-acceso-profesional.liquid` renderiza form con
+  HMAC SSR. JS en `assets/b2b-register-v2.js` valida (NIF/CIF/NIE,
+  email, requeridos), envía fetch POST a la edge function.
+- Backend: `supabase/functions/register-b2b-customer/index.ts` valida
+  HMAC + campos, llama a `customerCreate` Admin API con tag `pendiente`
+  + metafields `b2b.*` completos, dispara
+  `customerSendAccountInviteEmail`.
+- Confirmación: redirect a `/pages/registro-recibido` (página nueva).
+- Activación: usuario click en magic link del email → cuenta activa
+  con tag `pendiente` y metafields completos → Flow W1 dispara con la
+  info necesaria para auto-aprobación por whitelist o pendiente
+  revisión.
+
+### Setup inicial obligatorio
+
+Tras desplegar:
+
+1. Generar HMAC secret:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+2. Setear en Supabase:
+   ```bash
+   supabase secrets set REGISTER_B2B_HMAC_SECRET=<valor> --project-ref <ref>
+   supabase functions deploy register-b2b-customer --project-ref <ref>
+   ```
+3. Setear el **mismo valor** en theme settings: Online Store → Themes →
+   Customize → Theme settings → "Endpoints B2B" → "HMAC secret ·
+   register-b2b". El secret NO se compromete a `settings_data.json`
+   (el repo es público) — se setea via UI por seguridad.
+
+Sin estos dos pasos sincronizados, el form rechaza todas las llamadas
+con `INVALID_SIGNATURE` (que es el comportamiento correcto durante
+setup).
+
 ## Posición en el flujo (post 2026-05-04)
 
 Tras la PR `feat: /acceso-profesional como primera puerta para anónimos`, la

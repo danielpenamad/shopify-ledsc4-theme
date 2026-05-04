@@ -71,5 +71,12 @@
     "template_suffix": "acceso-profesional",
     "body_html": "<p>Información sobre el acceso al portal B2B LedsC4.</p><p><em>Contenido renderizado desde el tema (templates/page.acceso-profesional.json).</em></p>",
     "published": true
+  },
+  {
+    "title": "Solicitud enviada",
+    "handle": "registro-recibido",
+    "template_suffix": "registro-recibido",
+    "body_html": "<p>Hemos recibido tu solicitud de acceso al portal B2B LedsC4. Revisa tu email para activar la cuenta.</p><p><em>Contenido renderizado desde el tema (templates/page.registro-recibido.json).</em></p>",
+    "published": true
   }
 ]

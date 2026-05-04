@@ -1,0 +1,291 @@
+{% comment %}
+  Página de confirmación post-registro B2B.
+
+  Renderizada en /pages/registro-recibido tras submit exitoso del form de
+  /pages/acceso-profesional#registro. El JS de b2b-register-v2.js redirige
+  aquí pasando ?email=<email_truncado> en querystring; lo mostramos para
+  que el usuario sepa dónde mirar el invite. NO mostramos el email
+  completo (privacidad si comparten pantalla).
+
+  Misma estética que main-acceso-profesional (dark / accent dorado).
+{% endcomment %}
+
+{%- assign scheme = section.settings.color_scheme | default: 'dark' -%}
+
+{%- comment -%}
+  Email truncado. El JS pasa "abc…@dominio.com" en el querystring; lo
+  defendemos por si llega completo o vacío.
+{%- endcomment -%}
+{%- assign raw_email = request.host | split: '?' | first -%}
+{%- assign email_param = '' -%}
+
+<section
+  class="b2b-recibido b2b-recibido--{{ scheme }}"
+  aria-labelledby="b2b-recibido-heading"
+  style="--b2b-recibido-pad-top: {{ section.settings.padding_top | default: 96 }}px; --b2b-recibido-pad-bottom: {{ section.settings.padding_bottom | default: 80 }}px;"
+>
+  <div class="b2b-recibido__inner">
+    <span class="b2b-recibido__check" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="9 12 11 14 15 10"/>
+      </svg>
+    </span>
+
+    <p class="b2b-recibido__eyebrow">Solicitud enviada</p>
+    <h1 id="b2b-recibido-heading" class="b2b-recibido__heading">
+      Revisa tu email
+    </h1>
+
+    <p class="b2b-recibido__lead" id="b2b-recibido-email-line">
+      Te hemos enviado un email con un enlace para activar tu cuenta.
+    </p>
+
+    <ul class="b2b-recibido__notes">
+      <li>Si no lo recibes en <strong>5 minutos</strong>, revisa la carpeta de spam o promociones.</li>
+      <li>Tras activar tu cuenta, validaremos tu perfil profesional en <strong>24-48 horas hábiles</strong>.</li>
+      <li>Te avisaremos por email cuando esté listo, tanto si se aprueba como si se deniega.</li>
+    </ul>
+
+    <div class="b2b-recibido__ctas">
+      <a href="/pages/acceso-profesional" class="b2b-recibido__btn b2b-recibido__btn--secondary">
+        Volver al inicio
+      </a>
+    </div>
+  </div>
+</section>
+
+{%- comment -%}
+  El email llega como querystring (?email=abc%E2%80%A6%40dominio.com) desde
+  el JS. Lo leemos client-side para mantener limpio el render Liquid sin
+  filtrar el valor por SSR (no hay manera trivial de leer querystring en
+  Liquid storefront sin templates de búsqueda). Si llega vacío, el lead
+  queda con el texto genérico.
+{%- endcomment -%}
+<script>
+(function () {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var email = params.get('email');
+    if (!email) return;
+    // Saneamiento básico: el JS de origen ya truncó. Aceptamos solo
+    // algo que parezca un email truncado (chars + arroba + dominio) y
+    // limitamos a 80 chars máx para no romper el layout.
+    if (email.length > 80) email = email.slice(0, 80);
+    if (!/[^\s@]+@[^\s@]+/.test(email)) return;
+    var line = document.getElementById('b2b-recibido-email-line');
+    if (!line) return;
+    line.innerHTML =
+      'Te hemos enviado un email a <strong>' +
+      email.replace(/[<>&"']/g, function (c) {
+        return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' })[c];
+      }) +
+      '</strong> con un enlace para activar tu cuenta.';
+  } catch (_) { /* fallback al texto genérico */ }
+})();
+</script>
+
+<style>
+  .b2b-recibido {
+    --bg: #0c0e12;
+    --bg-card: rgba(245, 245, 247, 0.04);
+    --fg: #f5f5f7;
+    --fg-strong: #ffffff;
+    --fg-muted: rgba(245, 245, 247, 0.78);
+    --fg-dim: rgba(245, 245, 247, 0.55);
+    --accent: #d4a84a;
+    --border: rgba(245, 245, 247, 0.10);
+
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    padding: var(--b2b-recibido-pad-top, 96px) 1.5rem var(--b2b-recibido-pad-bottom, 80px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .b2b-recibido *,
+  .b2b-recibido *::before,
+  .b2b-recibido *::after {
+    box-sizing: border-box;
+  }
+
+  .b2b-recibido--light {
+    --bg: #fbfaf7;
+    --bg-card: rgba(12, 14, 18, 0.04);
+    --fg: #1a1a1a;
+    --fg-strong: #0c0e12;
+    --fg-muted: rgba(26, 26, 26, 0.78);
+    --fg-dim: rgba(26, 26, 26, 0.55);
+    --accent: #b08725;
+    --border: rgba(26, 26, 26, 0.10);
+  }
+
+  .b2b-recibido__inner {
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .b2b-recibido__check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 5.6rem;
+    height: 5.6rem;
+    border-radius: 50%;
+    background: rgba(212, 168, 74, 0.15);
+    color: var(--accent);
+    margin-bottom: 2rem;
+  }
+  .b2b-recibido__check svg {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+
+  .b2b-recibido__eyebrow {
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.25rem;
+  }
+
+  .b2b-recibido__heading {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(3.6rem, 6vw, 5.6rem);
+    font-weight: 400;
+    line-height: 1.1;
+    margin: 0 0 1.5rem;
+    color: var(--fg-strong);
+    letter-spacing: -0.015em;
+  }
+
+  .b2b-recibido__lead {
+    font-size: clamp(1.7rem, 1.8vw, 2rem);
+    line-height: 1.55;
+    color: var(--fg-muted);
+    margin: 0 auto 2.5rem;
+    max-width: 50ch;
+  }
+  .b2b-recibido__lead strong {
+    color: var(--fg-strong);
+    font-weight: 600;
+    word-break: break-all;
+  }
+
+  .b2b-recibido__notes {
+    list-style: none;
+    padding: 0;
+    margin: 0 auto 3rem;
+    max-width: 50ch;
+    text-align: left;
+  }
+  .b2b-recibido__notes li {
+    position: relative;
+    padding-left: 1.75rem;
+    margin-bottom: 0.875rem;
+    font-size: 1.5rem;
+    line-height: 1.55;
+    color: var(--fg-muted);
+  }
+  .b2b-recibido__notes li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.75rem;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .b2b-recibido__notes strong {
+    color: var(--fg-strong);
+    font-weight: 600;
+  }
+
+  .b2b-recibido__ctas {
+    display: flex;
+    justify-content: center;
+  }
+
+  .b2b-recibido__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16rem;
+    padding: 1.4rem 2.6rem;
+    border-radius: 999px;
+    font-size: 1.6rem;
+    font-weight: 500;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .b2b-recibido__btn--secondary {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--fg-dim);
+  }
+  .b2b-recibido__btn--secondary:hover {
+    border-color: var(--fg);
+    background: rgba(245, 245, 247, 0.04);
+    transform: translateY(-1px);
+  }
+  .b2b-recibido--light .b2b-recibido__btn--secondary:hover {
+    background: rgba(26, 26, 26, 0.04);
+  }
+
+  @media (max-width: 750px) {
+    .b2b-recibido {
+      padding: 4rem 1rem 3rem;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Registro recibido",
+  "tag": "section",
+  "class": "section-b2b-recibido",
+  "settings": [
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "Esquema de color",
+      "options": [
+        { "value": "dark", "label": "Oscuro" },
+        { "value": "light", "label": "Claro" }
+      ],
+      "default": "dark"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding superior",
+      "default": 96
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding inferior",
+      "default": 80
+    }
+  ],
+  "presets": [
+    {
+      "name": "Registro recibido"
+    }
+  ]
+}
+{% endschema %}

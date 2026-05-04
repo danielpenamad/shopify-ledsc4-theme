@@ -71,7 +71,7 @@
   {%- endcomment -%}
   <div class="b2b-acceso__ctas-top">
     <div class="b2b-acceso__ctas">
-      <a href="/account/register" class="b2b-acceso__btn b2b-acceso__btn--primary">
+      <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
         Solicitar acceso
       </a>
       <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-acceso__btn b2b-acceso__btn--secondary">
@@ -274,7 +274,7 @@
       tu área privada.
     </p>
     <div class="b2b-acceso__ctas">
-      <a href="/account/register" class="b2b-acceso__btn b2b-acceso__btn--primary">
+      <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
         Solicitar acceso
       </a>
       <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-acceso__btn b2b-acceso__btn--secondary">
@@ -282,6 +282,156 @@
       </a>
     </div>
   </div>
+
+  {%- comment -%}
+    Form de registro B2B real.
+
+    Sustituye al /account/register clásico (que Shopify rompió al forzar new
+    customer accounts: redirige a OAuth y pierde campos custom). Ver
+    docs/pagina-acceso-profesional.md y supabase/README.md
+    (función register-b2b-customer).
+
+    Al enviar, fetch a la edge function `register-b2b-customer` (URL en
+    settings.register_b2b_endpoint). Auth: HMAC-SHA256 de
+    `<timestamp>:<nonce>` firmado por Liquid SSR con
+    settings.register_b2b_hmac_secret. TTL 5 min.
+
+    Si el secret no está seteado en theme settings, el HMAC se computa
+    contra cadena vacía y el server lo rechaza — comportamiento correcto
+    durante setup. Setear via Online Store → Themes → Customize → Theme
+    settings → Endpoints B2B + valor idéntico en Supabase secret
+    REGISTER_B2B_HMAC_SECRET.
+  {%- endcomment -%}
+  {%- assign register_now_ts = 'now' | date: '%s' -%}
+  {%- assign register_nonce_seed = register_now_ts | append: ':' | append: section.id | append: ':' | append: shop.id -%}
+  {%- assign register_nonce = register_nonce_seed | sha256 | slice: 0, 24 -%}
+  {%- assign register_hmac_payload = register_now_ts | append: ':' | append: register_nonce -%}
+  {%- assign register_hmac_sig = register_hmac_payload | hmac_sha256: settings.register_b2b_hmac_secret -%}
+
+  <section id="registro" class="b2b-acceso__form-block" aria-labelledby="b2b-acceso-form-heading">
+    <h2 id="b2b-acceso-form-heading" class="b2b-acceso__h2">Solicitar acceso</h2>
+    <ol class="b2b-acceso__form-steps">
+      <li><strong>Rellena tus datos.</strong></li>
+      <li><strong>Te enviamos un email</strong> con un enlace para activar tu cuenta.</li>
+      <li><strong>Validamos tu perfil profesional</strong> (24-48h hábiles) y te avisamos por email cuando esté listo.</li>
+    </ol>
+
+    <form
+      id="b2b-registro-form"
+      class="b2b-acceso__form"
+      data-endpoint="{{ settings.register_b2b_endpoint }}"
+      novalidate
+      onsubmit="return false;"
+    >
+      <input type="hidden" name="timestamp" value="{{ register_now_ts }}">
+      <input type="hidden" name="nonce" value="{{ register_nonce }}">
+      <input type="hidden" name="signature" value="{{ register_hmac_sig }}">
+
+      <div id="b2b-registro-banner" class="b2b-acceso__form-banner" hidden role="alert"></div>
+
+      <fieldset class="b2b-acceso__fieldset">
+        <legend class="b2b-acceso__fieldset-legend">Datos personales</legend>
+        <div class="b2b-acceso__form-grid">
+          <div class="b2b-acceso__field">
+            <label for="reg-nombre">Nombre <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            <input type="text" name="nombre" id="reg-nombre" autocomplete="given-name" required maxlength="100">
+            <span class="b2b-acceso__field-error" data-field="nombre" hidden></span>
+          </div>
+          <div class="b2b-acceso__field">
+            <label for="reg-apellidos">Apellidos <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            <input type="text" name="apellidos" id="reg-apellidos" autocomplete="family-name" required maxlength="100">
+            <span class="b2b-acceso__field-error" data-field="apellidos" hidden></span>
+          </div>
+          <div class="b2b-acceso__field">
+            <label for="reg-email">Email <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            <input type="email" name="email" id="reg-email" autocomplete="email" required maxlength="254" inputmode="email">
+            <span class="b2b-acceso__field-error" data-field="email" hidden></span>
+          </div>
+          <div class="b2b-acceso__field">
+            <label for="reg-telefono">Teléfono</label>
+            <input type="tel" name="telefono" id="reg-telefono" autocomplete="tel" maxlength="30" inputmode="tel">
+            <span class="b2b-acceso__field-error" data-field="telefono" hidden></span>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="b2b-acceso__fieldset">
+        <legend class="b2b-acceso__fieldset-legend">Datos de empresa</legend>
+        <div class="b2b-acceso__form-grid">
+          <div class="b2b-acceso__field b2b-acceso__field--wide">
+            <label for="reg-empresa">Razón social <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            <input type="text" name="empresa" id="reg-empresa" autocomplete="organization" required maxlength="200">
+            <span class="b2b-acceso__field-error" data-field="empresa" hidden></span>
+          </div>
+          <div class="b2b-acceso__field">
+            <label for="reg-nif">NIF / CIF / NIE <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            <input type="text" name="nif" id="reg-nif" required maxlength="20" autocapitalize="characters" spellcheck="false">
+            <span class="b2b-acceso__field-error" data-field="nif" hidden></span>
+          </div>
+          <div class="b2b-acceso__field">
+            <label for="reg-sector">Sector <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            <select name="sector" id="reg-sector" required>
+              <option value="" disabled selected>Selecciona…</option>
+              <option value="instalador">Instalador eléctrico</option>
+              <option value="arquitecto_interiorismo">Arquitecto / Interiorismo</option>
+              <option value="retail_tienda">Retail / Tienda</option>
+              <option value="distribuidor">Distribuidor</option>
+              <option value="empresa_final">Empresa final del sector</option>
+              <option value="otro">Otro profesional del sector</option>
+            </select>
+            <span class="b2b-acceso__field-error" data-field="sector" hidden></span>
+          </div>
+          <div class="b2b-acceso__field">
+            <label for="reg-pais">País <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            <select name="pais" id="reg-pais" required>
+              <option value="" disabled selected>Selecciona…</option>
+              <option value="ES">España</option>
+              <option value="PT">Portugal</option>
+              <option value="FR">Francia</option>
+              <option value="IT">Italia</option>
+              <option value="DE">Alemania</option>
+              <option value="GB">Reino Unido</option>
+              <option value="NL">Países Bajos</option>
+              <option value="BE">Bélgica</option>
+              <option value="AD">Andorra</option>
+              <option value="MA">Marruecos</option>
+            </select>
+            <span class="b2b-acceso__field-error" data-field="pais" hidden></span>
+          </div>
+          <div class="b2b-acceso__field b2b-acceso__field--wide">
+            <label for="reg-volumen">Volumen anual estimado <span class="b2b-acceso__optional">(opcional)</span></label>
+            <select name="volumen_estimado" id="reg-volumen">
+              <option value="">Prefiero no decirlo</option>
+              <option value="<5k">Menos de 5.000 €</option>
+              <option value="5k-25k">5.000 - 25.000 €</option>
+              <option value="25k-100k">25.000 - 100.000 €</option>
+              <option value=">100k">Más de 100.000 €</option>
+              <option value="no_se">No lo sé</option>
+            </select>
+            <span class="b2b-acceso__field-error" data-field="volumen_estimado" hidden></span>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="b2b-acceso__terms">
+        <input type="checkbox" name="condiciones" id="reg-terms" required>
+        <label for="reg-terms">
+          He leído y acepto las <a href="/pages/condiciones-de-uso" target="_blank" rel="noopener">condiciones de uso</a>
+          y la <a href="/pages/politica-de-privacidad" target="_blank" rel="noopener">política de privacidad</a>.
+        </label>
+      </div>
+      <span class="b2b-acceso__field-error" data-field="condiciones" hidden></span>
+
+      <button
+        type="submit"
+        id="b2b-registro-submit"
+        class="b2b-acceso__btn b2b-acceso__btn--primary b2b-acceso__btn--submit"
+      >
+        <span class="b2b-acceso__btn-label">Enviar solicitud</span>
+        <span class="b2b-acceso__btn-spinner" aria-hidden="true" hidden></span>
+      </button>
+    </form>
+  </section>
 
   <footer class="b2b-acceso__footer">
     <nav class="b2b-acceso__footer-nav" aria-label="Enlaces legales">
@@ -834,11 +984,249 @@
     .b2b-acceso__btn,
     .b2b-acceso__faq,
     .b2b-acceso__faq summary::after,
-    .b2b-acceso__keep-reading {
+    .b2b-acceso__keep-reading,
+    .b2b-acceso__btn-spinner {
       transition: none;
+      animation: none;
+    }
+  }
+
+  /* ========== Formulario de registro B2B ========== */
+  .b2b-acceso__form-block {
+    margin: 4rem 0 3rem;
+    padding: 3rem 2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    scroll-margin-top: 2rem;
+  }
+  .b2b-acceso__form-steps {
+    margin: 0 0 2.5rem;
+    padding: 0;
+    list-style: none;
+    counter-reset: form-step;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+  }
+  .b2b-acceso__form-steps li {
+    counter-increment: form-step;
+    position: relative;
+    padding: 1rem 1rem 1rem 3rem;
+    background: rgba(245, 245, 247, 0.04);
+    border-radius: 8px;
+    font-size: 1.5rem;
+    line-height: 1.5;
+    color: var(--fg-muted);
+  }
+  .b2b-acceso--light .b2b-acceso__form-steps li {
+    background: rgba(26, 26, 26, 0.04);
+  }
+  .b2b-acceso__form-steps li::before {
+    content: counter(form-step);
+    position: absolute;
+    left: 0.875rem;
+    top: 1rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #0c0e12;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+  }
+  .b2b-acceso__form-steps strong {
+    color: var(--fg-strong);
+    font-weight: 600;
+  }
+
+  .b2b-acceso__form {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .b2b-acceso__form-banner {
+    padding: 1.25rem 1.5rem;
+    background: rgba(220, 38, 38, 0.12);
+    border-left: 3px solid #dc2626;
+    border-radius: 4px;
+    color: #fca5a5;
+    font-size: 1.5rem;
+    line-height: 1.5;
+  }
+  .b2b-acceso__form-banner--success {
+    background: rgba(212, 168, 74, 0.12);
+    border-left-color: var(--accent);
+    color: var(--fg-strong);
+  }
+  .b2b-acceso--light .b2b-acceso__form-banner {
+    color: #991b1b;
+    background: rgba(220, 38, 38, 0.08);
+  }
+  .b2b-acceso--light .b2b-acceso__form-banner--success {
+    color: #4a3617;
+    background: rgba(176, 135, 37, 0.1);
+  }
+  .b2b-acceso__form-banner a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .b2b-acceso__fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .b2b-acceso__fieldset-legend {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.6rem;
+    font-weight: 400;
+    color: var(--fg-strong);
+    margin: 0 0 1.25rem;
+    padding: 0;
+    letter-spacing: -0.005em;
+  }
+  .b2b-acceso__form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem 1.25rem;
+  }
+  .b2b-acceso__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .b2b-acceso__field--wide {
+    grid-column: 1 / -1;
+  }
+  .b2b-acceso__field label {
+    font-size: 1.4rem;
+    color: var(--fg-muted);
+    letter-spacing: 0.01em;
+  }
+  .b2b-acceso__req {
+    color: var(--accent);
+  }
+  .b2b-acceso__optional {
+    color: var(--fg-dim);
+    font-size: 0.875em;
+  }
+  .b2b-acceso__field input,
+  .b2b-acceso__field select {
+    width: 100%;
+    padding: 1rem 1.125rem;
+    background: rgba(245, 245, 247, 0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--fg-strong);
+    font-family: inherit;
+    font-size: 1.6rem;
+    line-height: 1.5;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .b2b-acceso--light .b2b-acceso__field input,
+  .b2b-acceso--light .b2b-acceso__field select {
+    background: #fff;
+    color: var(--fg-strong);
+  }
+  .b2b-acceso__field input:hover,
+  .b2b-acceso__field select:hover {
+    border-color: rgba(245, 245, 247, 0.25);
+  }
+  .b2b-acceso--light .b2b-acceso__field input:hover,
+  .b2b-acceso--light .b2b-acceso__field select:hover {
+    border-color: rgba(26, 26, 26, 0.25);
+  }
+  .b2b-acceso__field input:focus,
+  .b2b-acceso__field select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+    background: rgba(212, 168, 74, 0.04);
+  }
+  .b2b-acceso__field input[aria-invalid="true"],
+  .b2b-acceso__field select[aria-invalid="true"] {
+    border-color: #dc2626;
+  }
+  .b2b-acceso__field-error {
+    font-size: 1.3rem;
+    color: #fca5a5;
+    line-height: 1.4;
+  }
+  .b2b-acceso--light .b2b-acceso__field-error {
+    color: #991b1b;
+  }
+
+  .b2b-acceso__terms {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(245, 245, 247, 0.04);
+    border-radius: 8px;
+  }
+  .b2b-acceso--light .b2b-acceso__terms {
+    background: rgba(26, 26, 26, 0.04);
+  }
+  .b2b-acceso__terms input[type="checkbox"] {
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    accent-color: var(--accent);
+  }
+  .b2b-acceso__terms label {
+    font-size: 1.5rem;
+    line-height: 1.55;
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+  .b2b-acceso__terms a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  .b2b-acceso__btn--submit {
+    align-self: flex-start;
+    min-width: 22rem;
+    position: relative;
+  }
+  .b2b-acceso__btn--submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .b2b-acceso__btn-spinner {
+    display: inline-block;
+    width: 1.4rem;
+    height: 1.4rem;
+    margin-left: 0.875rem;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: b2b-acceso-spin 0.8s linear infinite;
+    vertical-align: -0.2rem;
+  }
+  @keyframes b2b-acceso-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 750px) {
+    .b2b-acceso__form-block {
+      padding: 2rem 1.25rem;
+    }
+    .b2b-acceso__btn--submit {
+      width: 100%;
+      min-width: 0;
     }
   }
 </style>
+
+<script src="{{ 'b2b-register-v2.js' | asset_url }}" defer></script>
 
 {% schema %}
 {

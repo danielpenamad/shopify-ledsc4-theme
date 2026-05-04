@@ -1,6 +1,6 @@
 # Supabase — LedsC4 B2B companion infra
 
-Cuatro edge functions + cron que cubren las piezas que Shopify Flow no puede
+Cinco edge functions + cron que cubren las piezas que Shopify Flow no puede
 hacer por limitaciones de su sandbox de Run code (sin async, sin `fetch`,
 sin `shopify.graphql`). Ver memoria `shopify-flow-schema.md`.
 
@@ -8,12 +8,13 @@ sin `shopify.graphql`). Ver memoria `shopify-flow-schema.md`.
 
 ```
 supabase/
-  config.toml                                            verify_jwt=false para las 4 funciones (ver §verify_jwt)
+  config.toml                                            verify_jwt=false para las 5 funciones (ver §verify_jwt)
   functions/
     promote-whitelist-matches/index.ts                  W4 — cron cada 30 min
     create-company-for-customer/index.ts                W1/W2 — crea Company + Contact + Location
     submit-order-request/index.ts                       Fase D — crea draft order desde /pages/solicitud
     list-order-requests/index.ts                        Fase D — lista/detalle desde /pages/mis-solicitudes
+    register-b2b-customer/index.ts                      Sustituye /account/register (roto en new accounts)
   migrations/
     20260419120000_setup_cron.sql                       pg_cron + pg_net + private.config + schedule
   .env.example                                           secrets a setear
@@ -91,6 +92,43 @@ Flow la invoca vía `Send HTTP request` tras tagear al customer como `aprobado`.
 - **Secrets requeridos**: los 3 Shopify + `ORDER_REQUEST_HMAC_SECRET`.
 - **Scopes Shopify**: `read_customers`, `read_draft_orders`.
 
+### 5. `register-b2b-customer` (sustituye /account/register)
+
+Form `/pages/acceso-profesional#registro` la invoca al enviar el alta B2B. Crea el customer en Admin API con tag `pendiente` + metafields `b2b.*` completos (`empresa`, `nif`, `sector`, `pais`, `volumen_estimado`, `fecha_registro`), y dispara `customerSendAccountInviteEmail` para que el usuario reciba el magic link y active la cuenta. Sustituye al flujo `/account/register` clásico que Shopify rompió al forzar new customer accounts (registro y login colapsados en OAuth, sin form de campos custom).
+
+- **URL**: `https://<project-ref>.supabase.co/functions/v1/register-b2b-customer`
+- **Auth**: HMAC SHA256 de `<timestamp>:<nonce>` firmado por Liquid SSR con `settings.register_b2b_hmac_secret`. TTL 5 min. Constant-time compare.
+- **Secrets requeridos**:
+  - `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_ADMIN_TOKEN`, `SHOPIFY_API_VERSION`.
+  - `REGISTER_B2B_HMAC_SECRET` — DEBE coincidir con `settings.register_b2b_hmac_secret` del tema (set via Online Store → Themes → Customize → Theme settings → Endpoints B2B).
+  - `STOREFRONT_ORIGIN` (opcional) — para CORS estricto en prod. Default `*`.
+- **Scopes Shopify**: `read_customers`, `write_customers`.
+
+**Respuestas**:
+
+```json
+// 200 — customer creado e invite enviado
+{ "ok": true, "customerId": "gid://shopify/Customer/123", "inviteSent": true }
+
+// 200 — customer creado pero invite falló (warning, no bloquea al usuario)
+{ "ok": true, "customerId": "gid://shopify/Customer/123",
+  "inviteSent": false, "warning": "INVITE_EMAIL_FAILED" }
+
+// 409 — email ya en uso
+{ "code": "EMAIL_ALREADY_EXISTS", "message": "..." }
+
+// 400 — validación
+{ "code": "VALIDATION_ERROR", "fieldErrors": { "nif": "...", "email": "..." } }
+
+// 401 — HMAC inválido o caducado
+{ "code": "SIGNATURE_EXPIRED" | "INVALID_SIGNATURE" }
+
+// 502 — Shopify no disponible
+{ "code": "SHOPIFY_UNAVAILABLE", "message": "..." }
+```
+
+**TODO hardening producción**: dedupe de nonce en KV para evitar replay dentro del TTL (hoy se confía en la ventana de 5 min + idempotencia por email). Ver header de la función para detalle.
+
 Respuesta:
 ```json
 { "created": true, "companyId": "gid://...", "companyLocationId": "gid://...", "catalogId": "gid://..." }
@@ -133,6 +171,9 @@ Dashboard → **Project Settings → Edge Functions → Secrets**. Añade:
 | `SHOPIFY_ADMIN_TOKEN` | `shpat_...` (custom app: read/write customers, companies, products, publications) |
 | `SHOPIFY_API_VERSION` | `2025-10` |
 | `CREATE_COMPANY_WEBHOOK_SECRET` | generar con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `ORDER_REQUEST_HMAC_SECRET` | mismo valor que `settings.order_request_hmac_secret` en `config/settings_data.json`. |
+| `REGISTER_B2B_HMAC_SECRET` | generar con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. **MISMO valor** debe ponerse en theme settings → Endpoints B2B → "HMAC secret · register-b2b" (Online Store → Themes → Customize). |
+| `STOREFRONT_ORIGIN` (opcional) | dominio del storefront (`https://ledsc4-b2b-outlet.myshopify.com` o el custom domain) para CORS estricto en prod. Default `*`. |
 
 Alternativa CLI: `supabase secrets set NAME=value`.
 
@@ -153,14 +194,15 @@ where key = 'supabase_url';
 
 (La migración inserta la URL del proyecto de desarrollo; al migrar, actualizar.)
 
-### 6. Deploy de las cuatro functions
+### 6. Deploy de las cinco functions
 
 ```bash
 supabase functions deploy \
   promote-whitelist-matches \
   create-company-for-customer \
   submit-order-request \
-  list-order-requests
+  list-order-requests \
+  register-b2b-customer
 ```
 
 ### 7. Actualizar el `Send HTTP request` de W1 y W2 en Shopify Flow
