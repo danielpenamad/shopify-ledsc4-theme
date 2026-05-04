@@ -1211,6 +1211,12 @@
     animation: b2b-acceso-spin 0.8s linear infinite;
     vertical-align: -0.2rem;
   }
+  /* Browser user-agent [hidden] { display:none } pierde specificity vs el
+     selector de clase de arriba. Forzamos display:none cuando el atributo
+     hidden está presente. */
+  .b2b-acceso__btn-spinner[hidden] {
+    display: none;
+  }
   @keyframes b2b-acceso-spin {
     to { transform: rotate(360deg); }
   }
