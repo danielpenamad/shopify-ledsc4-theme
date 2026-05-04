@@ -129,6 +129,7 @@
     "order_request_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/submit-order-request",
     "order_request_hmac_secret": "c066ef8dbd27e8c08a65fcf0ada9daab3c8516a10cb92da4610da49fa7c2e490",
     "list_order_requests_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
+    "register_b2b_hmac_secret": "c066ef8dbd27e8c08a65fcf0ada9daab3c8516a10cb92da4610da49fa7c2e490",
     "sections": {
       "main-password-header": {
         "type": "main-password-header",
