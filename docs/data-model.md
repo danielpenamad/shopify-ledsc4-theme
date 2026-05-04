@@ -220,7 +220,7 @@ altas y aprobaciones B2B. Sin acceso a ventas, productos, finanzas ni analytics.
 
 | Script                                      | Qué hace                                          |
 |---------------------------------------------|---------------------------------------------------|
-| `scripts/apply-metafield-definitions.mjs`   | Crea las 9 metafield definitions. Idempotente. `--dry-run` disponible. |
+| `scripts/apply-metafield-definitions.mjs`   | Crea las 13 metafield definitions de Fase A (Customer/Shop/Page + 1 Producto `b2b.cbm_caja`) y las 32 de Producto del importador (`product.*`, Fase I1, ver [`docs/import-pipeline.md`](import-pipeline.md)). Idempotente. `--dry-run` consulta el shop y clasifica cada entrada como Create / Unchanged / NeedsManualUpdate / DriftBlocked. |
 | `scripts/setup-b2b-catalog.mjs`             | Crea smart collection + price list + catalog + publication del catalog. Idempotente. `--dry-run`. |
 | `scripts/publish-catalog-products.mjs`      | Publica al catalog publication los productos con tag `Coleccion:2026`. Idempotente (salta los ya publicados). Ejecutar tras taggear. |
 | `scripts/audit-customer-state.js`           | Audita invariantes de tags y Company. Escribe CSV en `reports/`. |

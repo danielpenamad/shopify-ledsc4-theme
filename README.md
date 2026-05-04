@@ -131,6 +131,7 @@ Empieza por aquí si vienes nuevo al proyecto:
 | [docs/locksmith-rules.md](docs/locksmith-rules.md) | Implementación detallada del gate (Locksmith + Liquid). |
 | [docs/shopify-customer-accounts-branding.md](docs/shopify-customer-accounts-branding.md) | Branding del login (new customer accounts). |
 | [docs/grow-migration-checklist.md](docs/grow-migration-checklist.md) | Pendientes para el cutover Development→Grow. |
+| [docs/pendientes.md](docs/pendientes.md) | Tracking de tareas no urgentes pero que conviene no olvidar. |
 
 Guías de equipo:
 

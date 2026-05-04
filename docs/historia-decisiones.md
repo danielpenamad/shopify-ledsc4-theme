@@ -396,3 +396,130 @@ se sustituye por uno suyo cambiando un env var
 **Decisión revisada 2026-05-05.** `customersCount(query:)` no respeta el
 filtro en API 2025-10. Fallback a `customers(first: 250, query:)` y
 `.length`. Documentado en pendientes.
+
+---
+
+## D8 — Mapping CSV "Predeterminado" pendiente
+
+**Decisión.** La columna `Predeterminado` (índice 2 del CSV de surtido,
+ver [`docs/import-pipeline.md` §2](import-pipeline.md)) se importa al
+metafield `product.predeterminado` con `access.storefront = NONE` hasta
+que el cliente confirme su semántica. La definición existe para no
+perder dato y dejar el mapper limpio, pero no se expone al storefront
+ni se documenta en ficha de producto.
+
+**Contexto.** El mapping del ERP (entregado el 2026-05-04) incluye una
+columna llamada "Predeterminado" cuyo significado funcional el cliente
+no ha aclarado todavía. Posibles interpretaciones internas: variante
+por defecto, código interno, flag de catálogo… Cualquiera de ellas
+implicaría una semántica de producto distinta.
+
+**Por qué importar pero ocultar.** Importar y exponer sin saber
+significaría arriesgar mostrar un dato confuso al cliente B2B.
+Bloquear la importación de la columna implicaría perder el dato
+histórico hasta que se clarifique. La opción intermedia — importar al
+metafield con `access.storefront = NONE` — preserva el dato sin
+filtrarlo al frontend. Cuando el cliente confirme la semántica, basta
+con cambiar `access.storefront` a `PUBLIC_READ` y, si procede, añadir
+contexto al mapper o al template de ficha.
+
+**Consecuencias.** El bloque dedicado en `mapping.json` lleva
+`visible_in_storefront: false`; la definición en
+`metafield-definitions.json` lleva `access.storefront: NONE`; el
+nombre admin (`Predeterminado (interno — no exponer)`) avisa al staff
+que esa columna no debe usarse en filtros, fichas ni colecciones
+inteligentes hasta que esta decisión se revise.
+
+---
+
+## D9 — Modelo de metafields ampliado para outlet
+
+**Decisión.** Pasar de las 13 definiciones existentes (Fase A) a un
+total de 45 definiciones tras Fase I1, añadiendo 32 nuevas en
+`ownerType=PRODUCT, namespace=product` para cubrir el modelo de datos
+del importador del ERP descrito en
+[`docs/import-pipeline.md`](import-pipeline.md). El mapeo
+columna-a-metafield es autoritativo en
+[`scripts/mapping.json`](../scripts/mapping.json).
+
+**Contexto.** Hasta Fase D el modelo de metafields cubría únicamente
+Customer (`b2b.*`, 8 definiciones), Shop (`b2b.whitelist_emails`,
+`b2b.email_backoffice`), 2 Page (mensajes editables del staff) y 1
+Producto (`b2b.cbm_caja`, usado por `submit-order-request` para
+calcular el CBM total de cada solicitud). El ERP del cliente (Microsoft
+Dynamics AX) emite un CSV de surtido de 79 columnas; tras descartar
+cajas/masterbox/códigos por país (no relevantes para el outlet) quedan
+32 columnas que se mapean a metafields de producto.
+
+**Bloques nuevos (32 definiciones, todas `PRODUCT/product.*`).**
+
+- **Identificadores** (2): `version`, `predeterminado`.
+- **Comerciales traducibles** (8): `tipo`, `familia`, `catalogo`,
+  `garantia`, `etiqueta_vf`, `material`, `acabado`, `accesorio`.
+- **Texto extendido traducible** (2): `tender_text`, `fuente_luz`.
+- **Comercial no traducible** (1): `tipo_regulacion` (sí marcado
+  translatable=true en mapping). Total **11 metafields traducibles**
+  según `mapping.json` — coincide con el listado de §4.2 del
+  pipeline.
+- **Dimensionales** (5): `dim_largo_mm`, `dim_ancho_mm`,
+  `dim_alto_mm`, `proyeccion_mm`, `peso_neto_kg`.
+- **Lumínicos / técnicos** (10): `vatios`, `lumenes`,
+  `lumenes_reales`, `temperatura_color`, `cri`, `rayo_luz`, `ip`,
+  `ik`, `incluye_bombilla` (boolean), `eficiencia_energetica`.
+- **URLs PDF** (3): `ficha_url`, `ficha_comercial_url`, `ee_url`.
+- **Eficiencia comercial** (1): `imc` (semántica pendiente como
+  `predeterminado`, pero visible).
+
+(Los 11 traducibles son: `tipo`, `familia`, `catalogo`, `garantia`,
+`etiqueta_vf`, `tender_text`, `material`, `acabado`, `fuente_luz`,
+`tipo_regulacion`, `accesorio`. Las traducciones EN/IT/DE/FR/PT se
+cargan en Fase I3 vía `translationsRegister` — fuera de I1.)
+
+**Decisiones de modelado.**
+
+- **`pin_in_admin` por entrada en `mapping.json`**, no por heurística
+  en el script. Razón: el cliente puede renegociar pinning
+  (importancia visual en admin) sin tocar código. El script lee el
+  flag literal y falla si falta — fuente única de verdad.
+- **`access.storefront = PUBLIC_READ`** por defecto para 31 de las 32;
+  `NONE` solo para `predeterminado` (ver D8).
+  `access.admin` y `access.customerAccount` se omiten para que apliquen
+  los defaults Shopify (`MERCHANT_READ_WRITE`, `NONE` respectivamente).
+- **`validations` deliberadamente vacío.** Las enumeraciones del ERP
+  (eficiencia A–G + "NA EPREL", IP rating, temperatura color
+  "TUNABLE WHITE" / rangos, rayo luz "SPOT/MEDIUM/FLOOD" / grados)
+  admiten valores nuevos en cualquier export. Validar contra una
+  lista cerrada bloquearía el pipeline y rompería el principio "ERP
+  es fuente de verdad". Si en el futuro se quiere control, va vía
+  reporte (dashboard de valores fuera de rango), no vía bloqueo.
+- **`apply-metafield-definitions.mjs`** se extiende mínimamente: query
+  previa por `ownerType` + clasificación
+  Create/Unchanged/NeedsManualUpdate/DriftBlocked + Summary nuevo.
+  NO implementa `metafieldDefinitionUpdate` aún — los diffs de
+  description/pin/access se reportan pero el operador los aplica a
+  mano. Pragmático: en I1 todas las 32 son nuevas, así que el path de
+  Update no se ejerce; implementarlo "por si acaso" sería código no
+  testeado. Cuando se necesite, está documentado como TODO en la
+  cabecera del script.
+
+**Consecuencias.**
+
+- `metafield-definitions.json` pasa de 13 a 45 entradas, ordenadas por
+  `(ownerType, namespace, key)` para que el diff de PR sea legible.
+- Las 13 existentes (`b2b.*` Customer/Shop/Page + `b2b.cbm_caja`
+  Product) se respetan tal cual. Coexisten dos namespaces a nivel
+  Producto: `b2b.cbm_caja` (Fase D) y `product.*` (Fase I1) — sin
+  colisión.
+- Las traducciones `translatable=true` de `mapping.json` no requieren
+  flag a nivel de definición: Translate & Adapt detecta los tipos de
+  texto automáticamente. La carga real de traducciones se hace en I3
+  vía `translationsRegister`.
+- Se conservan los 745 SKUs ya publicados al catálogo "Outlet
+  general" (Fase A). El importador (I3/I4) los re-actualizará
+  poblando los nuevos metafields y, a partir de ahí, la regla de
+  publicación pasa a ser "en surtido AND stock>0 AND precio>0" (ver
+  `docs/import-pipeline.md §1`), reemplazando al criterio actual
+  basado en el tag `Coleccion:2026`.
+
+Fuentes vivas: [`scripts/mapping.json`](../scripts/mapping.json) y
+[`docs/import-pipeline.md`](import-pipeline.md).
