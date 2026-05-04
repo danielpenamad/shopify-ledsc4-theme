@@ -1,0 +1,830 @@
+{% comment %}
+  Página informativa /pages/acceso-profesional.
+
+  Destino al que linkear desde emails, web corporativa y comerciales para
+  que un profesional sepa antes de registrarse qué es el portal y qué
+  esperar. NO es funcional: no contiene formularios ni integraciones.
+
+  Estructura: hero + 5 secciones informativas + CTAs + footer legal.
+
+  Tema: dark por defecto, coherente con b2b-portal-home.liquid (mismo
+  fondo #0c0e12, mismo accent dorado #d4a84a, misma tipografía Georgia
+  para headings). Variante light disponible vía section setting
+  `color_scheme` para casos de uso donde el texto largo (FAQ, párrafos
+  explicativos) prime sobre el efecto visual del hero.
+
+  Decisión: handle elegido `acceso-profesional` (descartados
+  `portal-acceso` y `como-funciona`). Más explícito en navegación y SEO
+  — usuarios buscando "acceso profesional ledsc4" lo encuentran;
+  "como-funciona" es ambiguo cuando se descontextualiza.
+
+  Gate: la ruta /pages/acceso-profesional está añadida a
+  gate_exempt_paths en layout/theme.liquid para que sea pública.
+
+  Nomenclatura BEM scoped: b2b-acceso__* — no choca con b2b-portal__*
+  (home anónima) ni b2b-aprobado-home__* (home aprobado).
+{% endcomment %}
+
+{%- assign scheme = section.settings.color_scheme | default: 'dark' -%}
+
+<section
+  class="b2b-acceso b2b-acceso--{{ scheme }}"
+  aria-labelledby="b2b-acceso-heading"
+  style="--b2b-acceso-pad-top: {{ section.settings.padding_top | default: 64 }}px; --b2b-acceso-pad-bottom: {{ section.settings.padding_bottom | default: 80 }}px;"
+>
+
+  {%- if section.settings.show_logo_header -%}
+    <header class="b2b-acceso__brand">
+      {%- if shop.brand.logo != blank -%}
+        <img
+          src="{{ shop.brand.logo | image_url: width: 360 }}"
+          alt="{{ shop.name | escape }}"
+          width="160"
+          height="auto"
+          loading="eager"
+        >
+      {%- else -%}
+        <span class="b2b-acceso__brand-wordmark">LEDS C4 <em>Outlet</em></span>
+      {%- endif -%}
+    </header>
+  {%- endif -%}
+
+  <div class="b2b-acceso__hero">
+    <p class="b2b-acceso__eyebrow">Acceso profesional</p>
+    <h1 id="b2b-acceso-heading" class="b2b-acceso__heading">
+      El Outlet B2B de LEDS C4,
+      <em>solo para profesionales</em>
+    </h1>
+    <p class="b2b-acceso__lead">
+      Aquí explicamos qué es el portal, quién puede acceder y cómo funciona el
+      proceso de aprobación. Si después de leerlo crees que encajas, te llevamos
+      al formulario de solicitud.
+    </p>
+  </div>
+
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-que-es">
+    <h2 id="b2b-acceso-que-es" class="b2b-acceso__h2">Qué es este portal</h2>
+    <p>
+      LEDS C4 Outlet B2B es un portal mayorista privado para liquidar stocks
+      excedentes y descatalogados de LEDS C4 a profesionales del sector
+      iluminación. Es independiente de la web pública
+      <a href="https://ledsc4.com" rel="external">ledsc4.com</a> (B2C, dirigida
+      al consumidor final): ni el catálogo, ni los precios, ni la cuenta de
+      usuario se comparten.
+    </p>
+  </article>
+
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-quien">
+    <h2 id="b2b-acceso-quien" class="b2b-acceso__h2">Quién puede acceder</h2>
+    <p>
+      El portal está pensado para los siguientes perfiles profesionales:
+    </p>
+    <ul class="b2b-acceso__list">
+      <li>Instaladores eléctricos y de iluminación</li>
+      <li>Arquitectos e interioristas</li>
+      <li>Retail y tiendas especializadas</li>
+      <li>Distribuidores</li>
+      <li>Empresas finales del sector iluminación</li>
+      <li>Otros profesionales del sector</li>
+    </ul>
+    <p class="b2b-acceso__note">
+      Para validar tu actividad necesitamos una <strong>razón social activa</strong>
+      y un <strong>NIF/CIF/NIE válido</strong>. El registro pide también sector,
+      país y, opcionalmente, volumen anual estimado para ayudarnos a dimensionar
+      el servicio.
+    </p>
+  </article>
+
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-como">
+    <h2 id="b2b-acceso-como" class="b2b-acceso__h2">Cómo funciona el acceso</h2>
+    <p>
+      Hay <strong>dos caminos</strong> según si LEDS C4 ya te conoce:
+    </p>
+
+    <div class="b2b-acceso__paths">
+      <div class="b2b-acceso__path">
+        <span class="b2b-acceso__path-tag b2b-acceso__path-tag--fast">Vía rápida</span>
+        <h3 class="b2b-acceso__h3">Pre-aprobados</h3>
+        <p>
+          Si tu email está en la lista de profesionales pre-aprobados de LEDS C4,
+          al registrarte tu cuenta se activa automáticamente. Entras al catálogo
+          en cuestión de minutos, sin esperas.
+        </p>
+      </div>
+
+      <div class="b2b-acceso__path">
+        <span class="b2b-acceso__path-tag">Vía estándar</span>
+        <h3 class="b2b-acceso__h3">Aprobación manual</h3>
+        <p>
+          Si tu email no está pre-aprobado, el equipo de LEDS C4 revisa tu
+          solicitud manualmente. Tiempo estimado de respuesta:
+          <strong>24–48 horas hábiles</strong>. Recibirás un email cuando esté
+          resuelta, tanto si se aprueba como si se deniega.
+        </p>
+      </div>
+    </div>
+
+    <ol class="b2b-acceso__steps" aria-label="Pasos del proceso de acceso">
+      <li class="b2b-acceso__step">
+        <span class="b2b-acceso__step-num" aria-hidden="true">1</span>
+        <svg class="b2b-acceso__step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
+        <h3 class="b2b-acceso__step-title">Te registras</h3>
+        <p class="b2b-acceso__step-desc">
+          Rellenas el formulario con tus datos de empresa, NIF y sector.
+        </p>
+      </li>
+      <li class="b2b-acceso__step">
+        <span class="b2b-acceso__step-num" aria-hidden="true">2</span>
+        <svg class="b2b-acceso__step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/></svg>
+        <h3 class="b2b-acceso__step-title">Validamos tus datos</h3>
+        <p class="b2b-acceso__step-desc">
+          Auto-aprobado en minutos o revisión manual en 24–48h hábiles.
+        </p>
+      </li>
+      <li class="b2b-acceso__step">
+        <span class="b2b-acceso__step-num" aria-hidden="true">3</span>
+        <svg class="b2b-acceso__step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <h3 class="b2b-acceso__step-title">Acceso al catálogo</h3>
+        <p class="b2b-acceso__step-desc">
+          Recibes un email de bienvenida con el link al catálogo Outlet.
+        </p>
+      </li>
+    </ol>
+  </article>
+
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-dentro">
+    <h2 id="b2b-acceso-dentro" class="b2b-acceso__h2">Qué encontrarás dentro</h2>
+    <ul class="b2b-acceso__features">
+      <li class="b2b-acceso__feature">
+        <svg class="b2b-acceso__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><line x1="2" y1="13" x2="22" y2="13"/></svg>
+        <div>
+          <h3 class="b2b-acceso__h3">Catálogo Outlet</h3>
+          <p>
+            Más de <strong>745 referencias</strong> de stocks excedentes,
+            fin de serie y descatalogados, actualizadas semanalmente.
+          </p>
+        </div>
+      </li>
+      <li class="b2b-acceso__feature">
+        <svg class="b2b-acceso__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <div>
+          <h3 class="b2b-acceso__h3">Solicitudes revisadas</h3>
+          <p>
+            En esta fase no es compra directa: cada solicitud la valida un
+            comercial, que confirma plazos, mínimos y posibles ajustes antes
+            de cerrar el pedido.
+          </p>
+        </div>
+      </li>
+      <li class="b2b-acceso__feature">
+        <svg class="b2b-acceso__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        <div>
+          <h3 class="b2b-acceso__h3">Histórico y estado</h3>
+          <p>
+            Cada solicitud queda registrada en tu área privada con su estado
+            actual: en revisión, en trámite, confirmada o cancelada.
+          </p>
+        </div>
+      </li>
+    </ul>
+  </article>
+
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-faq">
+    <h2 id="b2b-acceso-faq" class="b2b-acceso__h2">Preguntas frecuentes</h2>
+
+    <details class="b2b-acceso__faq">
+      <summary>¿Tengo que pagar algo por usar el portal?</summary>
+      <p>
+        No. El acceso al portal es gratuito para profesionales aprobados.
+        Pagas únicamente los productos que pidas.
+      </p>
+    </details>
+
+    <details class="b2b-acceso__faq">
+      <summary>¿Cuánto tarda la aprobación?</summary>
+      <p>
+        Si tu email está en la lista de pre-aprobados, minutos. Si requiere
+        revisión manual, entre <strong>24 y 48 horas hábiles</strong>. En
+        ambos casos te llega un email con el resultado.
+      </p>
+    </details>
+
+    <details class="b2b-acceso__faq">
+      <summary>¿Puedo comprar directamente?</summary>
+      <p>
+        En esta fase, no. El portal gestiona <strong>solicitudes de pedido</strong>
+        que un comercial revisa y confirma por email — puede ajustar plazos,
+        mínimos o aplicar descuentos antes de cerrar el pedido. La compra
+        directa con checkout instantáneo está prevista para fases posteriores.
+      </p>
+    </details>
+
+    <details class="b2b-acceso__faq">
+      <summary>¿Mi cuenta sirve también en ledsc4.com?</summary>
+      <p>
+        No. Esta cuenta es exclusiva del Outlet B2B. La cuenta de
+        <a href="https://ledsc4.com" rel="external">ledsc4.com</a> (B2C, abierta
+        al público) es independiente y se gestiona desde esa misma web.
+      </p>
+    </details>
+
+    <details class="b2b-acceso__faq">
+      <summary>¿Qué pasa si me rechazan?</summary>
+      <p>
+        Recibirás un email indicando el motivo (datos incompletos, perfil fuera
+        de criterio, etc.). Si crees que ha habido un error, puedes contactar
+        con el equipo comercial respondiendo a ese mismo email para revisarlo.
+      </p>
+    </details>
+
+    <details class="b2b-acceso__faq">
+      <summary>¿Cómo cambio mis datos de empresa?</summary>
+      <p>
+        Una vez aprobado, puedes ver tus datos en el área privada del portal.
+        Para cambios sensibles (razón social, NIF) escribe al equipo comercial
+        y los actualizamos manualmente.
+      </p>
+    </details>
+  </article>
+
+  <div class="b2b-acceso__ctas-block">
+    <p class="b2b-acceso__ctas-lead">
+      ¿Te encaja? Empieza por solicitar acceso. Si ya tienes cuenta, vuelve a
+      tu área privada.
+    </p>
+    <div class="b2b-acceso__ctas">
+      <a href="/account/register" class="b2b-acceso__btn b2b-acceso__btn--primary">
+        Solicitar acceso
+      </a>
+      <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-acceso__btn b2b-acceso__btn--secondary">
+        Ya tengo cuenta · Iniciar sesión
+      </a>
+    </div>
+  </div>
+
+  <footer class="b2b-acceso__footer">
+    <nav class="b2b-acceso__footer-nav" aria-label="Enlaces legales">
+      <a href="/pages/aviso-legal">Aviso legal</a>
+      <span aria-hidden="true">·</span>
+      <a href="/pages/politica-de-privacidad">Privacidad</a>
+      <span aria-hidden="true">·</span>
+      <a href="/pages/condiciones-de-uso">Condiciones</a>
+      <span aria-hidden="true">·</span>
+      <a href="/pages/canal-de-denuncias">Canal ético</a>
+    </nav>
+    <p class="b2b-acceso__footer-note">
+      © {{ 'now' | date: '%Y' }} LEDS C4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés
+    </p>
+  </footer>
+</section>
+
+<style>
+  .b2b-acceso {
+    --bg: #0c0e12;
+    --bg-alt: #14171c;
+    --bg-card: rgba(245, 245, 247, 0.04);
+    --fg: #f5f5f7;
+    --fg-strong: #ffffff;
+    --fg-muted: rgba(245, 245, 247, 0.78);
+    --fg-dim: rgba(245, 245, 247, 0.55);
+    --accent: #d4a84a;
+    --border: rgba(245, 245, 247, 0.10);
+
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    padding: var(--b2b-acceso-pad-top, 64px) 1.5rem var(--b2b-acceso-pad-bottom, 80px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .b2b-acceso *,
+  .b2b-acceso *::before,
+  .b2b-acceso *::after {
+    box-sizing: border-box;
+  }
+
+  /* Light scheme override — para pruebas A/B o si se prefiere legibilidad larga. */
+  .b2b-acceso--light {
+    --bg: #fbfaf7;
+    --bg-alt: #f3f1ec;
+    --bg-card: rgba(12, 14, 18, 0.04);
+    --fg: #1a1a1a;
+    --fg-strong: #0c0e12;
+    --fg-muted: rgba(26, 26, 26, 0.78);
+    --fg-dim: rgba(26, 26, 26, 0.55);
+    --accent: #b08725;
+    --border: rgba(26, 26, 26, 0.10);
+  }
+
+  .b2b-acceso > * {
+    width: 100%;
+    max-width: 780px;
+  }
+
+  /* HERO */
+  .b2b-acceso__brand {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .b2b-acceso__brand img {
+    max-width: 100%;
+    height: auto;
+    display: inline-block;
+  }
+  .b2b-acceso--dark .b2b-acceso__brand img {
+    filter: brightness(0) invert(1);
+  }
+  .b2b-acceso__brand-wordmark {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg);
+  }
+  .b2b-acceso__brand-wordmark em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.85em;
+  }
+
+  .b2b-acceso__hero {
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+
+  .b2b-acceso__eyebrow {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.25rem;
+  }
+
+  .b2b-acceso__heading {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 4.8vw, 3.25rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin: 0 0 1.5rem;
+    color: var(--fg-strong);
+    letter-spacing: -0.015em;
+  }
+  .b2b-acceso__heading em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+    display: block;
+  }
+  @media (min-width: 750px) {
+    .b2b-acceso__heading em {
+      display: inline;
+    }
+  }
+
+  .b2b-acceso__lead {
+    font-size: clamp(1.0625rem, 1.4vw, 1.1875rem);
+    line-height: 1.65;
+    color: var(--fg-muted);
+    margin: 0 auto;
+    max-width: 600px;
+  }
+
+  /* Bloques de contenido */
+  .b2b-acceso__block {
+    margin: 0 0 3.5rem;
+  }
+
+  .b2b-acceso__h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.5rem, 2.4vw, 1.875rem);
+    font-weight: 400;
+    line-height: 1.25;
+    margin: 0 0 1.25rem;
+    color: var(--fg-strong);
+    letter-spacing: -0.01em;
+  }
+
+  .b2b-acceso__h3 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.25rem;
+    font-weight: 400;
+    margin: 0 0 0.625rem;
+    color: var(--fg-strong);
+    letter-spacing: -0.005em;
+  }
+
+  .b2b-acceso__block p {
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    color: var(--fg-muted);
+    margin: 0 0 1rem;
+  }
+  .b2b-acceso__block p:last-child {
+    margin-bottom: 0;
+  }
+
+  .b2b-acceso__block strong {
+    color: var(--fg-strong);
+    font-weight: 600;
+  }
+
+  .b2b-acceso__block a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .b2b-acceso__block a:hover {
+    color: var(--fg-strong);
+  }
+
+  .b2b-acceso__list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.625rem 1.5rem;
+  }
+  .b2b-acceso__list li {
+    position: relative;
+    padding-left: 1.5rem;
+    font-size: 1.0625rem;
+    color: var(--fg-muted);
+    line-height: 1.5;
+  }
+  .b2b-acceso__list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.625rem;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .b2b-acceso__note {
+    margin-top: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-card);
+    border-left: 2px solid var(--accent);
+    font-size: 0.9375rem;
+    color: var(--fg-muted);
+  }
+
+  /* Caminos: pre-aprobados vs manual */
+  .b2b-acceso__paths {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+  }
+  .b2b-acceso__path {
+    padding: 1.75rem 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .b2b-acceso__path-tag {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    background: rgba(245, 245, 247, 0.08);
+    color: var(--fg-dim);
+    margin-bottom: 0.875rem;
+  }
+  .b2b-acceso--light .b2b-acceso__path-tag {
+    background: rgba(26, 26, 26, 0.06);
+  }
+  .b2b-acceso__path-tag--fast {
+    background: rgba(212, 168, 74, 0.15);
+    color: var(--accent);
+  }
+  .b2b-acceso--light .b2b-acceso__path-tag--fast {
+    background: rgba(176, 135, 37, 0.18);
+  }
+
+  /* Steps numerados */
+  .b2b-acceso__steps {
+    list-style: none;
+    padding: 0;
+    margin: 2.5rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    counter-reset: b2b-step;
+  }
+  .b2b-acceso__step {
+    position: relative;
+    padding: 1.5rem 1.25rem 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-align: left;
+  }
+  .b2b-acceso__step-num {
+    position: absolute;
+    top: -0.875rem;
+    left: 1.25rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #0c0e12;
+    font-weight: 700;
+    font-size: 0.875rem;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .b2b-acceso__step-icon {
+    width: 26px;
+    height: 26px;
+    color: var(--accent);
+    margin: 0.5rem 0 0.75rem;
+    stroke-width: 1.25;
+  }
+  .b2b-acceso__step-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.125rem;
+    font-weight: 400;
+    margin: 0 0 0.375rem;
+    color: var(--fg-strong);
+  }
+  .b2b-acceso__step-desc {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--fg-muted);
+    margin: 0;
+  }
+
+  /* Features dentro */
+  .b2b-acceso__features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .b2b-acceso__feature {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1.25rem;
+    align-items: flex-start;
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .b2b-acceso__feature:last-child {
+    border-bottom: none;
+  }
+  .b2b-acceso__feature-icon {
+    width: 28px;
+    height: 28px;
+    color: var(--accent);
+    margin-top: 0.25rem;
+    stroke-width: 1.25;
+    flex-shrink: 0;
+  }
+  .b2b-acceso__feature p {
+    margin: 0;
+  }
+
+  /* FAQ */
+  .b2b-acceso__faq {
+    border-top: 1px solid var(--border);
+    padding: 1rem 0;
+    transition: padding 0.2s ease;
+  }
+  .b2b-acceso__faq:last-of-type {
+    border-bottom: 1px solid var(--border);
+  }
+  .b2b-acceso__faq summary {
+    cursor: pointer;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.125rem;
+    font-weight: 400;
+    color: var(--fg-strong);
+    list-style: none;
+    position: relative;
+    padding-right: 2.5rem;
+    line-height: 1.4;
+  }
+  .b2b-acceso__faq summary::-webkit-details-marker {
+    display: none;
+  }
+  .b2b-acceso__faq summary::after {
+    content: "+";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    color: var(--accent);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    transition: transform 0.2s ease;
+  }
+  .b2b-acceso__faq[open] summary::after {
+    transform: translateY(-50%) rotate(45deg);
+  }
+  .b2b-acceso__faq p {
+    margin: 1rem 0 0;
+    font-size: 1rem;
+    color: var(--fg-muted);
+  }
+  .b2b-acceso__faq summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+
+  /* CTAs */
+  .b2b-acceso__ctas-block {
+    margin: 4rem 0 3rem;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    background: var(--bg-card);
+    border-radius: 16px;
+  }
+  .b2b-acceso__ctas-lead {
+    font-size: 1.125rem;
+    color: var(--fg-muted);
+    margin: 0 auto 1.75rem;
+    max-width: 480px;
+  }
+  .b2b-acceso__ctas {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .b2b-acceso__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 11rem;
+    padding: 0.875rem 1.625rem;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .b2b-acceso__btn--primary {
+    background: var(--fg);
+    color: var(--bg);
+    border: 1px solid var(--fg);
+  }
+  .b2b-acceso__btn--primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0c0e12;
+    transform: translateY(-1px);
+  }
+  .b2b-acceso__btn--secondary {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--fg-dim);
+  }
+  .b2b-acceso__btn--secondary:hover {
+    border-color: var(--fg);
+    background: rgba(245, 245, 247, 0.04);
+    transform: translateY(-1px);
+  }
+  .b2b-acceso--light .b2b-acceso__btn--secondary:hover {
+    background: rgba(26, 26, 26, 0.04);
+  }
+  .b2b-acceso__btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  /* Footer */
+  .b2b-acceso__footer {
+    text-align: center;
+    padding: 1.75rem 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 1rem;
+  }
+  .b2b-acceso__footer-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    font-size: 0.9375rem;
+    margin-bottom: 0.75rem;
+  }
+  .b2b-acceso__footer-nav a {
+    color: var(--fg-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+  .b2b-acceso__footer-nav a:hover {
+    color: var(--fg-strong);
+  }
+  .b2b-acceso__footer-note {
+    font-size: 0.8125rem;
+    color: var(--fg-dim);
+    margin: 0;
+    letter-spacing: 0.01em;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 750px) {
+    .b2b-acceso {
+      padding: 2.5rem 1rem 3rem;
+    }
+    .b2b-acceso__hero {
+      margin-bottom: 2.5rem;
+    }
+    .b2b-acceso__block {
+      margin-bottom: 2.5rem;
+    }
+    .b2b-acceso__ctas-block {
+      padding: 2rem 1rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .b2b-acceso__btn,
+    .b2b-acceso__faq,
+    .b2b-acceso__faq summary::after {
+      transition: none;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Acceso profesional",
+  "tag": "section",
+  "class": "section-b2b-acceso",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Apariencia"
+    },
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "Esquema de color",
+      "options": [
+        { "value": "dark", "label": "Oscuro (coherente con home anónima)" },
+        { "value": "light", "label": "Claro (mayor legibilidad de texto largo)" }
+      ],
+      "default": "dark"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_logo_header",
+      "label": "Mostrar logo en cabecera",
+      "default": false,
+      "info": "Off por defecto: la página ya está dentro del flujo del portal y la cabecera del tema (b2b-header-simple) ya muestra el logo."
+    },
+    {
+      "type": "header",
+      "content": "Espaciado"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding superior",
+      "default": 64
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding inferior",
+      "default": 80
+    }
+  ],
+  "presets": [
+    {
+      "name": "Acceso profesional"
+    }
+  ]
+}
+{% endschema %}
