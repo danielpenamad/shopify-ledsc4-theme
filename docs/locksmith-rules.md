@@ -187,10 +187,11 @@ listadas) redirige a `/account/login`.
 | Customer | URL | Regla que dispara | Destino |
 |---|---|---|---|
 | Anónimo | `/` | — | 200 (home pública) |
-| Anónimo | `/products/X` | Regla 3 | `/account/login` |
-| Anónimo | `/collections/Y` | Regla 3 | `/account/login` |
+| Anónimo | `/products/X` | Regla 3 (Liquid) | `/pages/acceso-profesional` *(antes: `/customer_authentication/login`; cambiado 2026-05-04 — landing informativa antes del login)* |
+| Anónimo | `/collections/Y` | Regla 3 (Liquid) | `/pages/acceso-profesional` |
+| Anónimo | `/pages/acceso-profesional` | — | 200 (exempt) |
 | Anónimo | `/pages/aviso-legal` | — | 200 |
-| Anónimo | `/account/register` | — | 200 |
+| Anónimo | `/account/register` | — | 200 (form B2B; accesible directo si llegas con la URL) |
 | Logueado sin tags | `/` | — | 200 (home con mensaje pendiente) |
 | Logueado sin tags | `/products/X` | Regla 2 | `/pages/cuenta-en-revision` |
 | Logueado `pendiente` | `/collections/coleccion-2026` | Regla 2 | `/pages/cuenta-en-revision` |

@@ -343,17 +343,21 @@
       {%- unless gate_exempt -%}
         {%- if customer == nil -%}
           {%- comment -%}
-            Con new customer accounts, /account/login redirige a Shopify
-            Customer Accounts (shopify.com) y NO respeta querystring. El
-            endpoint que SÍ respeta el redirect post-login al storefront es
-            /customer_authentication/login con parámetro return_to.
-            Doc: https://shopify.dev/docs/api/liquid/objects/routes
-                 (storefront_login_url)
+            Anónimo → /pages/acceso-profesional (landing informativa B2B con
+            CTAs Solicitar acceso e Iniciar sesión).
 
-            Si el customer post-login no es aprobado, el gate de
-            mis-solicitudes (línea ~360) lo manda a /pages/cuenta-en-revision.
+            Anteriormente se redirigía directo a
+            /customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes;
+            ahora intercalamos la landing para reducir fricción y dar
+            contexto antes del login. Desde la landing, el CTA primario
+            lleva al form real de /account/register; el secundario
+            lleva al login OAuth con el return_to correcto.
+
+            La página /pages/acceso-profesional está incluida en
+            gate_exempt_paths arriba, por lo que la redirección no genera
+            bucle.
           {%- endcomment -%}
-          <script>window.location.replace('/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes');</script>
+          <script>window.location.replace('/pages/acceso-profesional');</script>
         {%- elsif customer.tags contains 'rechazado' -%}
           <script>window.location.replace('/pages/cuenta-rechazada');</script>
         {%- elsif customer.tags contains 'aprobado' -%}

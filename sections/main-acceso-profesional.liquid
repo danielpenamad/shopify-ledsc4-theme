@@ -62,6 +62,27 @@
     </p>
   </div>
 
+  {%- comment -%}
+    Bloque de CTAs alto. Misma intención y endpoints que el bloque de cierre
+    (b2b-acceso__ctas-block). Visible above-the-fold en mobile (375x812)
+    para visitantes que ya saben qué quieren hacer. Quien necesite más
+    contexto, sigue scroll por las secciones informativas y vuelve a
+    encontrar los mismos CTAs al final.
+  {%- endcomment -%}
+  <div class="b2b-acceso__ctas-top">
+    <div class="b2b-acceso__ctas">
+      <a href="/account/register" class="b2b-acceso__btn b2b-acceso__btn--primary">
+        Solicitar acceso
+      </a>
+      <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-acceso__btn b2b-acceso__btn--secondary">
+        Ya tengo cuenta · Iniciar sesión
+      </a>
+    </div>
+    <a href="#como-funciona" class="b2b-acceso__keep-reading">
+      ¿Aún no lo tienes claro? Sigue leyendo ↓
+    </a>
+  </div>
+
   <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-que-es">
     <h2 id="b2b-acceso-que-es" class="b2b-acceso__h2">Qué es este portal</h2>
     <p>
@@ -95,7 +116,7 @@
     </p>
   </article>
 
-  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-como">
+  <article id="como-funciona" class="b2b-acceso__block" aria-labelledby="b2b-acceso-como">
     <h2 id="b2b-acceso-como" class="b2b-acceso__h2">Cómo funciona el acceso</h2>
     <p>
       Hay <strong>dos caminos</strong> según si LEDS C4 ya te conoce:
@@ -659,6 +680,30 @@
     background: var(--bg-card);
     border-radius: 16px;
   }
+
+  /* Bloque alto (sin caja) — visible above-the-fold para conversión rápida. */
+  .b2b-acceso__ctas-top {
+    text-align: center;
+    margin: 0 0 3.5rem;
+  }
+  .b2b-acceso__keep-reading {
+    display: inline-block;
+    margin-top: 1.25rem;
+    font-size: 0.9375rem;
+    color: var(--fg-muted);
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: color 0.2s ease;
+  }
+  .b2b-acceso__keep-reading:hover {
+    color: var(--fg-strong);
+  }
+  .b2b-acceso__keep-reading:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+
   .b2b-acceso__ctas-lead {
     font-size: 1.125rem;
     color: var(--fg-muted);
@@ -763,7 +808,8 @@
   @media (prefers-reduced-motion: reduce) {
     .b2b-acceso__btn,
     .b2b-acceso__faq,
-    .b2b-acceso__faq summary::after {
+    .b2b-acceso__faq summary::after,
+    .b2b-acceso__keep-reading {
       transition: none;
     }
   }

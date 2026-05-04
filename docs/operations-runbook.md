@@ -215,12 +215,15 @@ Commit + push. Reversible cuando vuelva la app.
 
 Validar tras cualquier deploy de tema o cambio en gate / Locksmith / edge functions:
 
-### Anónimo
+### Anónimo (post 2026-05-04)
 
 - `/` → home pública con hero portal, sin header.
-- `/products/<handle>` → redirect a `/customer_authentication/login?return_to=...`.
-- `/pages/cuenta-en-revision`, `/pages/cuenta-rechazada` → accesibles (exempt).
+- `/products/<handle>` → redirect a **`/pages/acceso-profesional`** (NO a login). Cambiado 2026-05-04 — antes redirigía a `/customer_authentication/login?return_to=...`. La landing informativa actúa como contexto y filtro antes del registro.
+- `/collections/<handle>`, `/cart`, `/search`, `/pages/solicitud`, `/pages/mis-solicitudes` → idem (`/pages/acceso-profesional`).
+- `/pages/acceso-profesional`, `/pages/cuenta-en-revision`, `/pages/cuenta-rechazada` → accesibles (exempt).
 - `/pages/aviso-legal` y otras legales → accesibles.
+- Tras pulsar "Iniciar sesión" en `/pages/acceso-profesional` → `/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes` (sin cambios respecto al login real).
+- Tras pulsar "Solicitar acceso" en `/pages/acceso-profesional` → `/account/register` (form B2B).
 
 ### Pendiente (logged-in sin tag aprobado/rechazado)
 

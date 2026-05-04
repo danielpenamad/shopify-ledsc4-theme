@@ -84,6 +84,59 @@ terminología que usa el resto del portal (`/pages/cuenta-en-revision`,
 5. En la home `/` (anónimo) aparece el link "¿Tienes dudas sobre el
    acceso? Mira cómo funciona →" bajo los CTAs.
 
+## Posición en el flujo (post 2026-05-04)
+
+Tras la PR `feat: /acceso-profesional como primera puerta para anónimos`, la
+página pasa a ser la **primera puerta para cualquier visitante anónimo** del
+portal B2B:
+
+- **Anónimo a URL no-exempt** (`/products/*`, `/collections/*`, `/cart`,
+  `/search`, `/pages/solicitud`, `/pages/mis-solicitudes`) → gate redirige
+  a `/pages/acceso-profesional`. Antes redirigía a
+  `/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes`;
+  ahora intercalamos la landing para reducir fricción y dar contexto antes
+  del login.
+- **CTAs "Solicitar acceso" en el storefront** (home pública
+  `b2b-portal-home`, etc.) → `/pages/acceso-profesional`. Antes iban
+  directos a `/account/register`.
+- **Desde `/pages/acceso-profesional`**, los CTAs (alto y bajo) llevan a:
+  - Primario "Solicitar acceso" → `/account/register` (form B2B real).
+  - Secundario "Iniciar sesión" → `/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes`.
+
+La página actúa como **contexto y filtro**: el visitante no llega al
+registro sin haber leído antes los requisitos, los dos caminos
+(pre-aprobado vs revisión manual) y las FAQ. El form `/account/register`
+sigue accesible directamente por URL para usuarios que la tengan guardada
+o para enlaces directos desde emails comerciales.
+
+### Estructura de la página tras el cambio
+
+```
+1. Cabecera (logo opcional)
+2. Hero — eyebrow + heading + lead
+3. CTAs altos (above-the-fold mobile) ← NUEVO
+   ├ Primario "Solicitar acceso" → /account/register
+   ├ Secundario "Ya tengo cuenta · Iniciar sesión"
+   └ "¿Aún no lo tienes claro? Sigue leyendo ↓" → #como-funciona
+4. Qué es este portal
+5. Quién puede acceder
+6. Cómo funciona el acceso ← anchor #como-funciona
+7. Qué encontrarás dentro
+8. Preguntas frecuentes
+9. CTAs bajos (cierre, mismos endpoints)
+10. Footer legal
+```
+
+### Lo que NO cambia
+
+- Customer logueado `pendiente` intentando ver `/products/*` →
+  `/pages/cuenta-en-revision` (Locksmith Rule 2 sin tocar).
+- Customer logueado `rechazado` → `/pages/cuenta-rechazada`.
+- Customer logueado `aprobado` → todo accesible.
+- Pantalla del login real (`/customer_authentication/login`) — UI propiedad
+  de Shopify (new customer accounts). Mejora de copy ahí requiere
+  Customer Account UI Extension (fuera de scope).
+
 ## Ver también
 
 - [docs/arquitectura.md](arquitectura.md) — visión general del proyecto.
