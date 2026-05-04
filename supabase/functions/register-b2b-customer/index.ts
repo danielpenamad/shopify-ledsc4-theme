@@ -383,6 +383,10 @@ Deno.serve(async (req: Request) => {
 
     let createData: CustomerCreateResp;
     try {
+      // NOTE: Shopify Admin API 2025-10 removió el campo `tags` de
+      // CustomerInput. Lo añadimos por separado con tagsAdd tras el create
+      // (ver bloque siguiente). Si `tags` se vuelve a aceptar en versiones
+      // futuras, se puede consolidar.
       createData = await gql<CustomerCreateResp>(
         `
         mutation($input: CustomerInput!) {
@@ -398,7 +402,6 @@ Deno.serve(async (req: Request) => {
             firstName: nombre,
             lastName: apellidos,
             phone: telefonoRaw || null,
-            tags: ["pendiente"],
             metafields: [
               { namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa },
               { namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized! },
@@ -464,7 +467,47 @@ Deno.serve(async (req: Request) => {
       }, 502);
     }
 
-    // --- 4. customerSendAccountInviteEmail (best-effort) ---
+    // --- 4. tagsAdd: 'pendiente' (best-effort, separado del create) ---
+    //
+    // Shopify Admin API 2025-10 removió `tags` de CustomerInput, así que se
+    // hace en una segunda mutación. Si falla, el customer ya está creado y
+    // Flow W1 no disparará por el tag → backoffice debe taguear a mano. No
+    // bloqueamos la respuesta al usuario.
+    let tagsAdded = true;
+    try {
+      interface TagsAddResp {
+        tagsAdd: {
+          node: { id: string } | null;
+          userErrors: Array<{ field: string[] | null; message: string }>;
+        };
+      }
+      const tagsData = await gql<TagsAddResp>(
+        `
+        mutation($id: ID!, $tags: [String!]!) {
+          tagsAdd(id: $id, tags: $tags) {
+            node { ... on Customer { id } }
+            userErrors { field message }
+          }
+        }
+        `,
+        { id: customer.id, tags: ["pendiente"] },
+      );
+      if (tagsData.tagsAdd.userErrors.length > 0) {
+        tagsAdded = false;
+        console.log(JSON.stringify({
+          requestId, startedAt, emailHash, outcome: "tags_add_failed",
+          customerId: customer.id, userErrors: tagsData.tagsAdd.userErrors,
+        }));
+      }
+    } catch (e) {
+      tagsAdded = false;
+      console.log(JSON.stringify({
+        requestId, startedAt, emailHash, outcome: "tags_add_failed",
+        customerId: customer.id, error: (e as Error).message,
+      }));
+    }
+
+    // --- 5. customerSendAccountInviteEmail (best-effort) ---
     let inviteSent = true;
     try {
       interface InviteResp {
@@ -502,14 +545,19 @@ Deno.serve(async (req: Request) => {
 
     console.log(JSON.stringify({
       requestId, startedAt, emailHash, outcome: "created",
-      customerId: customer.id, inviteSent,
+      customerId: customer.id, inviteSent, tagsAdded,
     }));
+
+    const warnings: string[] = [];
+    if (!inviteSent) warnings.push("INVITE_EMAIL_FAILED");
+    if (!tagsAdded) warnings.push("TAG_PENDIENTE_FAILED");
 
     return jsonResponse({
       ok: true,
       customerId: customer.id,
       inviteSent,
-      ...(inviteSent ? {} : { warning: "INVITE_EMAIL_FAILED" }),
+      tagsAdded,
+      ...(warnings.length > 0 ? { warning: warnings.join(",") } : {}),
     });
   } catch (e) {
     console.log(JSON.stringify({
