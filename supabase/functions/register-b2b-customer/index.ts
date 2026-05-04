@@ -377,7 +377,7 @@ Deno.serve(async (req: Request) => {
     interface CustomerCreateResp {
       customerCreate: {
         customer: { id: string; email: string } | null;
-        userErrors: Array<{ field: string[] | null; message: string; code?: string }>;
+        userErrors: Array<{ field: string[] | null; message: string }>;
       };
     }
 
@@ -392,7 +392,7 @@ Deno.serve(async (req: Request) => {
         mutation($input: CustomerInput!) {
           customerCreate(input: $input) {
             customer { id email }
-            userErrors { field message code }
+            userErrors { field message }
           }
         }
         `,
@@ -429,8 +429,10 @@ Deno.serve(async (req: Request) => {
     const errs = createData.customerCreate.userErrors;
     if (errs.length > 0) {
       // Map to field errors when possible.
+      // UserError no tiene campo `code` (solo CustomerUserError sí; customerCreate
+      // devuelve UserError pelado). Detectar email duplicado por regex sobre message.
       const emailTaken = errs.some((e) =>
-        (e.code === "TAKEN" || /taken|already/i.test(e.message)) &&
+        /taken|already|exist/i.test(e.message) &&
         (e.field?.includes("email") ?? false)
       );
       if (emailTaken) {
