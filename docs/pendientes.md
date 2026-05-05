@@ -59,16 +59,6 @@ se archiva en `docs/pendientes-archivo.md`.
 - Estimación: 5 min.
 - Sin urgencia: solo es estilo, no funcional.
 
-### [P4] Mejorar copy del feedback post-update-whitelist
-- Causa: tras añadir emails a la whitelist, el mensaje
-  "re-evaluación disparada" es jerga técnica y poco claro para
-  staff no técnico.
-- Solución propuesta: copy tipo "Whitelist actualizada.
-  Verificando si hay solicitudes pendientes que coincidan." o
-  similar. Editar en `assets/admin-backoffice.js` (mensaje
-  post-success de update-whitelist).
-- Estimación: 5 min.
-
 ### [P4] UX de la caja "Whitelist actual" en el backoffice
 - Causa: con 4 emails ya queda en una sola línea horizontal poco
   legible. Con 50+ emails será inutilizable.
@@ -81,7 +71,91 @@ se archiva en `docs/pendientes-archivo.md`.
   post-cutover.
 - Estimación: 30 min - 2h según opción.
 
+### [P3] Auditoría completa de Flow + Final_integration + customer zombi
+- Causa: el smoke test BO descubrió múltiples vestigios e
+  inconsistencias en la infra B2B existente que no son scope BO
+  pero requieren pasada dedicada.
+- Bloque infra (W1-W5):
+  - W2 tiene rama `Send internal email` legacy que pide al admin
+    crear Company a mano (cuando ya se crea automáticamente por
+    otra vía).
+  - W2 tiene rama `Send HTTP request → create-company-for-customer`
+    en estado `Detenido` desde fecha desconocida.
+  - W2 tiene nodo `Remove customer tags: pendiente` redundante
+    (no-op tras flip atómico de `approve-customer`).
+  - W2 y W3 tenían condición rota (`AND` en lugar de
+    `AND NOT contiene pendiente`) — corregidas manualmente
+    durante smoke test 2026-05-05, sin commitear cambios al repo.
+- Bloque misterio Company creator:
+  - Al aprobar customer en BO-7, se creó una Company en Shopify
+    aunque ni W2 ni edge function `create-company-for-customer`
+    la crearon (verificado en logs Supabase).
+  - Events API atribuye creación a `Final_integration` (nuestra
+    custom app de Shopify, la que usa Code y las edge functions).
+  - Hipótesis fuerte: alguna de las queries de verificación
+    lanzadas desde Claude (asistente) durante el smoke test
+    disparó la creación implícita por side-effect de Shopify.
+  - Riesgo cutover: si no se entiende, en producción la Company
+    podría no crearse cuando un cliente real se apruebe.
+- Bloque customer zombi:
+  - `daniel.pena+test-pending1@creacciones.es`
+    (gid://shopify/Customer/10510009467207) tiene tag `aprobado`
+    pero sin Company ni `b2b.fecha_aprobacion`. Aprobado durante
+    BO-7 antes del fix de W2 — quedó a medias.
+  - Limpieza: o crear Company manual, o re-pendientar y
+    re-aprobar.
+- Estimación: 2-4h para auditoría completa + cleanup.
+- Bloquea: cutover al cliente.
+
+### [P3] Customer rechazado mantiene metafields semánticamente residuales
+- Causa: tras rechazar un customer previamente aprobado, los
+  metafields `b2b.fecha_aprobacion` (y potencialmente otros) se
+  conservan con el valor antiguo. Lo mismo aplica a otras
+  transiciones de estado.
+- Detectado durante BO-8 (2026-05-05): customer 2 quedó con
+  `tag rechazado + fecha_rechazo + motivo_rechazo +
+  fecha_aprobacion previa intacta`.
+- Decisión pendiente: ¿qué semántica queremos para
+  `fecha_aprobacion`? ¿Última fecha en que estuvo aprobado, o
+  fecha de aprobación actualmente vigente?
+- Si optamos por "fecha vigente": en `reject-customer` limpiar
+  `b2b.fecha_aprobacion` antes del flip. En `approve-customer`,
+  limpiar `b2b.fecha_rechazo` y `b2b.motivo_rechazo` antes del
+  flip.
+- Si optamos por "histórico": dejar todo como está y documentar.
+- Estimación: 30 min.
+
+### [P4] Limpiar emails de test en whitelist antes del cutover
+- Causa: durante BO-4/5/6 se añadieron 5 emails dummy a
+  `b2b.whitelist_emails`: `test-bo1@example.com`,
+  `test-bo2@example.com`, `test-bo3@example.com`,
+  `test-bo4@example.com`, `test-bo5@example.com`.
+- Solución: editar el metafield desde admin de Shopify
+  (Settings → Custom data → Shop → b2b.whitelist_emails) o
+  desde la propia página backoffice (cuando exista la
+  funcionalidad de quitar emails — ver entrada P4 más abajo).
+- Estimación: 5 min.
+
+### [P4] Regex de validación de email en update-whitelist es laxo
+- Causa: el regex actual acepta cualquier `algo@algo.algo`,
+  incluyendo dominios sin TLD válido o emails con typos comunes.
+- Estado actual: decisión consciente del prompt original
+  ("regex razonable, no perfecto").
+- Vigilancia: revisar tras el cutover si se ven entradas
+  inválidas en la whitelist real.
+- Endurecimiento opcional: validación contra MX records o regex
+  más estricto.
+- Estimación: 30 min - 2h.
+
 ## Cerradas
+
+### [Cerrada] Mejorar copy del feedback post-update-whitelist
+- Cerrada: 2026-05-06
+- Resumen: jerga técnica ("re-evaluación disparada", "W4 lo
+  recogerá en ≤30 min") sustituida por copy claro ("Whitelist
+  actualizada. Comprobando si hay solicitudes pendientes que
+  coincidan…"). Resuelto junto al cleanup cosmético previo al
+  cutover.
 
 ### [Cerrada] Cap de 250 pendientes en backoffice
 - Cerrada: 2026-05-05

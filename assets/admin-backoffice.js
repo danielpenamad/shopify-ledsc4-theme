@@ -219,18 +219,18 @@
         setFeedback('bo-whitelist-feedback', humanError(data, 'Error (' + status + ')'), 'error');
         return;
       }
-      const parts = [
-        data.added + ' añadidos',
-        data.ignored_duplicates + ' duplicados',
-        (data.invalid?.length || 0) + ' inválidos',
-        'total: ' + data.total_now,
-      ];
-      const promote = data.promote_triggered ? ' · re-evaluación disparada' : ' · re-evaluación NO disparada (W4 lo recogerá en ≤30 min)';
-      setFeedback('bo-whitelist-feedback', parts.join(' · ') + promote, 'success');
+      const stats =
+        data.added + ' añadidos · ' +
+        data.ignored_duplicates + ' duplicados · ' +
+        (data.invalid?.length || 0) + ' inválidos · total: ' + data.total_now;
+      const headline = data.promote_triggered
+        ? 'Whitelist actualizada. Comprobando si hay solicitudes pendientes que coincidan…'
+        : 'Whitelist actualizada (sin cambios nuevos). Las solicitudes pendientes se comprueban automáticamente cada cierto tiempo.';
+      setFeedback('bo-whitelist-feedback', headline + ' (' + stats + ')', 'success');
       if (data.added > 0) textarea.value = '';
       if (data.invalid?.length) {
         setFeedback('bo-whitelist-feedback',
-          parts.join(' · ') + promote + ' · inválidos: ' + data.invalid.join(', '),
+          headline + ' (' + stats + ' · inválidos: ' + data.invalid.join(', ') + ')',
           'warning');
       }
       // Refrescar siempre — counts y whitelist cambian.
@@ -254,8 +254,8 @@
       const targetEmail = tr.dataset.boTargetEmail;
       const action = btn.getAttribute('data-bo-action');
       if (action === 'approve') {
-        if (!confirm('¿Aprobar a ' + targetEmail + '? Se crea Company y se envía email 4.')) return;
-        await runApprove(targetId, targetEmail, btn, tr);
+        if (!confirm('¿Aprobar a ' + targetEmail + '? Se le creará el perfil B2B y recibirá un email de bienvenida.')) return;
+        await runApprove(targetId, targetEmail, btn);
       } else if (action === 'reject') {
         openRejectDialog(targetId, targetEmail);
       }
@@ -293,7 +293,7 @@
     }
   }
 
-  async function runApprove(targetId, targetEmail, btn, tr) {
+  async function runApprove(targetId, targetEmail, btn) {
     btn.disabled = true;
     setStatus('Aprobando ' + targetEmail + '…');
     const { status, ok, data } = await postJson(
@@ -305,8 +305,7 @@
       setStatus(humanError(data, 'Error al aprobar (' + status + ')'), 'error');
       return;
     }
-    setStatus('Aprobado ' + targetEmail + '. W2 hace fecha + Company + email.', 'success');
-    if (tr) tr.remove();
+    setStatus('Solicitud aprobada para ' + targetEmail + '.', 'success');
     await reload();
   }
 
@@ -320,7 +319,7 @@
       setStatus(humanError(data, 'Error al rechazar (' + status + ')'), 'error');
       return;
     }
-    setStatus('Rechazado ' + targetEmail + '. W3 envía email 5.', 'success');
+    setStatus('Solicitud rechazada para ' + targetEmail + '.', 'success');
     await reload();
   }
 
