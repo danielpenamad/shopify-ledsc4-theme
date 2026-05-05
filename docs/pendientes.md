@@ -52,6 +52,13 @@ se archiva en `docs/pendientes-archivo.md`.
 - Referencia: operations-runbook §7 (estaba ya como TODO antes de Fase BO).
 - Estimación: ~30 min.
 
+### [P4] Limpiar HardcodedRoutes en admin-backoffice-resumen
+- Causa: theme check warning preexistente en
+  `sections/admin-backoffice-resumen.liquid:96`.
+- Solución: cambiar `/` por `{{ routes.root_url }}`.
+- Estimación: 5 min.
+- Sin urgencia: solo es estilo, no funcional.
+
 ## Cerradas
 
 (vacío)
