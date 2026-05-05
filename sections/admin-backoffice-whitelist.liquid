@@ -1,0 +1,63 @@
+{%- comment -%}
+  Backoffice (Fase BO) — sección 2/3 · Whitelist.
+
+  Textarea para pegar emails (uno por línea, comas o espacios; el parser
+  server-side se encarga). Botón "Añadir a whitelist". Lista read-only
+  del contenido actual del shop metafield b2b.whitelist_emails — la
+  rellena el JS tras list-pending-customers.
+
+  Si el customer no tiene tag backoffice, no renderiza nada (el gate UX
+  está en la sección 1; la seguridad real es server-side en
+  update-whitelist).
+{%- endcomment -%}
+
+{%- if customer and customer.tags contains 'backoffice' -%}
+  <section class="bo bo__section" aria-labelledby="bo-whitelist-heading">
+    <header class="bo__section-header">
+      <h2 id="bo-whitelist-heading" class="bo__section-title">Whitelist de emails pre-aprobados</h2>
+      <p class="bo__section-lead">
+        Los customers cuyo email aparezca aquí se auto-aprueban al
+        registrarse (W1) o al guardar (W4 cada 30 min). Pegar una lista
+        en el textarea: separa por línea, coma, punto y coma o espacio.
+        Los duplicados se ignoran; los emails inválidos se reportan.
+      </p>
+    </header>
+
+    <form class="bo__whitelist-form" id="bo-whitelist-form" autocomplete="off">
+      <label class="bo__label" for="bo-whitelist-textarea">Añadir emails</label>
+      <textarea
+        id="bo-whitelist-textarea"
+        name="emails"
+        class="bo__textarea"
+        rows="6"
+        placeholder="juan@instalador.com&#10;compras@arquitecto.es, pedidos@retail.com"
+        spellcheck="false"
+        autocapitalize="off"
+        autocomplete="off"
+      ></textarea>
+      <div class="bo__form-actions">
+        <button type="submit" class="bo__btn bo__btn--primary" id="bo-whitelist-submit">
+          Añadir a whitelist
+        </button>
+        <span class="bo__form-feedback" id="bo-whitelist-feedback" aria-live="polite"></span>
+      </div>
+    </form>
+
+    <details class="bo__whitelist-current">
+      <summary>Whitelist actual (<span data-bo-kpi="whitelist">…</span> emails)</summary>
+      <ul class="bo__whitelist-list" id="bo-whitelist-list">
+        <li class="bo__whitelist-empty">Cargando…</li>
+      </ul>
+    </details>
+  </section>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Backoffice · Whitelist",
+  "settings": [],
+  "presets": [
+    { "name": "Backoffice · Whitelist" }
+  ]
+}
+{% endschema %}

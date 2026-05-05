@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "resumen": {
+      "type": "admin-backoffice-resumen",
+      "settings": {}
+    },
+    "whitelist": {
+      "type": "admin-backoffice-whitelist",
+      "settings": {}
+    },
+    "pendientes": {
+      "type": "admin-backoffice-pendientes",
+      "settings": {}
+    }
+  },
+  "order": ["resumen", "whitelist", "pendientes"]
+}
