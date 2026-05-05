@@ -32,15 +32,15 @@ se archiva en `docs/pendientes-archivo.md`.
   Claude. Esperar a tener volumen real (>20 aprobaciones/semana
   por parte del staff del cliente) para decidir si construir.
 
-### [P3] Cap de 250 pendientes en backoffice
-- `list-pending-customers` trae como máximo 250 (sortKey CREATED_AT
-  reverse). Si pasan de ese número se muestra el warning
-  ⚠️ "Mostrando los 250 pendientes más recientes" en la UI.
-- Decisión cerrada: lista plana, sin paginación. Si esto duele se
-  rediseña en otra fase (filtros por sector/fecha o paginación).
-- Origen: Fase BO (2026-05-05).
-- Referencias: `supabase/functions/list-pending-customers/index.ts`,
-  `docs/backoffice-page.md §9`.
+### [P4] Investigar bug de customersCount(query:)
+- Causa: `customersCount(query: "tag:X")` devuelve el total
+  sin filtrar por tag. Verificado contra
+  ledsc4-b2b-outlet.myshopify.com en API 2025-10.
+- Estado: bypass aplicado en list-pending-customers usando
+  `customers(first: 250, query: "tag:X")` y contando .length.
+- Pendiente: reportar a Shopify (Discussions/Forum) o probar
+  con otra versión de API. Impacto: solo costo extra (3
+  queries paginadas en lugar de 3 counts), no funcional.
 
 ### [P3] Endurecer auth de `promote-whitelist-matches` con `X-Cron-Secret`
 - Hoy la función está abierta porque pg_cron no firma; en `update-whitelist`
@@ -60,6 +60,19 @@ se archiva en `docs/pendientes-archivo.md`.
 - Sin urgencia: solo es estilo, no funcional.
 
 ## Cerradas
+
+### [Cerrada] Cap de 250 pendientes en backoffice
+- Cerrada: 2026-05-05
+- Origen: Fase BO (2026-05-05).
+- Resumen: la entrada original lo planteaba como decisión de
+  diseño ("lista plana, sin paginación"). Tras detectar el bug
+  de `customersCount(query:)` y aplicar el bypass con
+  `customers(first: 250, query: "tag:X")`, el cap pasa a tener
+  también motivación técnica (Shopify limita la página a 250).
+  El follow-up funcional pasa a la entrada activa "Investigar
+  bug de customersCount(query:)".
+- Referencias: `supabase/functions/list-pending-customers/index.ts`,
+  `docs/backoffice-page.md §9`.
 
 ### [Cerrada] Página backoffice de whitelist + aprobaciones
 - Cerrada: 2026-05-05

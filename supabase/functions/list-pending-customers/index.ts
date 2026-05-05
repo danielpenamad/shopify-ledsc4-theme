@@ -5,8 +5,14 @@
 //   - Lista de customers con tag 'pendiente' (hasta 250, los más recientes
 //     primero).
 //   - Counts agregados de pendiente / aprobado / rechazado vía
-//     `customersCount(query:)`.
+//     `customers(first: 250, query: "tag:X")` y .length.
 //   - Whitelist actual (emails y fecha de última actualización).
+//
+// ⚠ NOTA — counts: `customersCount(query:)` en API 2025-10 ignora el
+// argumento `query` y devuelve siempre el total del shop (verificado
+// 2026-05-05 contra ledsc4-b2b-outlet.myshopify.com). Bypass aplicado
+// con `customers(first: 250, query: "tag:X")` y `.length`. Truncated
+// flag por count si hasNextPage. Documentado en docs/pendientes.md.
 //
 // 🔒 SECURITY: el caller (approver) DEBE tener tag 'backoffice'. La
 // verificación se hace server-side aquí — el `{% if customer.tags contains
@@ -32,6 +38,8 @@
 //       { id, email, empresa, nif, sector, fechaRegistro }
 //     ],
 //     pendingTruncated: boolean,                 // true si había >250
+//     aprobadoTruncated: boolean,                // true si había >250
+//     rechazadoTruncated: boolean,               // true si había >250
 //     counts: { pendiente, aprobado, rechazado, whitelist },
 //     whitelist: { emails: string[], lastUpdate: ISO|null }
 //   }
@@ -183,9 +191,14 @@ Deno.serve(async (req) => {
         edges: Array<{ node: PendingNode }>;
         pageInfo: { hasNextPage: boolean };
       };
-      pendienteCount: { count: number } | null;
-      aprobadoCount: { count: number } | null;
-      rechazadoCount: { count: number } | null;
+      aprobado: {
+        edges: Array<{ node: { id: string } }>;
+        pageInfo: { hasNextPage: boolean };
+      };
+      rechazado: {
+        edges: Array<{ node: { id: string } }>;
+        pageInfo: { hasNextPage: boolean };
+      };
       shop: {
         whitelistEmails: { value: string } | null;
         whitelistLastUpdate: { value: string } | null;
@@ -205,9 +218,14 @@ Deno.serve(async (req) => {
           }
           pageInfo { hasNextPage }
         }
-        pendienteCount: customersCount(query: "tag:'pendiente'") { count }
-        aprobadoCount: customersCount(query: "tag:'aprobado'") { count }
-        rechazadoCount: customersCount(query: "tag:'rechazado'") { count }
+        aprobado: customers(first: ${PENDING_HARD_CAP}, query: "tag:'aprobado'") {
+          edges { node { id } }
+          pageInfo { hasNextPage }
+        }
+        rechazado: customers(first: ${PENDING_HARD_CAP}, query: "tag:'rechazado'") {
+          edges { node { id } }
+          pageInfo { hasNextPage }
+        }
         shop {
           whitelistEmails: metafield(namespace: "b2b", key: "whitelist_emails") { value }
           whitelistLastUpdate: metafield(namespace: "b2b", key: "whitelist_last_update") { value }
@@ -239,10 +257,12 @@ Deno.serve(async (req) => {
       startedAt,
       pending,
       pendingTruncated: data.pending.pageInfo.hasNextPage,
+      aprobadoTruncated: data.aprobado.pageInfo.hasNextPage,
+      rechazadoTruncated: data.rechazado.pageInfo.hasNextPage,
       counts: {
-        pendiente: data.pendienteCount?.count ?? pending.length,
-        aprobado: data.aprobadoCount?.count ?? 0,
-        rechazado: data.rechazadoCount?.count ?? 0,
+        pendiente: pending.length,
+        aprobado: data.aprobado.edges.length,
+        rechazado: data.rechazado.edges.length,
         whitelist: whitelistEmails.length,
       },
       whitelist: {

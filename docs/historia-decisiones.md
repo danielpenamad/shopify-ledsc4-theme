@@ -392,3 +392,7 @@ se sustituye por uno suyo cambiando un env var
 - 1 page template + 3 sections + 2 assets nuevos en el theme.
 - Reparto edge function ↔ Flow: la edge function solo cambia tags. W2 sigue haciendo fecha + Company + email; W3 sigue mandando el email de rechazo. Sin esa separación, hay carrera y duplicación.
 - El gate de `theme.liquid` ya exempts pages no comerciales — `/pages/admin-backoffice` no requirió tocar el gate.
+
+**Decisión revisada 2026-05-05.** `customersCount(query:)` no respeta el
+filtro en API 2025-10. Fallback a `customers(first: 250, query:)` y
+`.length`. Documentado en pendientes.
