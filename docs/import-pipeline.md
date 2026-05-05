@@ -118,27 +118,33 @@ Interfaz: `getFile(remotePath) → Buffer`.
 
 ### 3.2 parser
 
-Lee cada CSV por **posición de columna**, respetando el contrato de
-`mapping.json`. Devuelve registros normalizados con tipos correctos
-(decimales con coma → punto, booleanos Si/No → true/false, vacíos →
-null).
+Lee cada CSV por **posición de columna**. **Puramente sintáctico**:
+extrae strings respetando quoting CSV estándar, normaliza vacíos /
+`NULL` / `-` → `null`, y nada más. **No hace coerción de tipos** —
+los decimales con coma, booleanos `Si/No`, etc. se procesan en el
+mapper, que es quien conoce el contrato del mapping.
 
 Errores que no detienen la ejecución sino que se loguean:
 
-- SKU duplicado en surtido (first wins).
+- SKU duplicado en surtido (**first wins** — pendiente confirmación
+  cliente sobre tratamiento alternativo, ver §11.2).
+- SKU duplicado en stock (**suma de unidades** — decisión cliente
+  2026-05-05, ver §11.1).
 - Fila con menos columnas que la cabecera (skip + warning).
-- Valor numérico no parseable (null + warning).
 
 Errores que sí detienen la ejecución:
 
-- Cabecera con número de columnas distinto al esperado (79 ± tolerancia).
+- Cabecera con número de columnas distinto al esperado (79 surtido,
+  2 stock, 2 precios).
 - Fichero ES ausente o vacío (es el idioma fuente).
-- SKU faltante en una fila.
+- SKU faltante en una fila (col 0 vacía).
 
 ### 3.3 mapper
 
-Convierte los registros del parser al modelo de Shopify. Por cada SKU
-genera:
+Convierte los registros del parser al modelo de Shopify y **aplica
+toda la coerción de tipos** según el contrato declarativo de
+`mapping.json` (decimales con coma → punto, booleanos Si/No → true/
+false, etc.). Por cada SKU genera:
 
 - 1 `productInput` (title ES, body_html ES, vendor=LedsC4, tags…).
 - N `metafieldsInput` (uno por columna con `destination=metafield`).
@@ -155,6 +161,9 @@ Reglas especiales del mapper:
 - `Incluye bombilla` → mapea texto "Si"/"No" a boolean.
 - `Temperatura color` → conserva texto tal cual ("3000K", "TUNABLE
   WHITE") porque hay valores no numéricos.
+- **Valores no numéricos en columnas declaradas como `number_decimal`
+  o `number_integer`** (ej. "Min 30 - Max 415", "∅145") → `null` +
+  warning. Decisión cerrada del cliente, ver §11.3.
 - `Predeterminado` → metafield con `visible_in_storefront=false` hasta
   que el cliente confirme su semántica (ver [historia-decisiones.md
   D7](historia-decisiones.md#d7-mapping-csv-predeterminado-pendiente)).
@@ -310,3 +319,178 @@ auto-contenido con `--dry-run` obligatorio y validación previa:
 
 I1 e I2 se pueden empezar **ya** sin esperar al SFTP. I3 e I4 esperan
 al cliente.
+
+---
+
+## 10. Cómo correr I2 localmente
+
+I2 es el dry-pipeline: parser + mapper + reporter. Lee los CSVs de
+muestra, cruza surtido + stock + precios, y produce un report
+detallado de qué pasaría si ejecutáramos el writer (I3). **No
+escribe nada en Shopify.**
+
+### Comando
+
+```bash
+node --env-file=shopify-ledsc4-theme.env scripts/import-report.mjs
+node --env-file=shopify-ledsc4-theme.env scripts/import-report.mjs --samples-dir=samples
+node --env-file=shopify-ledsc4-theme.env scripts/import-report.mjs --verbose
+```
+
+(El `--env-file` no es necesario en I2 — cero llamadas a Shopify —
+pero se mantiene por homogeneidad con I3/I4.)
+
+### Output
+
+Carpeta nueva por ejecución: `reports/import-<ISO timestamp>/` con:
+
+- **`summary.txt`** — totales legibles (input, cross-check, errors,
+  warnings, paths).
+- **`changes.csv`** — 1 fila por SKU del surtido con
+  `would_publish, publish_reason, title, n_metafields,
+  n_translations, n_images, has_warnings`.
+- **`hidden.csv`** — subset de `changes.csv` donde
+  `would_publish=false`, con `publish_reason, in_surtido,
+  in_stock, stock_qty, in_precios, price`. Es el fichero clave a
+  revisar con el cliente para validar la regla "se ocultan y se
+  informa".
+- **`warnings.csv`** — 1 fila por warning emitido por parser o
+  mapper. Columnas `source, severity, sku_or_row, locale, kind,
+  message`.
+
+Exit code 0 si solo hay warnings. ≠0 si hay errores duros.
+
+### Estructura de `samples/`
+
+```
+samples/
+├─ productos/listado_productos_{ES,EN,IT,DE,FR,PT}.csv
+├─ stock/stock_productos.csv
+└─ precios/precios_productos.csv
+```
+
+Estos ficheros son los que entregó el cliente el 2026-05-04 (ver
+[`samples/README.md`](../samples/README.md)). En I4 se reemplazan
+por adaptador SFTP que escribe en la misma estructura local antes
+de ejecutar el script.
+
+### Arquitectura de los 3 scripts
+
+- [`scripts/import-parse.mjs`](../scripts/import-parse.mjs) — parser
+  CSV puramente sintáctico, devuelve strings normalizados (vacíos→
+  null). Sin coerción de tipos. Sin conocimiento del mapping ni de
+  Shopify. Reusable para validación SFTP en I4.
+- [`scripts/import-map.mjs`](../scripts/import-map.mjs) — mapper.
+  Aplica coerción por tipo (decimales con coma ES, booleanos
+  Si/No, etc.) según `mapping.json`. Construye el modelo Shopify
+  por SKU: producto + variants + metafields + 5 traducciones.
+  Iterates solo sobre SKUs del surtido ES (single source of truth)
+  y consulta stock/precios vía `Map<sku, value>` para O(1).
+- [`scripts/import-report.mjs`](../scripts/import-report.mjs) —
+  orquestador. Carga mapping, llama parsers en paralelo, llama
+  mapper, escribe los 4 reports.
+
+### Política de publicación (recordatorio)
+
+Un producto sale como `would_publish=true` ⇔ está en surtido ES
+**AND** stock>0 **AND** precio>0. Si falla alguna condición:
+
+- `missing_stock` — SKU del surtido ausente del fichero de stock.
+- `stock_zero` — SKU en stock con `INVENTARIO=0`.
+- `missing_price` — SKU del surtido + stock>0 ausente de precios.
+- `price_zero` — SKU en precios con `TARIFA=0`.
+
+Prioridad en caso de fallar varias: missing_stock > stock_zero >
+missing_price > price_zero (presencia antes que valor). La primera
+no satisfecha gana.
+
+---
+
+## 11. Tratamiento de anomalías en datos del cliente
+
+Decisiones acordadas con el cliente sobre cómo tratar los datos
+"sucios" detectados durante el diseño del pipeline (I2). Cada caso
+documenta la regla aplicada hoy, su justificación, y la respuesta
+literal del cliente cuando existe.
+
+### 11.1 Duplicados en `stock_productos.csv` — **suma de unidades**
+
+Cuando un SKU aparece múltiples veces en el fichero de stock, las
+unidades de las distintas filas se **suman** y el resultado es el
+INVENTARIO efectivo del SKU.
+
+> "En el caso que en stock_productos.csv aparezca duplicado, sumemos
+> las unidades de stock que indique (en este caso de ejemplo seria
+> 53+1)."
+> — Cliente, 2026-05-05.
+
+Implementación en `parseStock` ([scripts/import-parse.mjs](../scripts/import-parse.mjs)).
+Cada agregación genera un warning con la fórmula explícita
+(`53+1=54`, `10+5+2=17`, etc.) para que el operador vea en cada
+report si la frecuencia de duplicados es estable o crece — útil
+como canario de calidad del export del cliente.
+
+Caso real en muestras (2026-05-04): `AH12-12V8W1OUWT` aparece 2
+veces (rows 1823, 1824) con valores `53` y `1`. Resultado en el
+modelo: `inventario = 54`. (Es además un SKU orphan respecto al
+surtido, así que no entra al modelo Shopify; el ejemplo sirve solo
+de ilustración del comportamiento del parser.)
+
+**Edge case defensivo** — si alguna de las filas duplicadas trae un
+valor no numérico, decimal, o negativo, la suma se cancela: se
+aplica first-wins para ese SKU y se emite un warning de severidad
+alta listando todos los valores vistos. No esperado en datos reales
+del ERP, pero el comportamiento existe para que cualquier desviación
+sea visible y no silenciosamente corrompa el inventario.
+
+### 11.2 Duplicados en `listado_productos_*.csv` (surtido) — **first-wins (pendiente)**
+
+Cuando un SKU aparece múltiples veces en el fichero de surtido, se
+mantiene la **primera ocurrencia** y se descarta el resto, emitiendo
+un warning. Razón conceptual: agregar productos no tiene sentido
+semántico (no es un campo numérico aditivo como stock; son atributos
+descriptivos que entrarían en conflicto entre filas).
+
+**Pendiente de confirmación con el cliente.** En la consulta del
+2026-05-05 el cliente respondió sobre stock pero no sobre surtido.
+Hasta nueva confirmación, first-wins sigue vigente. Ver entrada
+abierta en [`docs/pendientes.md`](pendientes.md).
+
+Caso real en muestras: `05-6424-81-81` aparece 2 veces en los 6
+ficheros de idioma (mismo bug en cada locale, indicando que el
+duplicado nace en el export y no en la traducción). El cliente
+confirmó previamente que es bug de su export.
+
+### 11.3 Valores no numéricos en columnas dimensionales — **`null` + warning**
+
+Las columnas declaradas como `number_decimal` o `number_integer` en
+[`scripts/mapping.json`](../scripts/mapping.json) (`dim_largo_mm`,
+`dim_ancho_mm`, `dim_alto_mm`, `proyeccion_mm`, `peso_neto_kg`,
+`vatios`, `lumenes`, `lumenes_reales`, `cri`) ocasionalmente
+contienen valores no numéricos en los datos del cliente. Dos
+patrones conocidos:
+
+- **Rangos** ("Min 24 Max 425", "Max 1930", "min 30 - max 415") —
+  productos con dimensión ajustable (alargadores, cuelgues
+  regulables).
+- **Diámetros con símbolo** ("∅78", "Ø1.010", "ø145") — notación
+  técnica habitual de luminarias circulares.
+
+En las muestras del 2026-05-04 hay **54 valores afectados en 52 SKUs**
+(~7% del surtido).
+
+Decisión: **el mapper escribe `null` en el metafield correspondiente
+y emite un warning**. El producto se carga normalmente con el resto
+de sus campos; solo esa dimensión concreta queda vacía.
+
+> "Hagamos que los 52 productos no carguen esa dimensión concreta.
+> Si necesitan esa información, ya tienen nuestra página web
+> (ledsc4.com) y la ficha técnica."
+> — Cliente, 2026-05-05.
+
+No se intenta heurística de extracción ("tomar el max del rango",
+"strip ∅") — el cliente prefiere preservar la integridad del tipo
+numérico de Shopify (filtros por rango, comparaciones) a expensas
+de perder el dato literal en estos casos. La descripción del
+producto y la ficha técnica enlazada (`ficha_url`) cubren la
+información para el cliente final.
