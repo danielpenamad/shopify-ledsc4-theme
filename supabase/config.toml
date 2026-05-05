@@ -32,3 +32,32 @@ verify_jwt = false
 # REGISTER_B2B_HMAC_SECRET. TTL 5 min. Sustituye al /account/register
 # clásico que Shopify rompió al forzar new customer accounts.
 verify_jwt = false
+
+# --- Backoffice (Fase BO) ---
+# Las 4 funciones siguientes sirven /pages/admin-backoffice. Auth real
+# en todas: HMAC-SHA256 del approver.id firmado por Liquid SSR con
+# settings.backoffice_hmac_secret + verificación server-side de tag
+# 'backoffice' en cada request (assertBackofficeTag). El `{% if %}` del
+# page template es solo UX; la seguridad vive en cada handler.
+
+[functions.list-pending-customers]
+# Storefront JS (admin-backoffice) la invoca sin JWT al cargar la página
+# y tras cada acción para refrescar lista + counts.
+verify_jwt = false
+
+[functions.update-whitelist]
+# Storefront JS la invoca al pulsar "Añadir a whitelist". Edita el shop
+# metafield b2b.whitelist_emails y dispara promote-whitelist-matches
+# (URL en env PROMOTE_WHITELIST_FUNCTION_URL).
+verify_jwt = false
+
+[functions.approve-customer]
+# Storefront JS la invoca al pulsar "Aprobar". Cambia tags atómicamente
+# pendiente→aprobado vía customerUpdate; W2 hace fecha + Company + email.
+verify_jwt = false
+
+[functions.reject-customer]
+# Storefront JS la invoca al pulsar "Rechazar". Setea motivo (si hay) +
+# fecha_rechazo ANTES del cambio de tag para que W3 envíe el email 5 con
+# el motivo poblado. Cambia tags atómicamente pendiente→rechazado.
+verify_jwt = false
