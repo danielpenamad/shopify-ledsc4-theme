@@ -65,6 +65,15 @@
   {
     "ownerType": "CUSTOMER",
     "namespace": "b2b",
+    "key": "fecha_rechazo",
+    "name": "Fecha de rechazo",
+    "description": "Se rellena al pasar a estado rechazado desde la página backoffice. Nullable.",
+    "type": "date",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
     "key": "motivo_rechazo",
     "name": "Motivo de rechazo",
     "description": "Texto libre. Solo aplica si el cliente está en estado rechazado.",
@@ -78,6 +87,15 @@
     "name": "Whitelist de emails pre-aprobados",
     "description": "Emails que se auto-aprueban al registrarse. Editable por staff con permiso Edit custom data.",
     "type": "list.single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "SHOP",
+    "namespace": "b2b",
+    "key": "whitelist_last_update",
+    "name": "Última actualización whitelist",
+    "description": "Timestamp ISO de la última actualización del metafield whitelist_emails (set por la página backoffice).",
+    "type": "date_time",
     "pin": true
   },
   {

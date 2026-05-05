@@ -1489,5 +1489,23 @@
         "info": "DEBE coincidir con REGISTER_B2B_HMAC_SECRET en Supabase env. Distinto del HMAC de solicitudes (rotación independiente)."
       }
     ]
+  },
+  {
+    "name": "B2B · Backoffice (página de aprobaciones)",
+    "settings": [
+      {
+        "type": "text",
+        "id": "backoffice_base_endpoint",
+        "label": "Base URL edge functions backoffice",
+        "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/",
+        "info": "Base URL de Supabase functions. La página backoffice añade list-pending-customers, update-whitelist, approve-customer, reject-customer. Debe terminar con barra."
+      },
+      {
+        "type": "text",
+        "id": "backoffice_hmac_secret",
+        "label": "HMAC secret · backoffice",
+        "info": "DEBE coincidir con BACKOFFICE_HMAC_SECRET en Supabase env. Distinto del HMAC de solicitudes y register: el blast radius de este es mucho mayor (operaciones de approver). Rotación independiente."
+      }
+    ]
   }
 ]

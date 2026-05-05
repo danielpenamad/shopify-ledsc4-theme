@@ -1,0 +1,110 @@
+{%- comment -%}
+  Backoffice (Fase BO) — sección 1/3 · Resumen.
+
+  La página /pages/admin-backoffice usa este page template:
+  templates/page.admin-backoffice.json. Es la primera sección que se
+  renderiza y por tanto la responsable de:
+    - El gate UX `{% if customer.tags contains 'backoffice' %}`. NO es
+      seguridad: la verificación real vive server-side en cada edge
+      function (assertBackofficeTag). Si el usuario manipula DOM o tags
+      del cliente, las edge functions lo rechazan con 403 NOT_BACKOFFICE.
+    - Cargar admin-backoffice.css y admin-backoffice.js (asset_url).
+    - Renderizar el wrapper raíz con data-attributes: customerId, base
+      URL, HMAC. El JS los lee de ahí — no se inyectan en cada section.
+    - Pintar los KPI placeholder (los rellena el JS tras list-pending-customers).
+
+  Si el customer no es backoffice, esta sección muestra la pantalla de
+  "Acceso restringido" y las dos siguientes (whitelist, pendientes) no
+  renderizan nada.
+{%- endcomment -%}
+
+{%- liquid
+  assign is_bo = false
+  if customer and customer.tags contains 'backoffice'
+    assign is_bo = true
+  endif
+  assign customer_gid = ''
+  assign now_ts = ''
+  assign hmac_sig = ''
+  if is_bo
+    assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
+    assign now_ts = 'now' | date: '%s'
+    assign hmac_payload = customer_gid | append: ':' | append: now_ts
+    assign hmac_sig = hmac_payload | hmac_sha256: settings.backoffice_hmac_secret
+  endif
+-%}
+
+{{ 'admin-backoffice.css' | asset_url | stylesheet_tag }}
+
+{%- if is_bo -%}
+
+  <main
+    class="bo"
+    data-bo-root
+    data-bo-customer-id="{{ customer_gid }}"
+    data-bo-timestamp="{{ now_ts }}"
+    data-bo-signature="{{ hmac_sig }}"
+    data-bo-base="{{ settings.backoffice_base_endpoint }}"
+  >
+    <header class="bo__header">
+      <p class="bo__eyebrow">Backoffice B2B · LedsC4 Outlet</p>
+      <h1 class="bo__title">Aprobaciones y whitelist</h1>
+      <p class="bo__lead">
+        Página de operación interna. Las acciones se ejecutan al instante
+        sobre la tienda real — no hay paso intermedio.
+      </p>
+    </header>
+
+    <section class="bo__resumen" aria-label="Resumen">
+      <ul class="bo__kpis" id="bo-kpis">
+        <li class="bo__kpi">
+          <span class="bo__kpi-label">Pendientes</span>
+          <span class="bo__kpi-value" data-bo-kpi="pendiente">…</span>
+        </li>
+        <li class="bo__kpi">
+          <span class="bo__kpi-label">Aprobados</span>
+          <span class="bo__kpi-value" data-bo-kpi="aprobado">…</span>
+        </li>
+        <li class="bo__kpi">
+          <span class="bo__kpi-label">Rechazados</span>
+          <span class="bo__kpi-value" data-bo-kpi="rechazado">…</span>
+        </li>
+        <li class="bo__kpi">
+          <span class="bo__kpi-label">Emails en whitelist</span>
+          <span class="bo__kpi-value" data-bo-kpi="whitelist">…</span>
+        </li>
+        <li class="bo__kpi bo__kpi--wide">
+          <span class="bo__kpi-label">Última actualización whitelist</span>
+          <span class="bo__kpi-value bo__kpi-value--small" data-bo-kpi="whitelist_last_update">…</span>
+        </li>
+      </ul>
+      <div id="bo-status" class="bo__status" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script src="{{ 'admin-backoffice.js' | asset_url }}" defer></script>
+
+{%- else -%}
+
+  <main class="bo bo--no-access">
+    <h1>Acceso restringido</h1>
+    <p>
+      Esta página es solo para el equipo de backoffice de LedsC4. Si crees
+      que deberías tener acceso, contacta con el responsable técnico.
+    </p>
+    <p>
+      <a href="/" class="bo__back">Volver al inicio</a>
+    </p>
+  </main>
+
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Backoffice · Resumen",
+  "settings": [],
+  "presets": [
+    { "name": "Backoffice · Resumen" }
+  ]
+}
+{% endschema %}

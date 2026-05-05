@@ -130,6 +130,8 @@
     "order_request_hmac_secret": "0d9a1540f4a3d2418427a4cd09075accc1bdb9b25cf77c7fdd833f8475b1de47",
     "list_order_requests_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
     "register_b2b_hmac_secret": "7024e91d9ad37f49b359fb59f7e4f56b2acfd439b625e5b10c9cbd26f027cb36",
+    "backoffice_base_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/",
+    "backoffice_hmac_secret": "045d25bf60069a3d63ad3556124d1d56ccd8ea044e021bff33bcfa31a0ec3817",
     "sections": {
       "main-password-header": {
         "type": "main-password-header",
@@ -382,6 +384,8 @@
       "order_request_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/submit-order-request",
       "order_request_hmac_secret": "0d9a1540f4a3d2418427a4cd09075accc1bdb9b25cf77c7fdd833f8475b1de47",
       "list_order_requests_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
+      "backoffice_base_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/",
+      "backoffice_hmac_secret": "045d25bf60069a3d63ad3556124d1d56ccd8ea044e021bff33bcfa31a0ec3817",
       "sections": {
         "main-password-header": {
           "type": "main-password-header",

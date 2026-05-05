@@ -1,0 +1,90 @@
+{%- comment -%}
+  Backoffice (Fase BO) — sección 3/3 · Pendientes.
+
+  Tabla plana con todos los customers con tag 'pendiente' (cap a los 250
+  más recientes). Por fila: email, empresa, NIF, sector, fecha_registro,
+  botones Aprobar / Rechazar.
+
+  Si el customer no tiene tag backoffice, no renderiza nada (gate UX en
+  sección 1; seguridad real en approve-customer / reject-customer).
+
+  Render cliente-side: el JS llama a list-pending-customers, mete
+  filas en `<tbody data-bo-pendientes-rows>`, y oculta el loading.
+{%- endcomment -%}
+
+{%- if customer and customer.tags contains 'backoffice' -%}
+  <section class="bo bo__section" aria-labelledby="bo-pendientes-heading">
+    <header class="bo__section-header">
+      <h2 id="bo-pendientes-heading" class="bo__section-title">Pendientes de aprobación</h2>
+      <p class="bo__section-lead">
+        Customers con tag <code>pendiente</code>, los más recientes
+        primero. Aprobar dispara el flujo W2 (fecha + Company + email 4).
+        Rechazar dispara W3 (email 5 con motivo si lo rellenas).
+      </p>
+    </header>
+
+    <div class="bo__pendientes-loading" id="bo-pendientes-loading">Cargando…</div>
+
+    <p class="bo__pendientes-truncated" id="bo-pendientes-truncated" hidden>
+      ⚠️ Mostrando los 250 pendientes más recientes. Hay más sin mostrar — contacta con el equipo técnico.
+    </p>
+
+    <p class="bo__pendientes-empty" id="bo-pendientes-empty" hidden>
+      No hay customers pendientes ahora mismo.
+    </p>
+
+    <div class="bo__pendientes-table-wrap" id="bo-pendientes-table-wrap" hidden>
+      <table class="bo__pendientes-table">
+        <thead>
+          <tr>
+            <th scope="col">Email</th>
+            <th scope="col">Empresa</th>
+            <th scope="col">NIF</th>
+            <th scope="col">Sector</th>
+            <th scope="col">Registro</th>
+            <th scope="col" class="bo__pendientes-actions-col">Acciones</th>
+          </tr>
+        </thead>
+        <tbody data-bo-pendientes-rows></tbody>
+      </table>
+    </div>
+
+    {%- comment -%} Modal/inline de motivo de rechazo. JS lo muestra al pulsar Rechazar. {%- endcomment -%}
+    <dialog class="bo__reject-dialog" id="bo-reject-dialog" aria-labelledby="bo-reject-dialog-title">
+      <form method="dialog" class="bo__reject-form" id="bo-reject-form">
+        <h3 id="bo-reject-dialog-title">Rechazar solicitud</h3>
+        <p class="bo__reject-target" id="bo-reject-target"></p>
+        <label class="bo__label" for="bo-reject-motivo">
+          Motivo (opcional, se incluye en el email al cliente)
+        </label>
+        <textarea
+          id="bo-reject-motivo"
+          name="motivo"
+          rows="4"
+          maxlength="500"
+          placeholder="Ej: No ha sido posible verificar la actividad profesional declarada."
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+        <div class="bo__form-actions">
+          <button type="button" class="bo__btn bo__btn--ghost" id="bo-reject-cancel" value="cancel">
+            Cancelar
+          </button>
+          <button type="submit" class="bo__btn bo__btn--danger" id="bo-reject-confirm" value="confirm">
+            Confirmar rechazo
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </section>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Backoffice · Pendientes",
+  "settings": [],
+  "presets": [
+    { "name": "Backoffice · Pendientes" }
+  ]
+}
+{% endschema %}

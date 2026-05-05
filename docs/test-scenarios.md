@@ -249,3 +249,174 @@ funciona según [docs/locksmith-rules.md](locksmith-rules.md).
 - [ ] C6 aprobado → catálogo 200
 - [ ] C7 password recovery sin filtración
 - [ ] Capturas de configuración Locksmith en `docs/locksmith/screenshots/`
+
+---
+
+# Backoffice (Fase BO) — escenarios
+
+Estos escenarios validan `/pages/admin-backoffice` y las 4 edge
+functions: `list-pending-customers`, `update-whitelist`,
+`approve-customer`, `reject-customer`.
+
+**Precondiciones comunes Fase BO**:
+
+- Metafield definitions Fase BO aplicadas (`b2b.fecha_rechazo` customer-level + `b2b.whitelist_last_update` shop-level).
+- Customer backoffice creado (default `daniel.pena+backoffice@creacciones.es`) con tag `backoffice` y password seteada (Send account invite).
+- Las 4 edge functions deployadas y secrets seteados (`BACKOFFICE_HMAC_SECRET` igual a `settings.backoffice_hmac_secret`, opcional `PROMOTE_WHITELIST_FUNCTION_URL`).
+- W2 y W3 activos — la edge function NO replica su trabajo; depende de ellos.
+- Antes de cada test, ejecutar `node scripts/audit-customer-state.js` para tener un baseline limpio.
+
+---
+
+## Escenario BO-1 — Acceso de un customer normal (no backoffice) está bloqueado
+
+**Pasos**:
+1. Login con un customer aprobado normal (cualquier B2B con tag `aprobado`).
+2. Navegar manualmente a `/pages/admin-backoffice`.
+
+**Resultado esperado**:
+- La página renderiza la vista "Acceso restringido". No se ve ni la tabla, ni el textarea, ni los KPIs.
+- No se hace ningún fetch a las edge functions (Network tab vacío de llamadas a `*.supabase.co/functions/v1/`).
+
+---
+
+## Escenario BO-2 — Login del customer backoffice y carga inicial
+
+**Pasos**:
+1. Login con `daniel.pena+backoffice@creacciones.es`.
+2. Navegar a `/pages/admin-backoffice`.
+
+**Resultado esperado**:
+- Se ven los 4 KPIs con números (pendiente, aprobado, rechazado, whitelist) y la fecha de última actualización de la whitelist.
+- La tabla de pendientes se rellena (o muestra "No hay pendientes" si vacío).
+- La whitelist actual se ve en el `<details>` desplegable.
+- Network tab: una sola llamada POST a `list-pending-customers` con status 200.
+
+---
+
+## Escenario BO-3 — Whitelist · pegar 5 emails con casuística mixta
+
+**Setup**: precondición — la whitelist contiene `existente1@example.com`.
+
+**Pasos**:
+1. Pegar en el textarea:
+   ```
+   nuevo1@instalador.com
+   ; existente1@example.com
+   nuevo2@retail.com, nuevo1@instalador.com
+   no-es-email
+   ```
+2. Submit.
+
+**Resultado esperado**:
+- Feedback: `2 añadidos · 1 duplicado · 1 inválido · total: <N+2>`. Lista de inválidos muestra `no-es-email`.
+- KPI whitelist sube en 2.
+- "Última actualización whitelist" se refresca al timestamp actual.
+- La whitelist actual incluye `nuevo1@instalador.com` y `nuevo2@retail.com`.
+- Si `PROMOTE_WHITELIST_FUNCTION_URL` está seteado: feedback indica "re-evaluación disparada"; los pendientes con esos emails desaparecen de la tabla en el siguiente refresh (sin esperar a W4).
+
+---
+
+## Escenario BO-4 — Whitelist · solo emails inválidos / vacío
+
+**Pasos**:
+1. Pegar `solo basura sin nada válido`.
+2. Submit.
+
+**Resultado esperado**:
+- Feedback indica `0 añadidos`, varios inválidos.
+- Whitelist no cambia (`b2b.whitelist_last_update` NO se actualiza — la edge function detecta `toAdd.length === 0` y hace early return).
+
+---
+
+## Escenario BO-5 — Aprobar un pendiente
+
+**Setup**: registrar un customer nuevo desde el form B2B (resultará con tag `pendiente`, datos en `b2b.*`).
+
+**Pasos**:
+1. En el backoffice, refrescar (F5).
+2. Click "Aprobar" en la fila del nuevo customer. Confirmar prompt.
+
+**Resultado esperado**:
+- La fila desaparece de la tabla. Status muestra "Aprobado <email>. W2 hace fecha + Company + email.".
+- Tras 30-60s, en Admin → Customers → el target tiene tag `aprobado`, `b2b.fecha_aprobacion = hoy`, Company creada, asignada al catálogo "Outlet general".
+- Sin pasar por estado intermedio "ningún tag" (atomic flip).
+- Email 4 enviado en Grow / draft en Development.
+
+---
+
+## Escenario BO-6 — Rechazar un pendiente con motivo
+
+**Setup**: igual que BO-5, otro pendiente nuevo.
+
+**Pasos**:
+1. En el backoffice, click "Rechazar".
+2. En el dialog, escribir motivo: `Datos fiscales no coinciden con el NIF.`.
+3. Confirmar.
+
+**Resultado esperado**:
+- Status: "Rechazado <email>. W3 envía email 5.".
+- En Admin → Customers → tag `rechazado`, `b2b.fecha_rechazo = hoy`, `b2b.motivo_rechazo` = el texto.
+- Email 5 enviado/draft con el motivo en el body.
+
+---
+
+## Escenario BO-7 — Rechazar sin motivo
+
+**Pasos**:
+1. Click "Rechazar". Dialog → dejar motivo vacío. Confirmar.
+
+**Resultado esperado**:
+- Status: rechazado OK.
+- Tag `rechazado` + `b2b.fecha_rechazo` seteado. **`b2b.motivo_rechazo` NO se setea** (queda como estaba antes — null si era null).
+- Email 5: cae al texto genérico sin motivo (W3).
+
+---
+
+## Escenario BO-8 — Aprobar un customer que ya no es `pendiente` (race)
+
+**Setup**: dos pestañas del backoffice abiertas. En la pestaña A, aprobar al customer X. Sin refrescar la pestaña B, click "Aprobar" en la fila X.
+
+**Resultado esperado**:
+- Pestaña B: error 409 INVALID_STATE; status muestra "El customer ya no está en estado 'pendiente'. Refresca la lista.".
+- No se hace ningún cambio en el target (idempotencia).
+
+---
+
+## Escenario BO-9 — HMAC manipulado (intento bypass)
+
+**Pasos**:
+1. Login como customer aprobado normal (sin tag `backoffice`).
+2. DevTools → en la consola, falsificar un POST manual a `list-pending-customers` con un `customerId` cualquiera y signature inventada.
+
+**Resultado esperado**:
+- 401 INVALID_SIGNATURE (HMAC no coincide).
+- Si se manda el `customerId` real del approver con HMAC inválido → 401.
+- Si se manda el `customerId` propio (no backoffice) con HMAC propio (no se puede generar sin el secret) → 401 INVALID_SIGNATURE.
+
+---
+
+## Escenario BO-10 — TTL del HMAC
+
+**Pasos**:
+1. Cargar la página. Esperar >10 minutos sin recargar.
+2. Click "Aprobar" en cualquier fila.
+
+**Resultado esperado**:
+- 401 SIGNATURE_EXPIRED. Status: "La sesión ha expirado (10 min). Recarga la página.".
+- Recargar la página → todo vuelve a funcionar (timestamp nuevo).
+
+---
+
+## Checklist global Fase BO
+
+- [ ] BO-1 acceso bloqueado a no-backoffice
+- [ ] BO-2 carga inicial OK
+- [ ] BO-3 whitelist con casuística mixta
+- [ ] BO-4 whitelist solo inválidos / vacío
+- [ ] BO-5 aprobar pendiente (W2 dispara)
+- [ ] BO-6 rechazar con motivo (W3 dispara)
+- [ ] BO-7 rechazar sin motivo
+- [ ] BO-8 race: customer ya no pendiente
+- [ ] BO-9 HMAC manipulado
+- [ ] BO-10 TTL HMAC expirado

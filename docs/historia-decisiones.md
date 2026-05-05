@@ -316,3 +316,79 @@ el día uno. Al detallar Fase A se vio que:
 - El frontend no necesita saber qué catálogo está consumiendo —
   Shopify B2B lo resuelve a nivel API según la Company Location del
   customer logueado.
+
+---
+
+## D7 — Página backoffice en theme con tag `backoffice`
+
+**Decisión.** Construir `/pages/admin-backoffice` como page del theme
+gateado por un tag `backoffice` en el customer. Reemplaza la edición a
+mano del shop metafield `b2b.whitelist_emails` y el flujo de aprobación
+manual con doble cambio de tag desde Admin. Detalle en
+[docs/backoffice-page.md](backoffice-page.md).
+
+**Contexto.** El flujo manual descrito en
+[docs/backoffice-aprobaciones.md](backoffice-aprobaciones.md) tiene un
+bug operacional: si el staff no quita `pendiente` y añade `aprobado` en
+el **mismo Save**, W2 puede no disparar (su condición es
+`'aprobado' IS IN tags AND 'pendiente' IS IN tags_previous`). El staff
+real hace doble click con frecuencia, sobre todo bajo presión, y la
+incidencia "aprobé y no llegó email / no se creó Company" estaba en el
+top de pendientes. Aparte, editar la whitelist requería ir a Settings →
+Custom data, lo que mete fricción y necesita rol con `Edit custom data`.
+
+**Alternativas consideradas.**
+
+- **Mantener flujo manual** + entrenamiento del staff en el doble click. Frágil: una persona nueva o un mal día reproduce el bug.
+- **Locksmith** para gatear la página backoffice (en lugar del tag). Descartado: el bug "High-level job failure" con un segundo lock Entire Store ([ADR D4](#d4--gate-h%C3%ADbrido-locksmith--liquid-en-lugar-de-locksmith-puro-3-locks)) ya nos quemó. Añadir más superficie a Locksmith por una página interna no compensa el riesgo.
+- **Shopify Polaris admin app embebida**. Hubiera sido lo "correcto" para una herramienta interna, pero añade un proyecto entero (oauth, hosting, mantenimiento) por una UI minúscula. Out of scope por coste.
+- **Page del theme + tag custom + edge functions** (elegida).
+
+**Por qué tag `backoffice` + page del theme.**
+
+- **Reusa la infra existente**. HMAC pattern de `submit-order-request`, deploy GitHub→Shopify, settings_data.json para secrets en Liquid SSR.
+- **Sin app nueva**. Cero superficie de mantenimiento extra fuera del theme y las edge functions.
+- **Atomicidad real del flip de tag**. La edge function usa `customerUpdate(input: { tags })` (Admin API 2025-10) que reemplaza el array de tags en una sola operación; W2 detecta el cambio limpio sin estado intermedio.
+- **Escalable a N staff** sin refactor. Cualquier customer con tag `backoffice` opera la página; el script `create-backoffice-customer.mjs` es idempotente y parametrizable por env.
+
+**Por qué Liquid `{% if %}` es UX y NO seguridad.**
+
+El page template hace `{% if customer.tags contains 'backoffice' %}` para
+decidir qué pintar. Eso evita que un usuario normal vea la UI por
+accidente. Pero no es seguridad: si alguien manipulara DOM o si las
+edge functions confiaran solo en el HMAC client-side, tendrían un
+boquete enorme. Por eso **cada edge function repite la verificación
+server-side**: resuelve al approver vía Admin API y comprueba que tiene
+tag `backoffice`. Sin esa función `assertBackofficeTag`, las URLs son
+públicas (verify_jwt = false, mismo patrón que el resto de funciones
+storefront-facing).
+
+Cada edge function tiene un comentario 🔒 explícito recordando esto, para
+que nadie en el futuro lo borre pensando que es redundante.
+
+**Por qué 1 staff ahora.**
+
+El cliente actual no tiene volumen para necesitar varios approvers.
+Diseñar para n staff hubiera implicado roles diferenciados, auditoría
+con actor, posible UI de aceptar/declinar como par de aprobador… nada
+de eso aporta valor hoy. La decisión está tomada de tal forma que añadir
+n staff es un setting (más customers con tag `backoffice`) y no un
+refactor — pero la fase no construye herramientas para ello.
+
+**Decisión transitoria — customer backoffice provisional.**
+
+Durante la fase de desarrollo el customer backoffice es
+`daniel.pena+backoffice@creacciones.es`. Antes de la entrega al cliente
+se sustituye por uno suyo cambiando un env var
+(`BACKOFFICE_CUSTOMER_EMAIL`) y re-ejecutando
+`scripts/create-backoffice-customer.mjs`. Procedimiento completo en
+[docs/backoffice-page.md §6 Cutover](backoffice-page.md#cutover-al-cliente-final).
+
+**Consecuencias.**
+
+- 4 edge functions nuevas en `supabase/functions/`: `list-pending-customers`, `update-whitelist`, `approve-customer`, `reject-customer`.
+- 2 metafields nuevos: `customer · b2b.fecha_rechazo` (date) y `shop · b2b.whitelist_last_update` (date_time).
+- 1 secret nuevo `BACKOFFICE_HMAC_SECRET` + setting `settings.backoffice_hmac_secret`. **Distinto** del HMAC de solicitudes y register: el blast radius (operaciones de approver) es mucho mayor.
+- 1 page template + 3 sections + 2 assets nuevos en el theme.
+- Reparto edge function ↔ Flow: la edge function solo cambia tags. W2 sigue haciendo fecha + Company + email; W3 sigue mandando el email de rechazo. Sin esa separación, hay carrera y duplicación.
+- El gate de `theme.liquid` ya exempts pages no comerciales — `/pages/admin-backoffice` no requirió tocar el gate.
