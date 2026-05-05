@@ -61,4 +61,14 @@ se archiva en `docs/pendientes-archivo.md`.
 
 ## Cerradas
 
-(vacío)
+### [Cerrada] Página backoffice de whitelist + aprobaciones
+- Cerrada: 2026-05-05
+- Commit: 1d5aed3
+- Branch: `feature/backoffice-page` (5 commits + 1 docs)
+- Resumen: página `/pages/admin-backoffice` con 3 secciones
+  (resumen, whitelist, pendientes); 4 edge functions
+  (list-pending-customers, update-whitelist, approve-customer,
+  reject-customer); customer backoffice
+  `daniel.pena+backoffice@creacciones.es`; 2 metafield
+  definitions nuevas (`customer.b2b.fecha_rechazo`,
+  `shop.b2b.whitelist_last_update`); ADR D7.
