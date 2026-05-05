@@ -59,6 +59,28 @@ se archiva en `docs/pendientes-archivo.md`.
 - Estimación: 5 min.
 - Sin urgencia: solo es estilo, no funcional.
 
+### [P4] Mejorar copy del feedback post-update-whitelist
+- Causa: tras añadir emails a la whitelist, el mensaje
+  "re-evaluación disparada" es jerga técnica y poco claro para
+  staff no técnico.
+- Solución propuesta: copy tipo "Whitelist actualizada.
+  Verificando si hay solicitudes pendientes que coincidan." o
+  similar. Editar en `assets/admin-backoffice.js` (mensaje
+  post-success de update-whitelist).
+- Estimación: 5 min.
+
+### [P4] UX de la caja "Whitelist actual" en el backoffice
+- Causa: con 4 emails ya queda en una sola línea horizontal poco
+  legible. Con 50+ emails será inutilizable.
+- Solución propuesta (sin prescribir): lista vertical simple,
+  chips/tags, o tabla con columnas (email + fecha + botón
+  quitar). La opción "tabla con quitar" amplía alcance porque
+  habría que añadir endpoint `remove-from-whitelist` o ampliar
+  `update-whitelist` con un modo "replace".
+- Decisión pendiente del staff que la use. Posible iteración
+  post-cutover.
+- Estimación: 30 min - 2h según opción.
+
 ## Cerradas
 
 ### [Cerrada] Cap de 250 pendientes en backoffice
