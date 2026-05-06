@@ -37,14 +37,6 @@ se archiva en `docs/pendientes-archivo.md`.
 - Estimación: 5 min (admin click) + redeploy de scripts que usen el
   token (ninguno aún).
 
-### [P2] Desbloquear update de product.catalogo
-- Causa: 58 smart collections del outlet usan el metafield como
-  condición; bloquea description/access changes vía API.
-- Estado actual: description con U+FFFD, access=NONE. Fila
-  "Catálogo" de specs-table no renderiza en producción.
-- Caminos posibles documentados en operations-runbook §7.
-- Origen: detectado en cierre I1 (2026-05-05).
-
 ### [P3] Mostrar stock disponible en ficha y listados
 - Cantidad exacta (decisión Dani 2026-05-05).
 - Tocar snippets/card-product.liquid (listados) y
@@ -175,6 +167,32 @@ se archiva en `docs/pendientes-archivo.md`.
 - Estimación: 30 min - 2h.
 
 ## Cerradas
+
+### [Cerrada] Desbloquear update de product.catalogo
+- Cerrada: 2026-05-07
+- Resumen: arreglado vía admin UI de Shopify. Aplicado: name +
+  description (corrupción U+FFFD limpiada),
+  `access.storefront = PUBLIC_READ`, pin activado. La fila "Catálogo"
+  de specs-table ya renderiza en producción.
+- **Hallazgo persistente derivado** (importante para futuras tareas
+  de I3/I4): las metafield definitions usadas como condición en
+  smart collections **NO son editables vía API**.
+  `metafieldDefinitionUpdate` devuelve `CAPABILITY_CANNOT_BE_DISABLED`
+  incluso para cambios en `name`/`description` que no afectan a la
+  condición. El admin UI sí permite la edición (probablemente con un
+  path interno distinto).
+- **Implicación para los scripts**: ya está cubierto en
+  `scripts/apply-metafield-definitions.mjs` con la clasificación
+  `UpdateBlockedByDependency` — el script lo detecta a priori desde
+  el flag `capabilities.smartCollectionCondition.enabled` y reporta
+  sin intentar el Update. El fix vía admin UI es la única vía hoy.
+- **Implicación para I3/I4**: el writer (`import-write.mjs`) NO
+  toca definitions, solo metafield values + translations. Esta
+  limitación no le afecta. Para I4 (cron) tampoco aplica si
+  mantenemos esa separación (definitions cambian pocas veces y se
+  gestionan vía `apply-metafield-definitions.mjs` con conocimiento
+  manual del operador para los casos blocked).
+- Origen: detectado en cierre I1 (2026-05-05).
 
 ### [Cerrada] Habilitar traducciones de metafields desde CSVs por locale
 - Cerrada: 2026-05-07 (Fase I3.5)

@@ -331,13 +331,13 @@ fetch(\`https://\${SHOP}/admin/api/\${VER}/graphql.json\`, {
 });"
 ```
 
-### Caso real activo a 2026-05-05
+### Caso real (resuelto 2026-05-07)
 
 | Definition | Bloqueada por | Pending changes | Remediation |
 |---|---|---|---|
-| `PRODUCT:product.catalogo` (`gid://shopify/MetafieldDefinition/379919106375`) | 58 smart collections del outlet (`outlet-decorative`, `outlet-outdoor`, etc.) creadas por `scripts/setup-outlet-smart-collections.mjs` | description: `"Cat<U+FFFD>logo LedsC4..."` → `"Catálogo LedsC4..."`; `access.storefront`: `NONE` → `PUBLIC_READ` | Spawned task pendiente — chip "Desbloquear update de product.catalogo" |
+| `PRODUCT:product.catalogo` (`gid://shopify/MetafieldDefinition/379919106375`) | 58 smart collections del outlet (`outlet-decorative`, `outlet-outdoor`, etc.) creadas por `scripts/setup-outlet-smart-collections.mjs` | description: `"Cat<U+FFFD>logo LedsC4..."` → `"Catálogo LedsC4..."`; `access.storefront`: `NONE` → `PUBLIC_READ`; pin activado | ✅ **Aplicado vía admin UI 2026-05-07.** La fila "Catálogo" del [snippets/product-specs-table.liquid:9](../snippets/product-specs-table.liquid:9) ya renderiza en producción. |
 
-Hasta que se resuelva, la fila "Catálogo" del [snippets/product-specs-table.liquid:9](../snippets/product-specs-table.liquid:9) NO se renderiza en producción (Liquid recibe blank por el access NONE). Esto no es regresión — ya estaba así antes de I1.
+**Hallazgo confirmado en cierre**: el bloqueo `CAPABILITY_CANNOT_BE_DISABLED` aplica a TODOS los campos de la definition (incluyendo `name`/`description` que no afectan a la condición), no solo al toggle de la propia capability. La única vía conocida de edición es el admin UI de Shopify (probablemente con un endpoint interno distinto al expuesto por la Admin GraphQL pública). Cualquier futura definition que se use como condición de smart collection debe asumir esta restricción a la hora de planear cambios.
 
 ---
 
