@@ -558,17 +558,26 @@ Las columnas declaradas como `number_decimal` o `number_integer` en
 [`scripts/mapping.json`](../scripts/mapping.json) (`dim_largo_mm`,
 `dim_ancho_mm`, `dim_alto_mm`, `proyeccion_mm`, `peso_neto_kg`,
 `vatios`, `lumenes`, `lumenes_reales`, `cri`) ocasionalmente
-contienen valores no numéricos en los datos del cliente. Dos
+contienen valores no numéricos en los datos del cliente. Tres
 patrones conocidos:
 
-- **Rangos** ("Min 24 Max 425", "Max 1930", "min 30 - max 415") —
+- **Rangos textuales** ("Min 24 Max 425", "Max 1930", "min 30 - max 415") —
   productos con dimensión ajustable (alargadores, cuelgues
   regulables).
+- **Rangos puramente numéricos** ("36-61", "600-1980", "800-2500") —
+  misma semántica de dimensión ajustable, pero sin prefijo textual.
+  Tras el fix de 2026-05-07 (`Number()` en vez de `parseFloat`/`parseInt`
+  en `coerce`) ambos formatos caen en el mismo path
+  `null + warning numeric_unparsable`. Antes del fix los rangos
+  numéricos eran truncados silenciosamente al primer número (`"36-61"`
+  → `36`).
 - **Diámetros con símbolo** ("∅78", "Ø1.010", "ø145") — notación
   técnica habitual de luminarias circulares.
 
-En las muestras del 2026-05-04 hay **54 valores afectados en 52 SKUs**
-(~7% del surtido).
+En las muestras del 2026-05-04 hay **57 valores afectados en 55 SKUs**
+(~7.5% del surtido) — los 54 originales + 3 SKUs adicionales descubiertos
+por el fix de rangos numéricos: 05-4787-BW-BW (Largo "36-61"),
+00-5694-05-05 (Alto "600-1980"), 00-7382-05-05 (Alto "800-2500").
 
 > **Nota sobre los símbolos ∅/Ø/ø.** Estos caracteres aparecen
 > también en el campo `familia` como parte del nombre comercial del

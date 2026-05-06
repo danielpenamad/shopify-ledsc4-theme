@@ -2,7 +2,7 @@
 // Unit tests for scripts/import-map.mjs.
 // Zero dependencies. Run: node scripts/import-map.test.mjs
 
-import { buildTitle } from './import-map.mjs';
+import { buildTitle, coerce } from './import-map.mjs';
 
 let passed = 0;
 let failed = 0;
@@ -58,6 +58,68 @@ function testTabsAndNewlinesCollapsed() {
   assertEq(r.title, 'A B C D E', 'tabs and newlines normalized to spaces');
 }
 
+// ---- coerce() tests (range-truncation fix, 2026-05-07) ----
+
+function testCoerceRangeNumericNumeric() {
+  console.log('Test 7: coerce("36-61", number_decimal) → null + warning (was 36 with parseFloat)');
+  const r = coerce('36-61', 'number_decimal', '05-4787-BW-BW', 16, 'ES');
+  assertEq(r.value, null, 'value=null on "36-61"');
+  assert(r.warning?.kind === 'numeric_unparsable', `expected numeric_unparsable warning, got ${JSON.stringify(r.warning)}`);
+  assert(r.warning?.sku === '05-4787-BW-BW' && r.warning?.column === 16 && r.warning?.locale === 'ES', 'warning carries sku/column/locale');
+  assert(r.warning?.message?.includes('"36-61"'), 'warning message includes literal CSV value');
+}
+
+function testCoerceRangeNumericNumericLargeAlto() {
+  console.log('Test 8: coerce("600-1980", number_decimal) → null + warning');
+  const r = coerce('600-1980', 'number_decimal', '00-5694-05-05', 18, 'ES');
+  assertEq(r.value, null, 'value=null on "600-1980"');
+  assert(r.warning?.kind === 'numeric_unparsable', 'warning emitted');
+  assert(r.warning?.message?.includes('"600-1980"'), 'message includes literal value');
+}
+
+function testCoerceCommaDecimalRegression() {
+  console.log('Test 9 (regression): coerce("1,1", number_decimal) → 1.1');
+  const r = coerce('1,1', 'number_decimal', 'TEST', 28, 'ES');
+  assertEq(r.value, 1.1, 'value=1.1 from ES decimal comma');
+  assert(r.warning == null, 'no warning on valid ES-format decimal');
+}
+
+function testCoerceCommaTrailingZeroRegression() {
+  console.log('Test 10 (regression): coerce("94,00", number_decimal) → 94');
+  const r = coerce('94,00', 'number_decimal', 'TEST', 50, 'ES');
+  assertEq(r.value, 94, 'value=94 from ES decimal comma with trailing zeros');
+  assert(r.warning == null, 'no warning');
+}
+
+function testCoerceIntegerClean() {
+  console.log('Test 11: coerce("92", number_integer) → 92');
+  const r = coerce('92', 'number_integer', 'TEST', 53, 'ES');
+  assertEq(r.value, 92, 'value=92 integer');
+  assert(r.warning == null, 'no warning');
+}
+
+function testCoerceIntegerTruncatesDecimal() {
+  console.log('Test 12 (regression of parseInt semantics): coerce("3.7", number_integer) → 3');
+  // Original parseInt("3.7", 10) returned 3 (truncates fractional part).
+  // The new Number()+Math.trunc must preserve that semantics for integer fields.
+  const r = coerce('3.7', 'number_integer', 'TEST', 53, 'ES');
+  assertEq(r.value, 3, 'integer fields still truncate fractional input');
+}
+
+function testCoerceTextPrefixedRangeStillFails() {
+  console.log('Test 13 (regression): coerce("Min. 30 Max. 415", number_decimal) → null + warning (already covered by I2.5, must keep working)');
+  const r = coerce('Min. 30 Max. 415', 'number_decimal', 'TEST', 19, 'ES');
+  assertEq(r.value, null, 'still null for text-prefixed range');
+  assert(r.warning?.kind === 'numeric_unparsable', 'warning still emitted');
+}
+
+function testCoerceDiameterPrefixStillFails() {
+  console.log('Test 14 (regression): coerce("∅78", number_decimal) → null + warning (already covered by I2.5)');
+  const r = coerce('∅78', 'number_decimal', 'TEST', 17, 'ES');
+  assertEq(r.value, null, 'still null for diameter prefix');
+  assert(r.warning?.kind === 'numeric_unparsable', 'warning still emitted');
+}
+
 function main() {
   testCleanIdempotent();
   testDoubleSpaceCollapsed();
@@ -65,6 +127,14 @@ function main() {
   testFallbackToSku();
   testRealGeaCase();
   testTabsAndNewlinesCollapsed();
+  testCoerceRangeNumericNumeric();
+  testCoerceRangeNumericNumericLargeAlto();
+  testCoerceCommaDecimalRegression();
+  testCoerceCommaTrailingZeroRegression();
+  testCoerceIntegerClean();
+  testCoerceIntegerTruncatesDecimal();
+  testCoerceTextPrefixedRangeStillFails();
+  testCoerceDiameterPrefixStillFails();
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     console.error('\nFailures:');

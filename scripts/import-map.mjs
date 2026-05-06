@@ -35,7 +35,9 @@ const FILE_SUFFIX_TO_SHOPIFY_LOCALE = {
 // Returns { value, warning? }.
 //   - value: coerced value (or null if uncoercible / empty).
 //   - warning: optional warning record to surface to the operator.
-function coerce(rawString, type, sku, columnIndex, locale) {
+// Exported for unit tests. Used internally by buildShopifyModel for each
+// metafield. Returns { value, warning? }.
+export function coerce(rawString, type, sku, columnIndex, locale) {
   if (rawString == null) return { value: null };
 
   switch (type) {
@@ -54,7 +56,13 @@ function coerce(rawString, type, sku, columnIndex, locale) {
       if (s.includes(',')) {
         s = s.replace(/\./g, '').replace(',', '.');
       }
-      const n = type === 'number_integer' ? parseInt(s, 10) : parseFloat(s);
+      // Use Number() instead of parseFloat/parseInt: parseFloat("36-61") returns
+      // 36 (silent prefix-truncation), but Number("36-61") returns NaN. This
+      // makes "X-Y" ranges fall into the same numeric_unparsable path as
+      // "Min X Max Y" — see I2.5 rule (docs/import-pipeline.md §11.3) and the
+      // diagnostic on SKUs 05-4787-BW-BW, 00-5694-05-05, 00-7382-05-05.
+      let n = Number(s);
+      if (type === 'number_integer' && !Number.isNaN(n)) n = Math.trunc(n);
       if (Number.isNaN(n)) {
         return {
           value: null,
@@ -142,11 +150,16 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
   const products = new Map();
 
   // 1) Build O(1) lookup maps for stock and precios.
+  // Use Number() instead of parseInt/parseFloat to avoid silent prefix-truncation
+  // of malformed values like "10-12" → 10. Math.trunc() preserves integer
+  // semantics for stock (parseInt's original behaviour: drop fractional part).
   const stockMap = new Map();
   for (const r of stock.records) {
     if (r.inventario == null) continue;
-    const n = parseInt(String(r.inventario).trim(), 10);
-    stockMap.set(r.sku, Number.isNaN(n) ? null : n);
+    const raw = String(r.inventario).trim();
+    const parsed = Number(raw);
+    const n = Number.isNaN(parsed) ? null : Math.trunc(parsed);
+    stockMap.set(r.sku, n);
   }
 
   const preciosMap = new Map();
@@ -155,7 +168,7 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
     // Accept ES decimal too.
     let s = String(r.tarifa).trim();
     if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
-    const n = parseFloat(s);
+    const n = Number(s);
     preciosMap.set(r.sku, Number.isNaN(n) ? null : n);
   }
 
