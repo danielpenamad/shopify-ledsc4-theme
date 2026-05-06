@@ -406,6 +406,77 @@ no satisfecha gana.
 
 ---
 
+## 10b. Cómo correr I3 localmente
+
+I3 es el writer real: parser + mapper + writer. Lee los CSVs de
+muestra, construye el modelo Shopify, y por cada SKU `would_publish=true`
+ejecuta 3 mutaciones contra Shopify Admin GraphQL en orden:
+`productSet` → `translationsRegister` → `publishablePublish`.
+
+### Comando
+
+```bash
+# Dry-run (no llama a Shopify; reporte de lo que haría)
+node scripts/import-write.mjs
+
+# Apply real (requiere SHOPIFY_STORE_DOMAIN + SHOPIFY_ADMIN_TOKEN)
+node --env-file=shopify-ledsc4-theme.env scripts/import-write.mjs --apply
+
+# Subset (--limit=N o --sku=<sku>) para iteración rápida
+node --env-file=shopify-ledsc4-theme.env scripts/import-write.mjs --apply --limit=5
+node --env-file=shopify-ledsc4-theme.env scripts/import-write.mjs --apply --sku=05-6398-21-M1
+```
+
+### Idempotencia
+
+El writer es idempotente. Re-ejecutar con los mismos inputs:
+
+- **`productSet`** identifica por `handle = sku.toLowerCase()`. Crea el
+  producto si no existe; lo actualiza in-place si existe. No duplica.
+- **Imágenes** se suben con `duplicateResolutionMode=REPLACE` y
+  filename estable `{sku}-{position}` (sin extensión, alineado con que
+  los URLs de `files.ledsc4.com` no la traen). Re-runs reemplazan las
+  mismas filas; no acumulan duplicados.
+- **`translationsRegister`** es upsert por `(resourceId, locale, key)`.
+  El digest se refresca contra `translatableResource` antes de cada
+  registración, así que cambios en el contenido fuente se propagan.
+- **`publishablePublish`** sobre un producto ya publicado es no-op.
+
+### Output
+
+Carpeta nueva por ejecución: `reports/import-write-<ISO timestamp>/`:
+
+- **`summary.txt`** — totales por mutation (ok/failed/skipped) +
+  conteo de SKUs procesados + 5 sample product IDs para spot-check.
+- **`changes.csv`** — 1 fila por SKU del mapper (publishables +
+  hidden), con columnas `sku, handle, product_id, product_set_status,
+  product_set_errors, translations_registered, translation_errors,
+  publish_status, publish_errors, overall`.
+
+### Alcance actual de las traducciones
+
+El writer registra **`title`** y **`body_html`** en EN/FR/DE/IT/pt-PT
+(5 locales × 2 fields = 10 entries por SKU publishable). Los
+**metafields traducibles** (familia, tipo, acabado, tender_text,
+material) NO se traducen aún: requieren habilitar
+`capabilities.translatable.enabled = true` en la definition Shopify
+del metafield, pendiente en `docs/pendientes.md`. Mientras tanto, las
+versiones EN/FR/DE/IT/pt-PT del título sí se construyen por locale
+con la regla `{Familia} {Tipo} {Acabado_corto}` aplicada al CSV de
+ese idioma — eso suele cubrir el 90% de la diferencia visual.
+
+### Performance
+
+En la tienda de pruebas (Development plan, ~450 publishables):
+
+- **Primera apply** (creates): ~688s (~1.5s por SKU).
+- **Re-apply** (updates idempotentes): ~460s (~1s por SKU).
+
+Sequencial, sin paralelismo. Suficiente para el cron diario de I4
+(precios y surtido).
+
+---
+
 ## 11. Tratamiento de anomalías en datos del cliente
 
 Decisiones acordadas con el cliente sobre cómo tratar los datos

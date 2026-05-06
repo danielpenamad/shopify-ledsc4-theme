@@ -10,6 +10,54 @@ se archiva en `docs/pendientes-archivo.md`.
 
 ## Activas
 
+### [P3] Limpiar 745 productos pre-existentes con handle basado en título
+- Causa: detectado en cierre I3 (2026-05-06). El shop ya contenía
+  745 productos con handles tipo `bano-ip44-toilet-slim-...`
+  (basados en título). El writer de I3 crea ~450 productos nuevos
+  con handle = `sku.toLowerCase()` y los 745 viejos quedan huérfanos
+  (mismos SKUs en algunos casos, distintos products en Shopify).
+- Riesgo: confusión en admin, listados duplicados en frontend, y
+  potencial colisión si los handles antiguos llegasen a re-utilizarse.
+- Solución: script one-shot que lista todos los productos del shop,
+  identifica los que NO están en la salida del mapper (por handle =
+  sku.toLowerCase()), y los archiva o borra. Borrado solo si están
+  en `status=DRAFT` o si el cliente confirma.
+- Estimación: ~30 min (consulta + delete bulk vía MCP) o ~1h
+  (script idempotente).
+- Bloquea: cutover al cliente.
+
+### [P4] Habilitar `capabilities.translatable` en metafield definitions traducibles
+- Causa: detectado en I3 (2026-05-06). El writer registra title +
+  body_html en EN/FR/DE/IT/pt-PT (5 locales × 2 fields = 10 entries
+  por SKU). Los metafields traducibles del mapper (`product.familia`,
+  `product.tipo`, `product.acabado`, `product.tender_text`,
+  `product.material`, etc.) NO se traducen porque sus definiciones no
+  tienen `capabilities.translatable.enabled = true`. Sin esa flag, el
+  campo no aparece en `translatableResource.translatableContent` y la
+  registración silenciosa lo skipea.
+- Solución: extender `scripts/metafield-definitions.json` con
+  `capabilities: { translatable: { enabled: true } }` en las defs
+  marcadas como `translatable: true` en `mapping.json`, y ampliar
+  `apply-metafield-definitions.mjs` para gestionar la capability.
+  Después: en el writer, mapear `mf.namespace + mf.key` al `key`
+  expuesto en translatableContent (formato `<metafield_id>` en API
+  2025-10).
+- Estimación: 1-2h.
+- Sin urgencia: traducciones de fields textuales (familia, tipo,
+  acabado) ya van en el title, y el storefront B2B inicial solo
+  publica es/en/fr.
+
+### [P4] Token Custom App sin scope `read_locations`
+- Causa: detectado en I3. El writer hace fallback a "primera location
+  retornada" porque el token no puede leer `Location.name` ni
+  `Location.isActive`. Funciona porque el shop tiene una sola
+  location, pero romperá si se añade otra.
+- Solución: añadir `read_locations` al Custom App en Shopify admin
+  → Configuration → Admin API integration. Re-emitir token y
+  actualizar `shopify-ledsc4-theme.env`.
+- Estimación: 5 min (admin click) + redeploy de scripts que usen el
+  token (ninguno aún).
+
 ### [P2] Desbloquear update de product.catalogo
 - Causa: 58 smart collections del outlet usan el metafield como
   condición; bloquea description/access changes vía API.
