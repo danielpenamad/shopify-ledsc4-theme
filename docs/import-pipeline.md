@@ -26,7 +26,7 @@ SFTP del cliente
 ├─ /productos/listado_productos_DE.csv    (idem)
 ├─ /productos/listado_productos_FR.csv    (idem)
 ├─ /productos/listado_productos_PT.csv    (idem)
-├─ /stock/stock_productos.csv             (cada 6h, 2 cols: SKU, INVENTARIO)
+├─ /stock/stock.csv                       (cada 6h, 2 cols: SKU, INVENTARIO)
 └─ /precios/precios_productos.csv         (cada 6h, 2 cols: SKU, TARIFA)
 ```
 
@@ -365,7 +365,7 @@ Exit code 0 si solo hay warnings. ≠0 si hay errores duros.
 ```
 samples/
 ├─ productos/listado_productos_{ES,EN,IT,DE,FR,PT}.csv
-├─ stock/stock_productos.csv
+├─ stock/stock.csv
 └─ precios/precios_productos.csv
 ```
 
@@ -413,7 +413,7 @@ Decisiones acordadas con el cliente sobre cómo tratar los datos
 documenta la regla aplicada hoy, su justificación, y la respuesta
 literal del cliente cuando existe.
 
-### 11.1 Duplicados en `stock_productos.csv` — **suma de unidades**
+### 11.1 Duplicados en `stock.csv` — **suma de unidades**
 
 Cuando un SKU aparece múltiples veces en el fichero de stock, las
 unidades de las distintas filas se **suman** y el resultado es el

@@ -68,7 +68,7 @@ async function main() {
 
   const [surtidoResults, stockResult, preciosResult] = await Promise.all([
     Promise.all(surtidoPaths.map((p) => parseSurtido(p.path, p.locale).then((r) => ({ ...r, locale: p.locale })))),
-    parseStock(join(SAMPLES_DIR, 'stock', 'stock_productos.csv')),
+    parseStock(join(SAMPLES_DIR, 'stock', 'stock.csv')),
     parsePrecios(join(SAMPLES_DIR, 'precios', 'precios_productos.csv')),
   ]);
 

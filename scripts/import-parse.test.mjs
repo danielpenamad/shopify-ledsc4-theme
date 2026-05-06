@@ -95,7 +95,7 @@ async function testDupNonNumeric() {
 // Bonus: real-world case from samples (stock has duplicate AH12-12V8W1OUWT 53,1)
 async function testRealCase() {
   console.log('Test 5 (bonus): real samples/stock — AH12-12V8W1OUWT should be 54');
-  const r = await parseStock('samples/stock/stock_productos.csv');
+  const r = await parseStock('samples/stock/stock.csv');
   const target = r.records.find((x) => x.sku === 'AH12-12V8W1OUWT');
   assert(target != null, 'expected AH12-12V8W1OUWT in records');
   assert(target?.inventario === '54', `expected inventario "54" (53+1), got ${JSON.stringify(target?.inventario)}`);

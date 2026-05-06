@@ -21,7 +21,7 @@
       "duplicate_policy": "first_wins_log_warning"
     },
     "stock": {
-      "path": "/stock/stock_productos.csv",
+      "path": "/stock/stock.csv",
       "encoding": "utf-8",
       "delimiter": ",",
       "frequency": "every_6h",

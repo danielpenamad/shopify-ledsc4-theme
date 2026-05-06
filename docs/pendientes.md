@@ -182,7 +182,7 @@ se archiva en `docs/pendientes-archivo.md`.
   definitions nuevas (`customer.b2b.fecha_rechazo`,
   `shop.b2b.whitelist_last_update`); ADR D7.
 
-### [Cerrada] Tratamiento de duplicados en `stock_productos.csv` — suma de unidades
+### [Cerrada] Tratamiento de duplicados en `stock.csv` — suma de unidades
 - Cerrada: 2026-05-05
 - **Decisión cliente** (2026-05-05): *"En el caso que en
   stock_productos.csv aparezca duplicado, sumemos las unidades de
