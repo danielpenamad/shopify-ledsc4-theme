@@ -450,27 +450,48 @@ Carpeta nueva por ejecución: `reports/import-write-<ISO timestamp>/`:
   conteo de SKUs procesados + 5 sample product IDs para spot-check.
 - **`changes.csv`** — 1 fila por SKU del mapper (publishables +
   hidden), con columnas `sku, handle, product_id, product_set_status,
-  product_set_errors, translations_registered, translation_errors,
+  product_set_errors, product_translations_registered,
+  metafield_translations_registered, translation_errors,
   publish_status, publish_errors, overall`.
 
-### Alcance actual de las traducciones
+### Alcance de las traducciones (post-I3.5)
 
-El writer registra **`title`** y **`body_html`** en EN/FR/DE/IT/pt-PT
-(5 locales × 2 fields = 10 entries por SKU publishable). Los
-**metafields traducibles** (familia, tipo, acabado, tender_text,
-material) NO se traducen aún: requieren habilitar
-`capabilities.translatable.enabled = true` en la definition Shopify
-del metafield, pendiente en `docs/pendientes.md`. Mientras tanto, las
-versiones EN/FR/DE/IT/pt-PT del título sí se construyen por locale
-con la regla `{Familia} {Tipo} {Acabado_corto}` aplicada al CSV de
-ese idioma — eso suele cubrir el 90% de la diferencia visual.
+El writer registra dos clases de traducciones por SKU publishable:
+
+1. **Producto** — `title` y `body_html` en EN/FR/DE/IT/pt-PT
+   (5 locales × 2 fields = hasta 10 entries por SKU). El `resourceId`
+   es el GID del producto; el digest se obtiene de
+   `translatableResource(resourceId: <productGid>).translatableContent`.
+2. **Metafields traducibles** — los marcados `translatable: true` en
+   `mapping.json`. **Cada metafield es un recurso traducible
+   independiente con su propio GID y digest** (la API no usa una
+   capability "translatable" en la definition; esa capability no
+   existe en `MetafieldCapabilities` del schema 2025-10). El flujo
+   por SKU es:
+   - `productSet` retorna `product.metafields { id namespace key }`.
+   - **Bulk fetch de digests** vía `translatableResourcesByIds` con
+     todos los GIDs de metafields traducibles en una sola llamada.
+   - Una llamada `translationsRegister` por metafield con `key:"value"`
+     y todos los locales en un solo batch.
+
+   Optimización: si el valor del locale es **igual al valor ES** o
+   **vacío**, se omite (Shopify hace fallback al primario, así que el
+   resultado UX es idéntico y ahorramos llamadas).
+
+   Los 8 metafields actualmente traducibles son: `tipo`, `familia`,
+   `catalogo`, `material`, `acabado`, `tipo_regulacion`, `fuente_luz`,
+   `tender_text`. Para añadir o quitar, basta con flipar `translatable`
+   en `mapping.json` — no requiere ningún cambio en Shopify.
 
 ### Performance
 
 En la tienda de pruebas (Development plan, ~450 publishables):
 
-- **Primera apply** (creates): ~688s (~1.5s por SKU).
-- **Re-apply** (updates idempotentes): ~460s (~1s por SKU).
+- **I3 inicial** (sin metafield translations): ~688s primera apply,
+  ~460s re-apply.
+- **I3.5** (con metafield translations): añade ~5-8 llamadas extra por
+  SKU (1 bulk digest fetch + ~5-7 registros por metafield). Tiempo
+  total escalado proporcionalmente.
 
 Sequencial, sin paralelismo. Suficiente para el cron diario de I4
 (precios y surtido).
