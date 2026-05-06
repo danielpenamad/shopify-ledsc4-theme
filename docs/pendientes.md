@@ -147,26 +147,6 @@ se archiva en `docs/pendientes-archivo.md`.
   más estricto.
 - Estimación: 30 min - 2h.
 
-### [P4] Confirmar tratamiento de duplicados en surtido del ERP
-- En la consulta del 2026-05-05 el cliente respondió sobre
-  duplicados en `stock_productos.csv` (suma) pero **no** sobre
-  duplicados en `listado_productos_*.csv` (surtido).
-- **Comportamiento vigente**: first-wins + warning. Se mantiene
-  hasta nueva confirmación porque agregar productos (atributos
-  descriptivos) no es semánticamente análogo a sumar stock
-  (cantidades).
-- **Caso real en muestras**: `05-6424-81-81` aparece 2 veces en
-  los 6 ficheros de idioma (mismo bug en cada locale).
-- **Acción**: incluir la pregunta sobre surtido en la próxima
-  comunicación con cliente. Probables respuestas:
-  - "Es bug del export, ignoradlo y avisadnos para que lo
-    arreglemos en origen" → mantener first-wins, añadir
-    notificación al log.
-  - "Tomad la versión más reciente / con más datos rellenos" →
-    cambiar lógica de first-wins a heurística más informada.
-- **Origen**: cierre I2 (2026-05-05), parser detecta duplicados en
-  los 6 idiomas, todos del mismo SKU.
-
 ## Cerradas
 
 ### [Cerrada] Mejorar copy del feedback post-update-whitelist
@@ -232,3 +212,16 @@ se archiva en `docs/pendientes-archivo.md`.
   columna afectada. Sin heurística de extracción del rango/diámetro
   (cliente prefiere preservar integridad numérica del tipo Shopify).
 - Documentado en [`docs/import-pipeline.md` §11.3](import-pipeline.md).
+
+### [Cerrada] Tratamiento de duplicados en surtido (`listado_productos_*.csv`) — first-wins
+- Cerrada: 2026-05-06
+- **Decisión cliente** (2026-05-06): *"Coge la primera aparición."*
+- Sin cambio de código: el parser ya implementaba first-wins +
+  warning como comportamiento por defecto. Solo se promociona la
+  decisión de "vigente hasta confirmación" a "confirmada".
+- Caso real en muestras: `05-6424-81-81` aparece 2 veces en los 6
+  ficheros de idioma (mismo bug en cada locale, indicando export
+  inconsistente del ERP). Resultado en el modelo Shopify: una
+  sola entrada por SKU, la primera ocurrencia. Warning preservado
+  como canario de calidad del export.
+- Documentado en [`docs/import-pipeline.md` §11.2](import-pipeline.md).

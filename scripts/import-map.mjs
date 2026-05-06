@@ -14,6 +14,23 @@ const VENDOR = 'LedsC4';
 const PRIMARY_LOCALE = 'ES';
 const SECONDARY_LOCALES = ['EN', 'IT', 'DE', 'FR', 'PT'];
 
+// Map the file suffix used by the parser (derived from the CSV filename:
+// listado_productos_<SUFFIX>.csv) to the Shopify locale code expected by
+// translationsRegister and Shopify's storefront API. Most are 1:1 lowercase,
+// but Shopify uses regional codes for Portuguese (pt-PT for Portugal Portuguese,
+// pt-BR for Brazilian) — confirmed with client 2026-05-06.
+//
+// ES is the primary locale of the shop and is NOT registered as a translation;
+// it lives in product.title / product.body_html directly.
+const FILE_SUFFIX_TO_SHOPIFY_LOCALE = {
+  ES: 'es',
+  EN: 'en',
+  IT: 'it',
+  DE: 'de',
+  FR: 'fr',
+  PT: 'pt-PT',
+};
+
 // Coerce raw string from parser to the type declared in the mapping.
 // Returns { value, warning? }.
 //   - value: coerced value (or null if uncoercible / empty).
@@ -335,7 +352,11 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
         });
       }
 
-      translations[loc] = {
+      const shopifyLocale = FILE_SUFFIX_TO_SHOPIFY_LOCALE[loc];
+      if (!shopifyLocale) {
+        throw new Error(`buildShopifyModel: no Shopify locale mapping for file suffix "${loc}". Update FILE_SUFFIX_TO_SHOPIFY_LOCALE.`);
+      }
+      translations[shopifyLocale] = {
         title: titleTranslated,
         body_html: otherBody ?? null,
         metafields: trMetafields,
