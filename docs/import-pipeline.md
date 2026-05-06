@@ -479,6 +479,15 @@ patrones conocidos:
 En las muestras del 2026-05-04 hay **54 valores afectados en 52 SKUs**
 (~7% del surtido).
 
+> **Nota sobre los símbolos ∅/Ø/ø.** Estos caracteres aparecen
+> también en el campo `familia` como parte del nombre comercial del
+> modelo (`Umbrella Ø1000`, `Phuket ø1320mm`, `Korg Ø500mm`,
+> `Gea Power LED Round ø180mm` — 112 SKUs en las muestras). En
+> `familia` son **intencionales** y no requieren tratamiento
+> especial: viajan tal cual al `title` compuesto y al metafield
+> `product.familia`. La regla de §11.3 sólo aplica a las columnas
+> declaradas como `number_decimal` / `number_integer` del mapping.
+
 Decisión: **el mapper escribe `null` en el metafield correspondiente
 y emite un warning**. El producto se carga normalmente con el resto
 de sus campos; solo esa dimensión concreta queda vacía.
@@ -494,3 +503,25 @@ numérico de Shopify (filtros por rango, comparaciones) a expensas
 de perder el dato literal en estos casos. La descripción del
 producto y la ficha técnica enlazada (`ficha_url`) cubren la
 información para el cliente final.
+
+### 11.4 Normalización de whitespace en `title` compuesto
+
+Tras componer `{Familia} {Tipo} {Acabado_corto}`, el mapper colapsa
+cualquier secuencia de whitespace (espacios, tabs, newlines) a un
+único espacio y trimea bordes (`.replace(/\s+/g, ' ').trim()`).
+**Sólo se aplica al `title` final** — los metafields `familia`,
+`tipo`, `acabado` se guardan literales del export del cliente, sin
+normalizar. Si el cliente arregla el dato en origen, los metafields
+reflejarán la mejora sin que el código bloquee el cambio.
+
+**Caso que motivó la regla** (validación post-I2): la serie de 6
+SKUs `Gea Power LED Round  ø180mm` / `ø130mm` (familias 55-9663,
+55-9665, 55-9667 con sus variantes CA-CL/CA-CM/CA-37) tiene **doble
+espacio interno** en el campo `familia` por bug del export del
+cliente (`"Gea Power LED Round  ø180mm"`, dos espacios entre `Round`
+y `ø180mm`). Sin la normalización, el `title` resultante
+arrastraba ese doble espacio y Shopify lo mostraba como product
+title visualmente sucio. Con la regla, el `title` queda como
+`"Gea Power LED Round ø180mm Empotrable de suelo Acero"`. El
+metafield `product.familia` para esos 6 SKUs sigue almacenado tal
+cual viene del export, con el doble espacio.

@@ -89,7 +89,17 @@ function looksLikeHtml(s) {
 //   "{Familia} {Tipo} {Acabado_corto}"
 // Where Acabado_corto is the first token of Acabado (split on comma or whitespace).
 // If all empty, fallback to the SKU and emit a warning.
-function buildTitle(familia, tipo, acabado, sku) {
+//
+// Whitespace normalization: the COMPOSED title collapses any run of
+// whitespace to a single space (and trims edges). Inputs and individual
+// metafields stay literal — only the composed title is normalized. This
+// covers cases where the client export contains internal double-spaces
+// in `familia` (e.g. "Gea Power LED Round  ø180mm"), which Shopify would
+// otherwise show as ugly double-spaced product titles. See
+// docs/import-pipeline.md §11.4.
+//
+// Exported for unit testing.
+export function buildTitle(familia, tipo, acabado, sku) {
   const parts = [];
   if (familia) parts.push(String(familia).trim());
   if (tipo) parts.push(String(tipo).trim());
@@ -97,7 +107,7 @@ function buildTitle(familia, tipo, acabado, sku) {
     const corto = String(acabado).split(/[,\s]+/)[0].trim();
     if (corto) parts.push(corto);
   }
-  const t = parts.filter(Boolean).join(' ').trim();
+  const t = parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
   if (!t) {
     return { title: sku, warning: { kind: 'title_fallback_to_sku', sku, message: 'Familia/Tipo/Acabado all empty; title set to SKU' } };
   }
