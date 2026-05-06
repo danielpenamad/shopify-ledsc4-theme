@@ -126,8 +126,8 @@ mapper, que es quien conoce el contrato del mapping.
 
 Errores que no detienen la ejecución sino que se loguean:
 
-- SKU duplicado en surtido (**first wins** — pendiente confirmación
-  cliente sobre tratamiento alternativo, ver §11.2).
+- SKU duplicado en surtido (**first wins** — confirmado por cliente
+  2026-05-06, ver §11.2).
 - SKU duplicado en stock (**suma de unidades** — decisión cliente
   2026-05-05, ver §11.1).
 - Fila con menos columnas que la cabecera (skip + warning).
@@ -443,7 +443,7 @@ alta listando todos los valores vistos. No esperado en datos reales
 del ERP, pero el comportamiento existe para que cualquier desviación
 sea visible y no silenciosamente corrompa el inventario.
 
-### 11.2 Duplicados en `listado_productos_*.csv` (surtido) — **first-wins (pendiente)**
+### 11.2 Duplicados en `listado_productos_*.csv` (surtido) — **first-wins**
 
 Cuando un SKU aparece múltiples veces en el fichero de surtido, se
 mantiene la **primera ocurrencia** y se descarta el resto, emitiendo
@@ -451,10 +451,9 @@ un warning. Razón conceptual: agregar productos no tiene sentido
 semántico (no es un campo numérico aditivo como stock; son atributos
 descriptivos que entrarían en conflicto entre filas).
 
-**Pendiente de confirmación con el cliente.** En la consulta del
-2026-05-05 el cliente respondió sobre stock pero no sobre surtido.
-Hasta nueva confirmación, first-wins sigue vigente. Ver entrada
-abierta en [`docs/pendientes.md`](pendientes.md).
+**Confirmado por el cliente el 2026-05-06.** Cita literal: *"Coge la
+primera aparición"*. Sin cambios de código respecto al
+comportamiento que ya implementaba el parser desde I2.
 
 Caso real en muestras: `05-6424-81-81` aparece 2 veces en los 6
 ficheros de idioma (mismo bug en cada locale, indicando que el
@@ -525,3 +524,36 @@ title visualmente sucio. Con la regla, el `title` queda como
 `"Gea Power LED Round ø180mm Empotrable de suelo Acero"`. El
 metafield `product.familia` para esos 6 SKUs sigue almacenado tal
 cual viene del export, con el doble espacio.
+
+---
+
+## 12. Cadencia de actualización de los ficheros del SFTP
+
+Confirmado por el cliente 2026-05-06. El SFTP es **transporte**:
+el ERP genera los ficheros en su propia cadencia y los publica al
+bucket. El conector (Fase I4) lee de allí.
+
+| Fichero(s) | Frecuencia | Notas |
+|---|---|---|
+| `productos/listado_productos_*.csv` (6 locales) | **Diaria, nocturna** | Surtido completo + descripciones + atributos + URLs de imágenes y PDFs. El conector debe procesarlo una vez al día. |
+| `precios/precios_productos.csv` | **Diaria, nocturna** | Junto con el surtido. Cambios de tarifa se propagan al día siguiente. |
+| `stock/stock.csv` | **Cada 6 horas, configurable** | Por defecto cada 6h, ajustable según volumen real. Es el cron "ligero" del pipeline. |
+
+**Implicaciones para I4**:
+
+- Los crons del importador deben alinearse con la cadencia del
+  cliente. No tiene sentido leer surtido cada 6h si solo se
+  actualiza nocturnamente. Programación propuesta:
+  - `import-surtido-precios` → 1×/día, ~04:00 UTC (después de la
+    ventana nocturna del cliente, que típicamente termina entre
+    01:00 y 03:00 hora local).
+  - `import-stock` → cada 6h en :15 (`03:15, 09:15, 15:15, 21:15`
+    UTC), parametrizable vía env si el cliente cambia su
+    cadencia interna.
+- El surtido y los precios pueden combinarse en una misma
+  ejecución de cron (mismo trigger horario). Stock va en su
+  propio cron por su cadencia distinta.
+- Si la nocturna del cliente se retrasa o se cae un día,
+  detectaremos ficheros con el mismo timestamp del día anterior.
+  El conector debe ser tolerante a esto — re-ejecutar sobre
+  datos sin cambios es no-op (idempotente).
