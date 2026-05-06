@@ -1,0 +1,677 @@
+{
+  "$comment": "Mapping ERP LedsC4 → Shopify. Fuente de verdad del importador. Las columnas se leen por POSICIÓN (column_index), no por nombre, porque los nombres varían por idioma y pueden cambiar en el tiempo. Los nombres en column_name_es son sólo orientativos.",
+  "version": "1.0.0",
+  "updated": "2026-05-05",
+  "files": {
+    "surtido": {
+      "path_pattern": "/productos/listado_productos_{LOCALE}.csv",
+      "locales": [
+        "ES",
+        "EN",
+        "IT",
+        "DE",
+        "FR",
+        "PT"
+      ],
+      "primary_locale": "ES",
+      "encoding": "utf-8",
+      "delimiter": ",",
+      "frequency": "weekly",
+      "key_column_index": 0,
+      "duplicate_policy": "first_wins_log_warning"
+    },
+    "stock": {
+      "path": "/stock/stock_productos.csv",
+      "encoding": "utf-8",
+      "delimiter": ",",
+      "frequency": "every_6h",
+      "schema": [
+        "sku",
+        "inventario"
+      ]
+    },
+    "precios": {
+      "path": "/precios/precios_productos.csv",
+      "encoding": "utf-8",
+      "delimiter": ",",
+      "frequency": "every_6h",
+      "schema": [
+        "sku",
+        "tarifa"
+      ],
+      "currency": "EUR"
+    }
+  },
+  "publication_rules": {
+    "$comment": "Un producto sólo se publica al catalog 'Outlet general' si cumple las 3 condiciones. Sustituye al criterio antiguo basado en tag 'Coleccion:2026'.",
+    "must_be_in_surtido": true,
+    "must_have_stock_gt_zero": true,
+    "must_have_price_gt_zero": true,
+    "on_failure": "unpublish_from_catalog"
+  },
+  "columns": {
+    "$comment": "Cada entrada cubre una columna del CSV de surtido. destination indica dónde va en Shopify. translatable=true significa que se escribe la versión ES como base y se cargan las otras 5 vía translationsRegister.",
+    "0": {
+      "column_name_es": "Referencia",
+      "destination": "variant.sku",
+      "translatable": false,
+      "filterable": false,
+      "type": "string",
+      "key": true
+    },
+    "1": {
+      "column_name_es": "Versión",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "version",
+      "translatable": false,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": false
+    },
+    "2": {
+      "column_name_es": "Predeterminado",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "predeterminado",
+      "translatable": false,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "visible_in_storefront": false,
+      "$comment": "Importar SIN exponer en storefront hasta que el cliente confirme su semántica.",
+      "pin_in_admin": false
+    },
+    "3": {
+      "column_name_es": "Tipo",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "tipo",
+      "translatable": true,
+      "filterable": true,
+      "type": "single_line_text_field",
+      "pin_in_admin": true
+    },
+    "4": {
+      "column_name_es": "EAN13",
+      "destination": "variant.barcode",
+      "translatable": false,
+      "filterable": false,
+      "type": "string"
+    },
+    "5": {
+      "column_name_es": "Familia",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "familia",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "$comment": "471 distintos sobre 734 productos — no apto como filtro. Sólo metafield para mostrar en ficha. column_name_es normalizado de \"Família\" → \"Familia\" el 2026-05-05 (ver _decisions_log).",
+      "pin_in_admin": true
+    },
+    "6": {
+      "column_name_es": "Catálogo",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "catalogo",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": false
+    },
+    "7": {
+      "column_name_es": "Taifa Nacional",
+      "destination": "ignore"
+    },
+    "8": {
+      "column_name_es": "Garantía",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "garantia",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": true
+    },
+    "9": {
+      "column_name_es": "Etiqueta V/f",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "etiqueta_vf",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": false
+    },
+    "10": {
+      "column_name_es": "Ficha",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "ficha_url",
+      "translatable": false,
+      "filterable": false,
+      "type": "url",
+      "pin_in_admin": false
+    },
+    "11": {
+      "column_name_es": "Descripción",
+      "destination": "product.body_html",
+      "translatable": true,
+      "filterable": false,
+      "type": "string"
+    },
+    "12": {
+      "column_name_es": "masterfile.tender_text",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "tender_text",
+      "translatable": true,
+      "filterable": false,
+      "type": "multi_line_text_field",
+      "pin_in_admin": false
+    },
+    "13": {
+      "column_name_es": "masterfile.codi_duaner",
+      "destination": "ignore"
+    },
+    "14": {
+      "column_name_es": "Material",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "material",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": true
+    },
+    "15": {
+      "column_name_es": "Acabado",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "acabado",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": true
+    },
+    "16": {
+      "column_name_es": "Largo",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "dim_largo_mm",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "pin_in_admin": true
+    },
+    "17": {
+      "column_name_es": "Ancho",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "dim_ancho_mm",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "pin_in_admin": true
+    },
+    "18": {
+      "column_name_es": "Alto",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "dim_alto_mm",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "pin_in_admin": true
+    },
+    "19": {
+      "column_name_es": "Proyección",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "proyeccion_mm",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "pin_in_admin": false
+    },
+    "20": {
+      "column_name_es": "Fuente de luz",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "fuente_luz",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": true
+    },
+    "21": {
+      "column_name_es": "Incluye bombilla",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "incluye_bombilla",
+      "translatable": false,
+      "filterable": true,
+      "type": "boolean",
+      "$comment": "Mapeo Si→true, No→false. Filtrable porque solo tiene 2 valores.",
+      "pin_in_admin": true
+    },
+    "22": {
+      "column_name_es": "Eficiencia energética",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "eficiencia_energetica",
+      "translatable": false,
+      "filterable": true,
+      "type": "single_line_text_field",
+      "$comment": "Letra A/B/C/D/E/F/G. 'NA EPREL' es valor válido (producto sin clasificación obligatoria).",
+      "pin_in_admin": true
+    },
+    "23": {
+      "column_name_es": "Unidades masterbox",
+      "destination": "ignore"
+    },
+    "24": {
+      "column_name_es": "Producto descatalogado",
+      "destination": "ignore"
+    },
+    "25": {
+      "column_name_es": "Lanzamiento producto",
+      "destination": "ignore"
+    },
+    "26": {
+      "column_name_es": "Peso empaquetado (KG)",
+      "destination": "ignore"
+    },
+    "27": {
+      "column_name_es": "Peso masterbox",
+      "destination": "ignore"
+    },
+    "28": {
+      "column_name_es": "Peso neto (KG)",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "peso_neto_kg",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "pin_in_admin": true
+    },
+    "29": {
+      "column_name_es": "Volumen unidad (m3)",
+      "destination": "ignore"
+    },
+    "30": {
+      "column_name_es": "Volumen masterbox (m3)",
+      "destination": "ignore"
+    },
+    "31": {
+      "column_name_es": "Largo caja 1",
+      "destination": "ignore"
+    },
+    "32": {
+      "column_name_es": "Ancho caja 1",
+      "destination": "ignore"
+    },
+    "33": {
+      "column_name_es": "Alto caja 1",
+      "destination": "ignore"
+    },
+    "34": {
+      "column_name_es": "Largo caja 2",
+      "destination": "ignore"
+    },
+    "35": {
+      "column_name_es": "Ancho caja 2",
+      "destination": "ignore"
+    },
+    "36": {
+      "column_name_es": "Alto caja 2",
+      "destination": "ignore"
+    },
+    "37": {
+      "column_name_es": "Largo caja 3",
+      "destination": "ignore"
+    },
+    "38": {
+      "column_name_es": "Ancho caja 3",
+      "destination": "ignore"
+    },
+    "39": {
+      "column_name_es": "Alto caja 3",
+      "destination": "ignore"
+    },
+    "40": {
+      "column_name_es": "Largo MB 1",
+      "destination": "ignore"
+    },
+    "41": {
+      "column_name_es": "Ancho MB 1",
+      "destination": "ignore"
+    },
+    "42": {
+      "column_name_es": "Alto MB 1",
+      "destination": "ignore"
+    },
+    "43": {
+      "column_name_es": "Largo MB 2",
+      "destination": "ignore"
+    },
+    "44": {
+      "column_name_es": "Ancho MB 2",
+      "destination": "ignore"
+    },
+    "45": {
+      "column_name_es": "Alto MB 2",
+      "destination": "ignore"
+    },
+    "46": {
+      "column_name_es": "Largo MB 3",
+      "destination": "ignore"
+    },
+    "47": {
+      "column_name_es": "Ancho MB 3",
+      "destination": "ignore"
+    },
+    "48": {
+      "column_name_es": "Alto MB 3",
+      "destination": "ignore"
+    },
+    "49": {
+      "column_name_es": "Vatios (W)",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "vatios",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "pin_in_admin": true
+    },
+    "50": {
+      "column_name_es": "Lúmenes (lm)",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "lumenes",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "pin_in_admin": true
+    },
+    "51": {
+      "column_name_es": "Lúmenes reales (lm)",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "lumenes_reales",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_decimal",
+      "$comment": "column_name_es normalizado de \"Lumenes reales (lm)\" → \"Lúmenes reales (lm)\" el 2026-05-05 (ver _decisions_log).",
+      "pin_in_admin": false
+    },
+    "52": {
+      "column_name_es": "Temperatura color LED (K)",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "temperatura_color",
+      "translatable": false,
+      "filterable": true,
+      "type": "single_line_text_field",
+      "$comment": "Texto, no number, porque hay valores como '3000K', 'SW 3000-4000-6500K', 'TUNABLE WHITE'. Normalizado en mapper. column_name_es normalizado de \"Temperatura color led (K)\" → \"Temperatura color LED (K)\" el 2026-05-05 (ver _decisions_log).",
+      "pin_in_admin": true
+    },
+    "53": {
+      "column_name_es": "CRI",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "cri",
+      "translatable": false,
+      "filterable": false,
+      "type": "number_integer",
+      "pin_in_admin": false
+    },
+    "54": {
+      "column_name_es": "Rayo luz (º)",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "rayo_luz",
+      "translatable": false,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "$comment": "Texto porque mezcla números (12, 24, 36) y etiquetas (MEDIUM, FLOOD, SPOT).",
+      "pin_in_admin": false
+    },
+    "55": {
+      "column_name_es": "Tipo regulación",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "tipo_regulacion",
+      "translatable": true,
+      "filterable": true,
+      "type": "single_line_text_field",
+      "pin_in_admin": true
+    },
+    "56": {
+      "column_name_es": "IP",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "ip",
+      "translatable": false,
+      "filterable": true,
+      "type": "single_line_text_field",
+      "pin_in_admin": true
+    },
+    "57": {
+      "column_name_es": "IK",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "ik",
+      "translatable": false,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": false
+    },
+    "58": {
+      "column_name_es": "Imagen web",
+      "destination": "product.images",
+      "image_position": 0,
+      "translatable": false,
+      "filterable": false,
+      "type": "url"
+    },
+    "59": {
+      "column_name_es": "Imagen ambiente 1",
+      "destination": "product.images",
+      "image_position": 1,
+      "translatable": false,
+      "filterable": false,
+      "type": "url"
+    },
+    "60": {
+      "column_name_es": "Imagen ambiente 2",
+      "destination": "product.images",
+      "image_position": 2,
+      "translatable": false,
+      "filterable": false,
+      "type": "url"
+    },
+    "61": {
+      "column_name_es": "Imagen ambiente 3",
+      "destination": "product.images",
+      "image_position": 3,
+      "translatable": false,
+      "filterable": false,
+      "type": "url"
+    },
+    "62": {
+      "column_name_es": "Detail Image 1",
+      "destination": "product.images",
+      "image_position": 4,
+      "translatable": false,
+      "filterable": false,
+      "type": "url"
+    },
+    "63": {
+      "column_name_es": "Detail Image 2",
+      "destination": "product.images",
+      "image_position": 5,
+      "translatable": false,
+      "filterable": false,
+      "type": "url"
+    },
+    "64": {
+      "column_name_es": "IMC",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "imc",
+      "translatable": false,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": false
+    },
+    "65": {
+      "column_name_es": "EE",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "ee_url",
+      "translatable": false,
+      "filterable": false,
+      "type": "url",
+      "$comment": "En los datos reales, esta columna contiene URL a files.ledsc4.com (etiqueta energética). NO es la letra A/B/C/D — esa está en col 22.",
+      "pin_in_admin": false
+    },
+    "66": {
+      "column_name_es": "Fotometría",
+      "destination": "ignore"
+    },
+    "67": {
+      "column_name_es": "masterfile.ploma_comercial",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "ficha_comercial_url",
+      "translatable": false,
+      "filterable": false,
+      "type": "url",
+      "pin_in_admin": false
+    },
+    "68": {
+      "column_name_es": "Accesorio",
+      "destination": "metafield",
+      "namespace": "product",
+      "key": "accesorio",
+      "translatable": true,
+      "filterable": false,
+      "type": "single_line_text_field",
+      "pin_in_admin": false
+    },
+    "69": {
+      "column_name_es": "3D",
+      "destination": "ignore"
+    },
+    "70": {
+      "column_name_es": "masterfile.ies",
+      "destination": "ignore"
+    },
+    "71": {
+      "column_name_es": "masterfile.ldt",
+      "destination": "ignore"
+    },
+    "72": {
+      "column_name_es": "Código Kenia",
+      "destination": "ignore"
+    },
+    "73": {
+      "column_name_es": "Código RETILAP",
+      "destination": "ignore"
+    },
+    "74": {
+      "column_name_es": "Código Marruecos",
+      "destination": "ignore"
+    },
+    "75": {
+      "column_name_es": "Código País 4",
+      "destination": "ignore"
+    },
+    "76": {
+      "column_name_es": "Código País 5",
+      "destination": "ignore"
+    },
+    "77": {
+      "column_name_es": "Código País 6",
+      "destination": "ignore"
+    },
+    "78": {
+      "column_name_es": "Model",
+      "destination": "ignore"
+    }
+  },
+  "filters_summary": {
+    "$comment": "Lista derivada de columns[*].filterable=true. Sirve para el script de configuración de filtros del catálogo en theme settings.",
+    "filters": [
+      {
+        "key": "tipo",
+        "label_es": "Tipo",
+        "label_en": "Type",
+        "label_it": "Tipo",
+        "label_de": "Typ",
+        "label_fr": "Type",
+        "label_pt": "Tipo"
+      },
+      {
+        "key": "temperatura_color",
+        "label_es": "Temperatura color",
+        "label_en": "Color temperature",
+        "label_it": "Temperatura colore",
+        "label_de": "Farbtemperatur",
+        "label_fr": "Température de couleur",
+        "label_pt": "Temperatura de cor"
+      },
+      {
+        "key": "ip",
+        "label_es": "Protección IP",
+        "label_en": "IP rating",
+        "label_it": "Grado IP",
+        "label_de": "IP-Schutzart",
+        "label_fr": "Indice IP",
+        "label_pt": "Proteção IP"
+      },
+      {
+        "key": "eficiencia_energetica",
+        "label_es": "Eficiencia energética",
+        "label_en": "Energy efficiency",
+        "label_it": "Efficienza energetica",
+        "label_de": "Energieeffizienz",
+        "label_fr": "Efficacité énergétique",
+        "label_pt": "Eficiência energética"
+      },
+      {
+        "key": "incluye_bombilla",
+        "label_es": "Incluye bombilla",
+        "label_en": "Bulb included",
+        "label_it": "Lampadina inclusa",
+        "label_de": "Glühbirne inklusive",
+        "label_fr": "Ampoule incluse",
+        "label_pt": "Lâmpada incluída"
+      },
+      {
+        "key": "tipo_regulacion",
+        "label_es": "Tipo regulación",
+        "label_en": "Dimming type",
+        "label_it": "Tipo regolazione",
+        "label_de": "Dimmungstyp",
+        "label_fr": "Type de régulation",
+        "label_pt": "Tipo de regulação"
+      }
+    ]
+  },
+  "_decisions_log": {
+    "2026-05-04": [
+      "Naming flag: pin_in_admin (no pin para evitar colisión con Shopify Markets pin).",
+      "API translation: visibleToStorefrontApi=true equivale a access.storefront=PUBLIC_READ; false equivale a NONE.",
+      "pin_in_admin true para filtrables + bloque comercial editable (vatios, lumenes, material, acabado, garantía, dimensiones, peso, fuente_luz, familia).",
+      "pin_in_admin false para URLs, texto largo, secundarios (cri, ik, imc, rayo_luz, proyeccion, lumenes_reales, version, etiqueta_vf, accesorio, predeterminado).",
+      "Predeterminado: importado pero NO expuesto a storefront (access.storefront=NONE) hasta confirmación cliente. Documentado en ADR D8."
+    ],
+    "2026-05-05": [
+      "Ajustes ortográficos en column_name_es para que la regla algorítmica D-resolved-3 del prompt I1 produzca un label admin canónico en español sin necesitar overrides en el script: col 5 \"Família\"→\"Familia\", col 51 \"Lumenes reales (lm)\"→\"Lúmenes reales (lm)\", col 52 \"Temperatura color led (K)\"→\"Temperatura color LED (K)\". El parser lee por POSICIÓN (key_column_index/column_index), no por nombre, así que el nombre real de la cabecera del CSV puede diferir — este campo es puramente documental."
+    ]
+  }
+}

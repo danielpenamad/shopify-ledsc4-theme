@@ -11,51 +11,6 @@
   {
     "ownerType": "CUSTOMER",
     "namespace": "b2b",
-    "key": "nif",
-    "name": "NIF / CIF",
-    "description": "Identificador fiscal.",
-    "type": "single_line_text_field",
-    "pin": true
-  },
-  {
-    "ownerType": "CUSTOMER",
-    "namespace": "b2b",
-    "key": "sector",
-    "name": "Sector",
-    "description": "Sector de actividad (instalador, arquitecto, retail, etc.).",
-    "type": "single_line_text_field",
-    "pin": true
-  },
-  {
-    "ownerType": "CUSTOMER",
-    "namespace": "b2b",
-    "key": "pais",
-    "name": "País",
-    "description": "País de facturación / operación del cliente B2B. Reservado para multi-tarifa futura.",
-    "type": "single_line_text_field",
-    "pin": true
-  },
-  {
-    "ownerType": "CUSTOMER",
-    "namespace": "b2b",
-    "key": "volumen_estimado",
-    "name": "Volumen estimado",
-    "description": "Volumen anual declarado. Texto libre por ahora; candidato a number_decimal cuando se active multi-tarifa.",
-    "type": "single_line_text_field",
-    "pin": false
-  },
-  {
-    "ownerType": "CUSTOMER",
-    "namespace": "b2b",
-    "key": "fecha_registro",
-    "name": "Fecha de registro",
-    "description": "Fecha en que el cliente envió el formulario de alta.",
-    "type": "date",
-    "pin": true
-  },
-  {
-    "ownerType": "CUSTOMER",
-    "namespace": "b2b",
     "key": "fecha_aprobacion",
     "name": "Fecha de aprobación",
     "description": "Se rellena al pasar a estado aprobado. Nullable.",
@@ -74,9 +29,410 @@
   {
     "ownerType": "CUSTOMER",
     "namespace": "b2b",
+    "key": "fecha_registro",
+    "name": "Fecha de registro",
+    "description": "Fecha en que el cliente envió el formulario de alta.",
+    "type": "date",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
     "key": "motivo_rechazo",
     "name": "Motivo de rechazo",
     "description": "Texto libre. Solo aplica si el cliente está en estado rechazado.",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "nif",
+    "name": "NIF / CIF",
+    "description": "Identificador fiscal.",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "pais",
+    "name": "País",
+    "description": "País de facturación / operación del cliente B2B. Reservado para multi-tarifa futura.",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "sector",
+    "name": "Sector",
+    "description": "Sector de actividad (instalador, arquitecto, retail, etc.).",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "volumen_estimado",
+    "name": "Volumen estimado",
+    "description": "Volumen anual declarado. Texto libre por ahora; candidato a number_decimal cuando se active multi-tarifa.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "PAGE",
+    "namespace": "b2b",
+    "key": "cuenta_rechazada_mensaje",
+    "name": "Mensaje cuenta rechazada",
+    "description": "Texto mostrado en /pages/cuenta-rechazada. Editable por staff.",
+    "type": "multi_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "PAGE",
+    "namespace": "b2b",
+    "key": "cuenta_revision_mensaje",
+    "name": "Mensaje cuenta en revisión",
+    "description": "Texto mostrado en /pages/cuenta-en-revision. Editable por staff.",
+    "type": "multi_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "b2b",
+    "key": "cbm_caja",
+    "name": "CBM por caja",
+    "description": "Volumen en metros cubicos de la caja/unidad de venta. Usado para calcular CBM total en solicitudes B2B.",
+    "type": "number_decimal",
+    "pin": true
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "acabado",
+    "name": "Acabado",
+    "description": "Acabado del producto.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "accesorio",
+    "name": "Accesorio",
+    "description": "Accesorio del producto.",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "catalogo",
+    "name": "Catálogo",
+    "description": "Catálogo LedsC4 al que pertenece el producto.",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "cri",
+    "name": "Índice de reproducción cromática (CRI)",
+    "description": "Índice de reproducción cromática (Color Rendering Index). Valor entre 0 y 100.",
+    "type": "number_integer",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "dim_alto_mm",
+    "name": "Alto",
+    "description": "Alto del producto en milímetros.",
+    "type": "number_decimal",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "dim_ancho_mm",
+    "name": "Ancho",
+    "description": "Ancho del producto en milímetros.",
+    "type": "number_decimal",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "dim_largo_mm",
+    "name": "Largo",
+    "description": "Largo del producto en milímetros.",
+    "type": "number_decimal",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "ee_url",
+    "name": "Etiqueta energética (PDF)",
+    "description": "URL al PDF de la etiqueta energética del producto.",
+    "type": "url",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "eficiencia_energetica",
+    "name": "Eficiencia energética",
+    "description": "Eficiencia energética del producto (clase A–G según etiqueta UE; admite \"NA EPREL\").",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "etiqueta_vf",
+    "name": "Etiqueta V/f",
+    "description": "Etiqueta V/f del producto, según nomenclatura interna LedsC4.",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "familia",
+    "name": "Familia",
+    "description": "Familia/serie LedsC4 del producto.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "ficha_comercial_url",
+    "name": "Ficha comercial (PDF)",
+    "description": "URL al PDF de la ficha comercial del producto.",
+    "type": "url",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "ficha_url",
+    "name": "Ficha técnica (PDF)",
+    "description": "URL al PDF de la ficha técnica del producto.",
+    "type": "url",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "fuente_luz",
+    "name": "Fuente de luz",
+    "description": "Fuente de luz del producto.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "garantia",
+    "name": "Garantía",
+    "description": "Garantía del producto.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "ik",
+    "name": "Resistencia a impactos (IK)",
+    "description": "Resistencia a impactos mecánicos según IEC 62262 (ej: IK04, IK10).",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "imc",
+    "name": "IMC",
+    "description": "Código IMC del producto. Significado pendiente de confirmar con el cliente.",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "incluye_bombilla",
+    "name": "Incluye bombilla",
+    "description": "Indica si el producto incluye bombilla.",
+    "type": "boolean",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "ip",
+    "name": "Protección IP",
+    "description": "Grado de protección IP del producto (ej: IP20, IP54, IP65).",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "lumenes",
+    "name": "Lúmenes",
+    "description": "Lúmenes del producto en lm.",
+    "type": "number_decimal",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "lumenes_reales",
+    "name": "Lúmenes reales",
+    "description": "Lúmenes reales del producto en lm.",
+    "type": "number_decimal",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "material",
+    "name": "Material",
+    "description": "Material del producto.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "peso_neto_kg",
+    "name": "Peso neto",
+    "description": "Peso neto del producto en KG.",
+    "type": "number_decimal",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "predeterminado",
+    "name": "Predeterminado (interno — no exponer)",
+    "description": "Columna importada del ERP cuya semántica el cliente aún no ha confirmado. No exponer en storefront. Ver ADR D8.",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "NONE" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "proyeccion_mm",
+    "name": "Proyección",
+    "description": "Proyección del producto en milímetros.",
+    "type": "number_decimal",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "rayo_luz",
+    "name": "Rayo luz",
+    "description": "Ángulo del haz de luz en grados o etiqueta cualitativa (SPOT/MEDIUM/FLOOD).",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "temperatura_color",
+    "name": "Temperatura color LED",
+    "description": "Temperatura de color de la luz emitida en kelvin. Texto porque admite valores no numéricos como \"TUNABLE WHITE\" o rangos.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "tender_text",
+    "name": "Texto para licitaciones",
+    "description": "Texto descriptivo extendido para licitaciones y pliegos públicos.",
+    "type": "multi_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "tipo",
+    "name": "Tipo",
+    "description": "Tipo del producto.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "tipo_regulacion",
+    "name": "Tipo regulación",
+    "description": "Tipo regulación del producto.",
+    "type": "single_line_text_field",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "vatios",
+    "name": "Vatios",
+    "description": "Vatios del producto en W.",
+    "type": "number_decimal",
+    "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "version",
+    "name": "Versión",
+    "description": "Versión del producto.",
+    "type": "single_line_text_field",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "SHOP",
+    "namespace": "b2b",
+    "key": "email_backoffice",
+    "name": "Email backoffice aprobaciones",
+    "description": "Destinatario de avisos de nuevo registro B2B pendiente de aprobación.",
     "type": "single_line_text_field",
     "pin": true
   },
@@ -96,42 +452,6 @@
     "name": "Última actualización whitelist",
     "description": "Timestamp ISO de la última actualización del metafield whitelist_emails (set por la página backoffice).",
     "type": "date_time",
-    "pin": true
-  },
-  {
-    "ownerType": "SHOP",
-    "namespace": "b2b",
-    "key": "email_backoffice",
-    "name": "Email backoffice aprobaciones",
-    "description": "Destinatario de avisos de nuevo registro B2B pendiente de aprobación.",
-    "type": "single_line_text_field",
-    "pin": true
-  },
-  {
-    "ownerType": "PRODUCT",
-    "namespace": "b2b",
-    "key": "cbm_caja",
-    "name": "CBM por caja",
-    "description": "Volumen en metros cubicos de la caja/unidad de venta. Usado para calcular CBM total en solicitudes B2B.",
-    "type": "number_decimal",
-    "pin": true
-  },
-  {
-    "ownerType": "PAGE",
-    "namespace": "b2b",
-    "key": "cuenta_revision_mensaje",
-    "name": "Mensaje cuenta en revisión",
-    "description": "Texto mostrado en /pages/cuenta-en-revision. Editable por staff.",
-    "type": "multi_line_text_field",
-    "pin": true
-  },
-  {
-    "ownerType": "PAGE",
-    "namespace": "b2b",
-    "key": "cuenta_rechazada_mensaje",
-    "name": "Mensaje cuenta rechazada",
-    "description": "Texto mostrado en /pages/cuenta-rechazada. Editable por staff.",
-    "type": "multi_line_text_field",
     "pin": true
   }
 ]

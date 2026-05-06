@@ -249,17 +249,109 @@ Validar tras cualquier deploy de tema o cambio en gate / Locksmith / edge functi
 
 ---
 
-## 7. Pendientes conocidos (iteraciones futuras)
+## 7. Metafields bloqueados por dependencia (smart collections)
+
+`scripts/apply-metafield-definitions.mjs` clasifica cada definición del JSON
+en uno de cinco estados: `Create`, `Unchanged`, `Update`,
+`UpdateBlockedByDependency` y `DriftBlocked`. El penúltimo es **el caso edge
+relevante para mantener** y suele aparecer cuando la definición está siendo
+usada como condición en una smart collection.
+
+### Síntoma
+
+Tras correr el script (sea `--dry-run` o real):
+
+```
+Summary: ... UpdateBlockedByDependency: N ...
+
+UpdateBlockedByDependency detail:
+  - PRODUCT:product.<key> (locked by smart_collection_condition)
+      pending: <campo>: <valor_shop> → <valor_json>
+```
+
+### Por qué
+
+Shopify bloquea **todos** los campos (description, access, pin, validations,
+type) de una metafield definition mientras
+`capabilities.smartCollectionCondition.enabled = true` **y** existen smart
+collections que la usan como regla. La mutation `metafieldDefinitionUpdate`
+rechaza con `CAPABILITY_CANNOT_BE_DISABLED`.
+
+El script detecta esta situación a priori (no por catch del error) leyendo
+la capability en la query de inventario, así que el dry-run refleja la
+realidad y la idempotencia se mantiene (las definiciones bloqueadas no
+aparecen como `Updated` en re-runs sucesivos).
+
+### Cómo desbloquear
+
+Tres caminos, en orden de menor a mayor riesgo:
+
+1. **Aceptar el statu quo y modificar el JSON** para que coincida con el
+   shop (`description` con el valor actual, `access` con el actual). El
+   script reportará `Unchanged` en lugar de `UpdateBlockedByDependency`.
+   Apropiado cuando el cambio que se quería era cosmético y no rompe nada
+   funcional.
+
+2. **Cambiar el consumidor del metafield** en lugar del metafield. Por
+   ejemplo, si el storefront necesita leer un campo con `access=PUBLIC_READ`
+   pero el metafield está bloqueado en `NONE`, modificar el snippet/sección
+   Liquid para obtener el dato por otra vía (collections del producto,
+   metaobject, etc.). No requiere tocar smart collections.
+
+3. **Eliminar la dependencia**: para cada smart collection que use el
+   metafield como condición, editar las reglas y quitar esa condición. Una
+   vez no haya smart collections referenciándola, la capability
+   `smartCollectionCondition.enabled` se puede desactivar y el Update
+   funciona. **Riesgo alto**: si las smart collections son user-facing, se
+   pierde la organización del catálogo. Sólo apropiado si las smart
+   collections también van a desaparecer.
+
+Para identificar qué smart collections bloquean un metafield concreto:
+
+```bash
+node --env-file=shopify-ledsc4-theme.env -e "
+const SHOP = process.env.SHOPIFY_STORE_DOMAIN;
+const TOK  = process.env.SHOPIFY_ADMIN_TOKEN;
+const VER  = process.env.SHOPIFY_API_VERSION || '2025-10';
+const TARGET_METAFIELD_ID = 'gid://shopify/MetafieldDefinition/<id-numérico>';
+const Q = \`{ collections(first: 250, query: \\\"collection_type:smart\\\") {
+  nodes { handle title ruleSet { rules { conditionObject {
+    __typename ... on CollectionRuleMetafieldCondition {
+      metafieldDefinition { id namespace key }
+    } } } } } } }\`;
+fetch(\`https://\${SHOP}/admin/api/\${VER}/graphql.json\`, {
+  method:'POST',
+  headers:{'Content-Type':'application/json','X-Shopify-Access-Token':TOK},
+  body: JSON.stringify({query: Q})
+}).then(r => r.json()).then(j => {
+  const matches = (j.data?.collections?.nodes ?? []).filter(s =>
+    (s.ruleSet?.rules ?? []).some(r =>
+      r.conditionObject?.metafieldDefinition?.id === TARGET_METAFIELD_ID));
+  for (const s of matches) console.log(s.handle, '::', s.title);
+});"
+```
+
+### Caso real activo a 2026-05-05
+
+| Definition | Bloqueada por | Pending changes | Remediation |
+|---|---|---|---|
+| `PRODUCT:product.catalogo` (`gid://shopify/MetafieldDefinition/379919106375`) | 58 smart collections del outlet (`outlet-decorative`, `outlet-outdoor`, etc.) creadas por `scripts/setup-outlet-smart-collections.mjs` | description: `"Cat<U+FFFD>logo LedsC4..."` → `"Catálogo LedsC4..."`; `access.storefront`: `NONE` → `PUBLIC_READ` | Spawned task pendiente — chip "Desbloquear update de product.catalogo" |
+
+Hasta que se resuelva, la fila "Catálogo" del [snippets/product-specs-table.liquid:9](../snippets/product-specs-table.liquid:9) NO se renderiza en producción (Liquid recibe blank por el access NONE). Esto no es regresión — ya estaba así antes de I1.
+
+---
+
+## 8. Pendientes conocidos (iteraciones futuras)
 
 | Área | Pendiente | Donde |
 |---|---|---|
 | UX | Branding del login OAuth de Customer Accounts | Admin → Settings → Customer accounts → Edit branding |
 | Operations | Endurecer auth de `promote-whitelist-matches` con `X-Cron-Secret` | TODO en `supabase/config.toml` |
-| Tooling | `MCP de Supabase / Shopify` para diagnóstico desde Claude | configuración del cliente Claude |
+| Tooling | ~~MCP de Supabase / Shopify para diagnóstico desde Claude~~ — hecho 2026-05-05 (MCP oficial Shopify + MCP Supabase configurados) | configuración del cliente Claude |
 
 ---
 
-## 8. Histórico de cambios relevantes
+## 9. Histórico de cambios relevantes
 
 | Fecha | Commit | Resumen |
 |---|---|---|

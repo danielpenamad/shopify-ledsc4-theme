@@ -147,6 +147,26 @@ se archiva en `docs/pendientes-archivo.md`.
   más estricto.
 - Estimación: 30 min - 2h.
 
+### [P4] Confirmar tratamiento de duplicados en surtido del ERP
+- En la consulta del 2026-05-05 el cliente respondió sobre
+  duplicados en `stock_productos.csv` (suma) pero **no** sobre
+  duplicados en `listado_productos_*.csv` (surtido).
+- **Comportamiento vigente**: first-wins + warning. Se mantiene
+  hasta nueva confirmación porque agregar productos (atributos
+  descriptivos) no es semánticamente análogo a sumar stock
+  (cantidades).
+- **Caso real en muestras**: `05-6424-81-81` aparece 2 veces en
+  los 6 ficheros de idioma (mismo bug en cada locale).
+- **Acción**: incluir la pregunta sobre surtido en la próxima
+  comunicación con cliente. Probables respuestas:
+  - "Es bug del export, ignoradlo y avisadnos para que lo
+    arreglemos en origen" → mantener first-wins, añadir
+    notificación al log.
+  - "Tomad la versión más reciente / con más datos rellenos" →
+    cambiar lógica de first-wins a heurística más informada.
+- **Origen**: cierre I2 (2026-05-05), parser detecta duplicados en
+  los 6 idiomas, todos del mismo SKU.
+
 ## Cerradas
 
 ### [Cerrada] Mejorar copy del feedback post-update-whitelist
@@ -181,3 +201,34 @@ se archiva en `docs/pendientes-archivo.md`.
   `daniel.pena+backoffice@creacciones.es`; 2 metafield
   definitions nuevas (`customer.b2b.fecha_rechazo`,
   `shop.b2b.whitelist_last_update`); ADR D7.
+
+### [Cerrada] Tratamiento de duplicados en `stock_productos.csv` — suma de unidades
+- Cerrada: 2026-05-05
+- **Decisión cliente** (2026-05-05): *"En el caso que en
+  stock_productos.csv aparezca duplicado, sumemos las unidades de
+  stock que indique (en este caso de ejemplo seria 53+1)."*
+- Implementado en `parseStock` ([scripts/import-parse.mjs](../scripts/import-parse.mjs)):
+  cuando un SKU aparece N veces, las unidades se suman y el warning
+  reporta la fórmula explícita (`53+1=54`) más el conteo de
+  ocurrencias. Edge case defensivo: si alguna fila trae valor no
+  numérico/decimal/negativo se cancela la suma, first-wins +
+  warning de severidad alta.
+- Caso ejemplo verificado: `AH12-12V8W1OUWT` (rows 1823+1824, valores
+  53+1) → resultado `inventario=54`. Documentado en
+  [`docs/import-pipeline.md` §11.1](import-pipeline.md).
+
+### [Cerrada] Tratamiento de valores no numéricos en columnas dimensionales
+- Cerrada: 2026-05-05
+- **Hallazgo I2** (2026-05-05): 54 valores no parseables como número
+  en columnas `dim_*_mm`, `proyeccion_mm`, `peso_neto_kg`, `vatios`,
+  `lumenes`, `lumenes_reales`, `cri` afectando 52 SKUs (~7% del
+  surtido). Patrones: rangos (`Min 30 - Max 415`) y diámetros (`∅78`).
+- **Decisión cliente** (2026-05-05): *"Hagamos que los 52 productos
+  no carguen esa dimensión concreta. Si necesitan esa información,
+  ya tienen nuestra página web (ledsc4.com) y la ficha técnica."*
+- Implementado en mapper ([scripts/import-map.mjs](../scripts/import-map.mjs)):
+  el metafield numérico se escribe `null`, el resto del producto se
+  carga normalmente, warning emitido con SKU + valor literal +
+  columna afectada. Sin heurística de extracción del rango/diámetro
+  (cliente prefiere preservar integridad numérica del tipo Shopify).
+- Documentado en [`docs/import-pipeline.md` §11.3](import-pipeline.md).
