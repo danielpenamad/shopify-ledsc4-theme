@@ -10,6 +10,42 @@ se archiva en `docs/pendientes-archivo.md`.
 
 ## Activas
 
+### [INFO] Gap de mapping para CBM y logística de empaquetado
+- Origen: diagnóstico campos vacíos SKU 05-6398-21-M1 (2026-05-07).
+- Estado: la metafield definition `b2b.cbm_caja` existe en Shopify
+  (creada en I1) pero NO tiene columna fuente en `mapping.json` —
+  ningún CSV column con `key: "cbm_caja"` como destino.
+- Las columnas 26-48 del CSV (Peso empaquetado, Peso masterbox,
+  Volumen unidad m3, Volumen masterbox m3, Largo/Ancho/Alto de
+  cajas 1/2/3 y de masterbox 1/2/3) están todas con
+  `destination: "ignore"`. Cobertura en samples: `Volumen unidad
+  (m3)` tiene dato en 732/733 SKUs (99.9%).
+- Si la intención del cliente fue que `b2b.cbm_caja` se calculara o
+  tomara directamente de "Volumen unidad m3" (col 29), habría que
+  añadir el destino en mapping.json. Si "ignorar logística de
+  empaquetado" fue una decisión consciente, todo OK y la definition
+  `b2b.cbm_caja` queda huérfana hasta que aparezca uso real.
+- No requiere acción de código todavía. Es un punto de conversación
+  pendiente con el cliente: ¿quieren CBM expuesto en la ficha?
+  ¿desde qué columna?
+
+### [INFO] Dato origen incompleto — Largo/Ancho/Alto vacíos en surtido
+- Origen: diagnóstico campos vacíos SKU 05-6398-21-M1 (2026-05-07).
+- Estado: ~462 SKUs (63% del surtido) sin Largo en el export del
+  cliente. Largo, Ancho, Alto vacíos en CSV ES/EN/FR (idénticos
+  entre idiomas). No es bug nuestro, es export del cliente.
+- Distribución de cobertura en samples (no-null por columna):
+  - col 16 Largo: 271/733 (37.0%)
+  - col 17 Ancho: 675/733 (92.1%)
+  - col 18 Alto: 644/733 (87.9%)
+  - col 19 Proyección: 253/733 (34.5%)
+- No requiere acción de código. Es información que conviene tener
+  visible para la próxima conversación con LedsC4: si quieren que
+  estos campos se muestren en ficha de producto, tienen que
+  completar el export.
+- NO actuar desde el código. Solo informar al cliente cuando haya
+  ocasión.
+
 ### [P3] Limpiar 745 productos pre-existentes con handle basado en título
 - Causa: detectado en cierre I3 (2026-05-06). El shop ya contenía
   745 productos con handles tipo `bano-ip44-toilet-slim-...`
