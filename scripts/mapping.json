@@ -128,7 +128,8 @@
       "destination": "metafield",
       "namespace": "product",
       "key": "garantia",
-      "translatable": true,
+      "translatable": false,
+      "$comment_translatable": "Valor numérico (ej. \"2\", \"3\") idéntico en los 6 locales. NO traducible per regla cliente \"si es numérico, no\".",
       "filterable": false,
       "type": "single_line_text_field",
       "pin_in_admin": true
@@ -138,7 +139,8 @@
       "destination": "metafield",
       "namespace": "product",
       "key": "etiqueta_vf",
-      "translatable": true,
+      "translatable": false,
+      "$comment_translatable": "Código de voltaje/frecuencia (ej. \"100-240V ~ 50/60Hz\") idéntico en los 6 locales. Misma categoría que ean13 — código, no texto traducible.",
       "filterable": false,
       "type": "single_line_text_field",
       "pin_in_admin": false
@@ -557,7 +559,8 @@
       "destination": "metafield",
       "namespace": "product",
       "key": "accesorio",
-      "translatable": true,
+      "translatable": false,
+      "$comment_translatable": "URL a HTML técnico (https://files.ledsc4.com/ft3/<locale>/<sku>.html). Misma categoría que ficha_url/imc/ee_url — URLs de docs técnicos no se traducen per regla cliente, todos los locales apuntan a la versión ES por consistencia con la decisión sobre PDFs.",
       "filterable": false,
       "type": "single_line_text_field",
       "pin_in_admin": false

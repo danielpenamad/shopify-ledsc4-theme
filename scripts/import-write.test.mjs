@@ -10,7 +10,7 @@
 // Run:
 //   node scripts/import-write.test.mjs
 
-import { buildProductSetInput, buildTranslations } from './import-write.mjs';
+import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches } from './import-write.mjs';
 
 let passed = 0;
 let failed = 0;
@@ -210,6 +210,158 @@ function testBuildTranslations_noShopContent() {
   assert(out.length === 0, `expected 0 entries when shop exposes nothing translatable, got ${out.length}`);
 }
 
+function makeModelWithMetafieldTranslations() {
+  // Mapper-style model: ES is primary (in product.metafields); per-locale
+  // values live in translations[locale].metafields with the same `key`.
+  return {
+    sku: 'SKU-MF',
+    publish: true,
+    publish_reason: null,
+    product: {
+      title: 'T', body_html: null, vendor: 'LedsC4', tags: [], images: [],
+      metafields: [
+        { namespace: 'product', key: 'tipo', type: 'single_line_text_field', value: 'Baño' },
+        { namespace: 'product', key: 'familia', type: 'single_line_text_field', value: 'Toilet Slim' },
+        { namespace: 'product', key: 'catalogo', type: 'single_line_text_field', value: 'Decorative' },
+        { namespace: 'product', key: 'cri', type: 'number_integer', value: '92' },
+      ],
+      variants: [{ sku: 'SKU-MF', barcode: null, price: 1, inventory_quantity: 1 }],
+    },
+    translations: {
+      en: { title: null, body_html: null, metafields: [
+        { key: 'tipo', value: 'Bath' },
+        { key: 'familia', value: 'Toilet Slim' }, // same as ES → must skip
+        { key: 'catalogo', value: 'Decorative' }, // same as ES → must skip
+      ] },
+      fr: { title: null, body_html: null, metafields: [
+        { key: 'tipo', value: 'Salle de bains' },
+        { key: 'familia', value: 'Toilet Slim' }, // same as ES → must skip
+      ] },
+      de: { title: null, body_html: null, metafields: [
+        { key: 'tipo', value: 'Bad' },
+        { key: 'familia', value: '' }, // empty → must skip
+      ] },
+      it: { title: null, body_html: null, metafields: [
+        { key: 'tipo', value: 'Bagno' },
+      ] },
+      'pt-PT': { title: null, body_html: null, metafields: [
+        { key: 'tipo', value: 'Casa de banho' },
+      ] },
+    },
+    warnings: [],
+  };
+}
+
+function testMfBatches_groupsByMetafieldAcrossLocales() {
+  console.log('Test 13: buildMetafieldTranslationBatches — groups by metafield across locales');
+  const model = makeModelWithMetafieldTranslations();
+  const productMetafields = [
+    { id: 'gid://shopify/Metafield/1001', namespace: 'product', key: 'tipo' },
+    { id: 'gid://shopify/Metafield/1002', namespace: 'product', key: 'familia' },
+    { id: 'gid://shopify/Metafield/1003', namespace: 'product', key: 'catalogo' },
+    { id: 'gid://shopify/Metafield/1004', namespace: 'product', key: 'cri' },
+  ];
+  const digests = new Map([
+    ['gid://shopify/Metafield/1001', 'd-tipo'],
+    ['gid://shopify/Metafield/1002', 'd-familia'],
+    ['gid://shopify/Metafield/1003', 'd-catalogo'],
+    ['gid://shopify/Metafield/1004', 'd-cri'],
+  ]);
+  const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
+
+  // Only `tipo` ends up with non-empty, non-equal-to-ES values across locales.
+  // familia and catalogo are equal to ES in every locale → skipped entirely.
+  // cri is not in any translations[locale].metafields (not translatable) → no batch.
+  assert(batches.length === 1, `expected 1 batch (only tipo has translatable diffs), got ${batches.length}: ${JSON.stringify(batches.map((b) => b.resourceId))}`);
+  const b = batches[0];
+  assert(b.resourceId === 'gid://shopify/Metafield/1001', `expected tipo's GID, got ${b.resourceId}`);
+  // tipo: en=Bath, fr=Salle de bains, de=Bad, it=Bagno, pt-PT=Casa de banho → 5 entries
+  assert(b.translations.length === 5, `expected 5 locale entries for tipo, got ${b.translations.length}: ${JSON.stringify(b.translations.map((t) => t.locale + '=' + t.value))}`);
+  for (const t of b.translations) {
+    assert(t.key === 'value', `expected key='value', got '${t.key}'`);
+    assert(t.translatableContentDigest === 'd-tipo', `expected tipo digest`);
+    assert(['en', 'fr', 'de', 'it', 'pt-PT'].includes(t.locale), `expected valid locale, got ${t.locale}`);
+  }
+}
+
+function testMfBatches_skipsEmptyValues() {
+  console.log('Test 14: buildMetafieldTranslationBatches — skips empty per-locale values');
+  const model = makeModelWithMetafieldTranslations();
+  const productMetafields = [
+    { id: 'gid://shopify/Metafield/2001', namespace: 'product', key: 'tipo' },
+    { id: 'gid://shopify/Metafield/2002', namespace: 'product', key: 'familia' },
+  ];
+  const digests = new Map([
+    ['gid://shopify/Metafield/2001', 'd-tipo'],
+    ['gid://shopify/Metafield/2002', 'd-familia'],
+  ]);
+  const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
+  // familia: only DE is set (and it's empty), others equal ES → skip entirely
+  const familiaBatch = batches.find((b) => b.resourceId === 'gid://shopify/Metafield/2002');
+  assert(familiaBatch == null, `expected NO familia batch (all locales empty or equal to ES), got: ${JSON.stringify(familiaBatch)}`);
+}
+
+function testMfBatches_skipsValuesEqualToEs() {
+  console.log('Test 15: buildMetafieldTranslationBatches — skips locale value equal to ES');
+  const model = makeModelWithMetafieldTranslations();
+  const productMetafields = [
+    { id: 'gid://shopify/Metafield/3001', namespace: 'product', key: 'catalogo' },
+  ];
+  const digests = new Map([
+    ['gid://shopify/Metafield/3001', 'd-catalogo'],
+  ]);
+  const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
+  // catalogo is "Decorative" in ES and "Decorative" in EN (only locale present)
+  // so the only translation entry would be a no-op → batch must be omitted.
+  assert(batches.length === 0, `expected 0 batches (catalogo identical to ES), got ${batches.length}`);
+}
+
+function testMfBatches_skipsMetafieldsMissingFromProduct() {
+  console.log('Test 16: buildMetafieldTranslationBatches — defensive: skips metafields not in productMetafields');
+  const model = makeModelWithMetafieldTranslations();
+  // productSet returned only "familia"; "tipo" is missing (e.g. not yet propagated).
+  const productMetafields = [
+    { id: 'gid://shopify/Metafield/4001', namespace: 'product', key: 'familia' },
+  ];
+  const digests = new Map([['gid://shopify/Metafield/4001', 'd-familia']]);
+  const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
+  // Even though model.translations.en.metafields has tipo, no batch is emitted
+  // because the metafield's GID is unknown.
+  for (const b of batches) {
+    assert(b.resourceId !== 'gid://shopify/Metafield/4001-tipo-fake', 'must not invent tipo gid');
+  }
+  // familia entries are all skipped (empty or equal-to-ES) so no batch at all.
+  assert(batches.length === 0, `expected 0 batches when only familia exists and all values are empty/equal-to-ES, got ${batches.length}`);
+}
+
+function testMfBatches_skipsWhenDigestMissing() {
+  console.log('Test 17: buildMetafieldTranslationBatches — defensive: skips when digest missing');
+  const model = makeModelWithMetafieldTranslations();
+  const productMetafields = [
+    { id: 'gid://shopify/Metafield/5001', namespace: 'product', key: 'tipo' },
+  ];
+  const digests = new Map(); // empty — digest fetch failed
+  const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
+  assert(batches.length === 0, `expected 0 batches when digest unavailable, got ${batches.length}`);
+}
+
+function testMfBatches_ignoresNonProductNamespace() {
+  console.log('Test 18: buildMetafieldTranslationBatches — ignores non-product namespace metafields');
+  const model = makeModelWithMetafieldTranslations();
+  const productMetafields = [
+    { id: 'gid://shopify/Metafield/6001', namespace: 'b2b', key: 'tipo' }, // wrong namespace
+    { id: 'gid://shopify/Metafield/6002', namespace: 'product', key: 'tipo' }, // right
+  ];
+  const digests = new Map([
+    ['gid://shopify/Metafield/6001', 'd-wrong'],
+    ['gid://shopify/Metafield/6002', 'd-right'],
+  ]);
+  const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
+  assert(batches.length === 1, `expected 1 batch using product-namespaced gid, got ${batches.length}`);
+  assert(batches[0].resourceId === 'gid://shopify/Metafield/6002', `expected product-namespaced gid, got ${batches[0].resourceId}`);
+  assert(batches[0].translations.every((t) => t.translatableContentDigest === 'd-right'), `expected d-right digest in all entries`);
+}
+
 function main() {
   testBuildProductSetInput_basic();
   testBuildProductSetInput_handleLowercase();
@@ -223,6 +375,12 @@ function main() {
   testBuildTranslations_skipsKeysNotInShopContent();
   testBuildTranslations_missingLocale();
   testBuildTranslations_noShopContent();
+  testMfBatches_groupsByMetafieldAcrossLocales();
+  testMfBatches_skipsEmptyValues();
+  testMfBatches_skipsValuesEqualToEs();
+  testMfBatches_skipsMetafieldsMissingFromProduct();
+  testMfBatches_skipsWhenDigestMissing();
+  testMfBatches_ignoresNonProductNamespace();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {

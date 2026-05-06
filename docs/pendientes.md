@@ -26,27 +26,6 @@ se archiva en `docs/pendientes-archivo.md`.
   (script idempotente).
 - Bloquea: cutover al cliente.
 
-### [P4] Habilitar `capabilities.translatable` en metafield definitions traducibles
-- Causa: detectado en I3 (2026-05-06). El writer registra title +
-  body_html en EN/FR/DE/IT/pt-PT (5 locales × 2 fields = 10 entries
-  por SKU). Los metafields traducibles del mapper (`product.familia`,
-  `product.tipo`, `product.acabado`, `product.tender_text`,
-  `product.material`, etc.) NO se traducen porque sus definiciones no
-  tienen `capabilities.translatable.enabled = true`. Sin esa flag, el
-  campo no aparece en `translatableResource.translatableContent` y la
-  registración silenciosa lo skipea.
-- Solución: extender `scripts/metafield-definitions.json` con
-  `capabilities: { translatable: { enabled: true } }` en las defs
-  marcadas como `translatable: true` en `mapping.json`, y ampliar
-  `apply-metafield-definitions.mjs` para gestionar la capability.
-  Después: en el writer, mapear `mf.namespace + mf.key` al `key`
-  expuesto en translatableContent (formato `<metafield_id>` en API
-  2025-10).
-- Estimación: 1-2h.
-- Sin urgencia: traducciones de fields textuales (familia, tipo,
-  acabado) ya van en el title, y el storefront B2B inicial solo
-  publica es/en/fr.
-
 ### [P4] Token Custom App sin scope `read_locations`
 - Causa: detectado en I3. El writer hace fallback a "primera location
   retornada" porque el token no puede leer `Location.name` ni
@@ -196,6 +175,29 @@ se archiva en `docs/pendientes-archivo.md`.
 - Estimación: 30 min - 2h.
 
 ## Cerradas
+
+### [Cerrada] Habilitar traducciones de metafields desde CSVs por locale
+- Cerrada: 2026-05-07 (Fase I3.5)
+- Hipótesis original (2026-05-06): hacía falta habilitar
+  `capabilities.translatable.enabled = true` en cada definition vía
+  `metafieldDefinitionUpdate`.
+- Hallazgo real (2026-05-07): la capability `translatable` **no
+  existe** en `MetafieldCapabilities` ni en
+  `MetafieldCapability(Create|Update)Input` del schema Admin GraphQL
+  2025-10 — confirmado por inspección de schema y por el ejemplo
+  oficial de `translationsRegister` para metafields. Cada metafield
+  es un recurso traducible directo: tiene su propio GID y su digest
+  vía `translatableResource(resourceId: <metafieldGid>)`. No hay
+  toggle que activar.
+- Solución implementada en I3.5: extender el writer para tras
+  `productSet`, hacer bulk-fetch de digests con
+  `translatableResourcesByIds` y un `translationsRegister` por
+  metafield con todos los locales batched. Optimización: skip
+  silencioso cuando el valor del locale es vacío o igual al ES
+  (Shopify ya hace fallback al primario sin registrar).
+- 8 metafields traducibles activos: tipo, familia, catalogo,
+  material, acabado, tipo_regulacion, fuente_luz, tender_text.
+- Resultados validación end-to-end documentados en commit feat I3.5.
 
 ### [Cerrada] Mejorar copy del feedback post-update-whitelist
 - Cerrada: 2026-05-06
