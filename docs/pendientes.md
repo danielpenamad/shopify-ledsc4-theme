@@ -10,6 +10,36 @@ se archiva en `docs/pendientes-archivo.md`.
 
 ## Activas
 
+### [P3] b2b.cbm_caja — definition huérfana, decidir mapping desde CSV
+- Origen: diagnóstico campos vacíos SKU 05-6398-21-M1 (2026-05-07).
+- Estado: la definition `b2b.cbm_caja` se creó en I1 pero ninguna
+  columna del mapping la alimenta. La columna 29 "Volumen unidad
+  (m3)" del CSV trae dato (`0,023` en muestra) pero está marcada
+  `destination: "ignore"`.
+- Misma familia que el "Hallazgo 1" del diagnóstico previo: cols
+  26-48 (logística empaquetada) todas en `ignore`.
+- Decisión necesaria del cliente:
+  - ¿Conectamos col 29 → `b2b.cbm_caja`?
+  - ¿Hay otras columnas de logística que deberían tener metafield
+    destino (Peso empaquetado, etc.)?
+- Cuando se cierre, requiere:
+  - Cambio en `scripts/mapping.json`.
+  - Re-run del importer sobre los SKUs afectados.
+  - Si la decisión es "no usar", borrar la definition huérfana.
+- Estimación: 30min código + decisión cliente bloqueante.
+
+### [INFO] Dato origen incompleto — Largo/Ancho/Alto vacíos en surtido
+- Origen: diagnóstico campos vacíos SKU 05-6398-21-M1 (2026-05-07).
+- Estado: ~462 SKUs (63% del surtido) sin Largo en el export del
+  cliente. Largo, Ancho, Alto vacíos en CSV ES/EN/FR (idénticos
+  entre idiomas). No es bug nuestro, es export del cliente.
+- No requiere acción de código. Es información que conviene tener
+  visible para la próxima conversación con LedsC4: si quieren que
+  estos campos se muestren en ficha de producto, tienen que
+  completar el export.
+- NO actuar desde el código. Solo informar al cliente cuando haya
+  ocasión.
+
 ### [P3] Limpiar 745 productos pre-existentes con handle basado en título
 - Causa: detectado en cierre I3 (2026-05-06). El shop ya contenía
   745 productos con handles tipo `bano-ip44-toilet-slim-...`
