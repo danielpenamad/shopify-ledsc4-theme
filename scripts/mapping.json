@@ -668,7 +668,7 @@
       "API translation: visibleToStorefrontApi=true equivale a access.storefront=PUBLIC_READ; false equivale a NONE.",
       "pin_in_admin true para filtrables + bloque comercial editable (vatios, lumenes, material, acabado, garantía, dimensiones, peso, fuente_luz, familia).",
       "pin_in_admin false para URLs, texto largo, secundarios (cri, ik, imc, rayo_luz, proyeccion, lumenes_reales, version, etiqueta_vf, accesorio, predeterminado).",
-      "Predeterminado: importado pero NO expuesto a storefront (access.storefront=NONE) hasta confirmación cliente. Documentado en ADR D7."
+      "Predeterminado: importado pero NO expuesto a storefront (access.storefront=NONE) hasta confirmación cliente. Documentado en ADR D8."
     ],
     "2026-05-05": [
       "Ajustes ortográficos en column_name_es para que la regla algorítmica D-resolved-3 del prompt I1 produzca un label admin canónico en español sin necesitar overrides en el script: col 5 \"Família\"→\"Familia\", col 51 \"Lumenes reales (lm)\"→\"Lúmenes reales (lm)\", col 52 \"Temperatura color led (K)\"→\"Temperatura color LED (K)\". El parser lee por POSICIÓN (key_column_index/column_index), no por nombre, así que el nombre real de la cabecera del CSV puede diferir — este campo es puramente documental."

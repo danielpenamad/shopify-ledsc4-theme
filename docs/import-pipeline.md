@@ -166,7 +166,7 @@ Reglas especiales del mapper:
   warning. Decisión cerrada del cliente, ver §11.3.
 - `Predeterminado` → metafield con `visible_in_storefront=false` hasta
   que el cliente confirme su semántica (ver [historia-decisiones.md
-  D7](historia-decisiones.md#d7-mapping-csv-predeterminado-pendiente)).
+  D8](historia-decisiones.md#d8-mapping-csv-predeterminado-pendiente)).
 
 ### 3.4 writer
 

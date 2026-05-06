@@ -342,7 +342,7 @@
     "namespace": "product",
     "key": "predeterminado",
     "name": "Predeterminado (interno — no exponer)",
-    "description": "Columna importada del ERP cuya semántica el cliente aún no ha confirmado. No exponer en storefront. Ver ADR D7.",
+    "description": "Columna importada del ERP cuya semántica el cliente aún no ha confirmado. No exponer en storefront. Ver ADR D8.",
     "type": "single_line_text_field",
     "pin": false,
     "access": { "storefront": "NONE" }
