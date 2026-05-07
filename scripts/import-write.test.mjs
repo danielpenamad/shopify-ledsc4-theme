@@ -10,7 +10,10 @@
 // Run:
 //   node scripts/import-write.test.mjs
 
-import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches } from './import-write.mjs';
+import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches, runFullImport } from './import-write.mjs';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 let passed = 0;
 let failed = 0;
@@ -345,6 +348,290 @@ function testMfBatches_skipsWhenDigestMissing() {
   assert(batches.length === 0, `expected 0 batches when digest unavailable, got ${batches.length}`);
 }
 
+// ---- runFullImport invocability test (PR-X) ----
+
+async function testRunFullImportDryRun() {
+  console.log('Test 19: runFullImport — dry-run on a tiny synthetic samples dir');
+  // Build a minimal samples/ directory with just enough to exercise the
+  // parser → mapper → orchestrator path. We only need a 1-row surtido per
+  // locale + 1 stock row + 1 precios row that overlap to produce a publishable.
+  const tmp = await mkdtemp(join(tmpdir(), 'runfullimport-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+
+    // Surtido (79 cols expected by parser). We fill cols 0,3,4,5,6,8,11,16-18,28,49,50,51,53 minimally.
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    const row = (loc) => {
+      const fields = Array.from({ length: 79 }, () => '');
+      fields[0] = 'TEST-001';   // SKU
+      fields[1] = 'V0';         // version
+      fields[2] = 'Si';         // predeterminado
+      fields[3] = loc === 'EN' ? 'Bath' : 'Baño';  // tipo (translatable)
+      fields[4] = '1234567890123';
+      fields[5] = 'TestFamily';
+      fields[6] = 'Decorative';
+      fields[8] = '2';
+      fields[11] = `Description ${loc}`;
+      return fields.join(',');
+    };
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`),
+        surtidoHeader + row(loc) + '\n', 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\nTEST-001,5\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\nTEST-001,19.99\n', 'utf8');
+
+    const reportDir = join(tmp, 'reports');
+    const result = await runFullImport({
+      samplesDir: join(tmp, 'samples'),
+      reportDir,
+      applyMode: false,
+      onProgress: () => {}, // silent
+    });
+
+    // Structural assertions on the return value.
+    assert(result != null && typeof result === 'object', 'returns object');
+    assert(typeof result.elapsedMs === 'number' && result.elapsedMs >= 0, 'elapsedMs is non-negative number');
+    assert(typeof result.reportDir === 'string' && result.reportDir.includes('import-write-'), 'reportDir is a dated path');
+    assert(typeof result.reportPaths?.summary === 'string' && result.reportPaths.summary.endsWith('summary.txt'), 'summary path');
+    assert(typeof result.reportPaths?.changes === 'string' && result.reportPaths.changes.endsWith('changes.csv'), 'changes path');
+    assert(result.counts?.skus?.ok === 1, `expected 1 SKU processed, got ${result.counts?.skus?.ok}`);
+    assert(Array.isArray(result.sampleProductIds), 'sampleProductIds is array');
+    assert(typeof result.fingerprints === 'object', 'fingerprints is object');
+    // dry-run: no fingerprints (only computed on apply).
+    assert(Object.keys(result.fingerprints).length === 0, `expected 0 fingerprints in dry-run, got ${Object.keys(result.fingerprints).length}`);
+
+    // Reports were written.
+    const summary = await readFile(result.reportPaths.summary, 'utf8');
+    assert(summary.includes('Mode:      dry-run'), 'summary mentions dry-run mode');
+    const changes = await readFile(result.reportPaths.changes, 'utf8');
+    assert(changes.split('\n')[0].startsWith('sku,handle,'), 'changes.csv has expected header');
+    assert(/TEST-001,test-001,.+DRY_RUN/.test(changes), 'changes.csv has the test SKU as DRY_RUN');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunFullImportApplyWithMockFetch() {
+  console.log('Test 20: runFullImport --apply with mocked fetch — fingerprint computed and returned');
+  const tmp = await mkdtemp(join(tmpdir(), 'runfullimport-apply-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    const row = (loc) => {
+      const fields = Array.from({ length: 79 }, () => '');
+      fields[0] = 'TEST-002';
+      fields[1] = 'V0';
+      fields[3] = loc === 'EN' ? 'Bath' : 'Baño';
+      fields[4] = '0000000000000';
+      fields[5] = 'F';
+      fields[6] = 'Decorative';
+      fields[8] = '2';
+      return fields.join(',');
+    };
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`),
+        surtidoHeader + row(loc) + '\n', 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\nTEST-002,3\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\nTEST-002,42.00\n', 'utf8');
+
+    // Mock fetch: route by GraphQL operation name in the body.
+    const calls = [];
+    const mockFetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      calls.push(op);
+      let data;
+      if (op === 'ShopContext') {
+        data = {
+          publications: { nodes: [{ id: 'gid://shopify/Publication/PUB1', name: 'Tienda online' }] },
+          locations: { nodes: [{ id: 'gid://shopify/Location/LOC1' }] },
+        };
+      } else if (op === 'productSet') {
+        data = {
+          productSet: {
+            product: {
+              id: 'gid://shopify/Product/MOCK-002',
+              handle: 'test-002',
+              variants: { nodes: [{ id: 'gid://shopify/ProductVariant/V', sku: 'TEST-002' }] },
+              metafields: { nodes: [{ id: 'gid://shopify/Metafield/MF-tipo', namespace: 'product', key: 'tipo' }] },
+            },
+            userErrors: [],
+          },
+        };
+      } else if (op === 'TranslatableContent') {
+        data = { translatableResource: { translatableContent: [{ key: 'title', digest: 'd-title' }, { key: 'body_html', digest: 'd-body' }] } };
+      } else if (op === 'TranslatableByIds') {
+        data = { translatableResourcesByIds: { nodes: [{ resourceId: 'gid://shopify/Metafield/MF-tipo', translatableContent: [{ key: 'value', digest: 'd-tipo' }] }] } };
+      } else if (op === 'translationsRegister') {
+        data = { translationsRegister: { translations: body.variables.translations.map((t) => ({ locale: t.locale, key: t.key, value: t.value })), userErrors: [] } };
+      } else if (op === 'publishablePublish') {
+        data = { publishablePublish: { userErrors: [] } };
+      } else {
+        throw new Error(`unexpected op: ${op}`);
+      }
+      return new Response(JSON.stringify({ data }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+
+    const result = await runFullImport({
+      samplesDir: join(tmp, 'samples'),
+      reportDir: join(tmp, 'reports'),
+      applyMode: true,
+      onProgress: () => {},
+      fetch: mockFetch,
+      shopifyDomain: 'mock.myshopify.com',
+      shopifyToken: 'mock-token',
+      // Tight rate limit to stress the bucket logic in tests.
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      concurrency: 2,
+    });
+
+    assert(result.counts.skus.ok === 1, `expected 1 SKU OK, got ${JSON.stringify(result.counts.skus)}`);
+    assert(result.counts.productSet.ok === 1, `productSet ok=1`);
+    assert(result.counts.publish.ok === 1, `publish ok=1`);
+    assert(result.sampleProductIds.length === 1, `1 sample product`);
+    assert(result.sampleProductIds[0].productId === 'gid://shopify/Product/MOCK-002', 'sample id matches mock');
+
+    // Fingerprint computed for the successful SKU.
+    assert(Object.keys(result.fingerprints).length === 1, `1 fingerprint, got ${Object.keys(result.fingerprints).length}`);
+    const fp = result.fingerprints['TEST-002'];
+    assert(fp != null && /^[0-9a-f]{64}$/.test(fp.fingerprint), `fingerprint is sha256 hex: ${fp?.fingerprint}`);
+    assert(fp.last_published === true, `last_published=true`);
+
+    // Verify the call sequence is what we expect (sanity for the orchestrator):
+    // ShopContext, then per SKU: productSet, TranslatableContent, translationsRegister, TranslatableByIds, translationsRegister (per metafield batch), publishablePublish.
+    assert(calls[0] === 'ShopContext', `first call is ShopContext, got ${calls[0]}`);
+    assert(calls.includes('productSet'), 'productSet called');
+    assert(calls.includes('TranslatableContent'), 'TranslatableContent called');
+    assert(calls.includes('TranslatableByIds'), 'TranslatableByIds called');
+    assert(calls.includes('translationsRegister'), 'translationsRegister called');
+    assert(calls.includes('publishablePublish'), 'publishablePublish called');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunFullImportDbUpsert() {
+  console.log('Test 22: runFullImport — passes fingerprint upsert through dbConnection mock');
+  const tmp = await mkdtemp(join(tmpdir(), 'runfullimport-db-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    const fields = Array.from({ length: 79 }, () => '');
+    fields[0] = 'DB-001'; fields[3] = 'X'; fields[5] = 'F';
+    const surtidoRow = fields.join(',');
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`), surtidoHeader + surtidoRow + '\n', 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\nDB-001,9\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\nDB-001,3.14\n', 'utf8');
+
+    const mockFetch = async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      let data;
+      if (op === 'ShopContext') data = { publications: { nodes: [{ id: 'gid://shopify/Publication/P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'gid://shopify/Location/L' }] } };
+      else if (op === 'productSet') data = { productSet: { product: { id: 'gid://shopify/Product/DB1', handle: 'db-001', variants: { nodes: [] }, metafields: { nodes: [] } }, userErrors: [] } };
+      else if (op === 'TranslatableContent') data = { translatableResource: { translatableContent: [] } };
+      else if (op === 'TranslatableByIds') data = { translatableResourcesByIds: { nodes: [] } };
+      else if (op === 'translationsRegister') data = { translationsRegister: { translations: [], userErrors: [] } };
+      else if (op === 'publishablePublish') data = { publishablePublish: { userErrors: [] } };
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    };
+
+    // Mock dbConnection that captures the upsert. postgres.js's `sql` is a
+    // tagged-template literal — first arg is the strings array, rest are
+    // interpolated values. We just record the values and resolve.
+    const dbCalls = [];
+    const mockSql = (strings, ...values) => {
+      dbCalls.push({
+        sqlSnippet: strings.join('?').replace(/\s+/g, ' ').trim().slice(0, 80),
+        values: [...values],
+      });
+      return Promise.resolve([]);
+    };
+
+    const result = await runFullImport({
+      samplesDir: join(tmp, 'samples'),
+      reportDir: join(tmp, 'reports'),
+      applyMode: true,
+      onProgress: () => {},
+      fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      concurrency: 1,
+      dbConnection: mockSql,
+      runId: '00000000-0000-0000-0000-000000000123',
+    });
+
+    // The upsert must have been called with the SKU, fingerprint, runId, and last_published.
+    assert(dbCalls.length === 1, `expected 1 sku_state upsert, got ${dbCalls.length}`);
+    const call = dbCalls[0];
+    assert(call.sqlSnippet.includes('insert into private.sku_state'), `expected sku_state insert, got snippet '${call.sqlSnippet}'`);
+    assert(call.values[0] === 'DB-001', `arg[0]=sku, got ${call.values[0]}`);
+    assert(/^[0-9a-f]{64}$/.test(call.values[1]), `arg[1]=fingerprint hex, got ${call.values[1]}`);
+    assert(call.values[2] === '00000000-0000-0000-0000-000000000123', `arg[2]=runId, got ${call.values[2]}`);
+    assert(call.values[3] === true, `arg[3]=last_published, got ${call.values[3]}`);
+
+    // The summary mentions DB upsert.
+    const summary = await readFile(result.reportPaths.summary, 'utf8');
+    assert(summary.includes('upserted to private.sku_state'), 'summary mentions DB upsert');
+    // fingerprints.json file written.
+    assert(typeof result.reportPaths.fingerprints === 'string', 'fingerprints path exists in result');
+    const fpFile = JSON.parse(await readFile(result.reportPaths.fingerprints, 'utf8'));
+    assert(fpFile['DB-001']?.fingerprint === call.values[1], 'fingerprints.json matches dbCall arg');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunFullImportFingerprintDeterminism() {
+  console.log('Test 21: runFullImport — running twice with same input gives same fingerprint');
+  const tmp = await mkdtemp(join(tmpdir(), 'runfullimport-det-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    const fields = Array.from({ length: 79 }, () => '');
+    fields[0] = 'DET-001'; fields[3] = 'X'; fields[5] = 'F';
+    const surtidoRow = fields.join(',');
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`), surtidoHeader + surtidoRow + '\n', 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\nDET-001,1\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\nDET-001,1.00\n', 'utf8');
+
+    const mockFetch = async (url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      let data;
+      if (op === 'ShopContext') data = { publications: { nodes: [{ id: 'gid://shopify/Publication/P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'gid://shopify/Location/L' }] } };
+      else if (op === 'productSet') data = { productSet: { product: { id: 'gid://shopify/Product/D1', handle: 'det-001', variants: { nodes: [] }, metafields: { nodes: [] } }, userErrors: [] } };
+      else if (op === 'TranslatableContent') data = { translatableResource: { translatableContent: [] } };
+      else if (op === 'TranslatableByIds') data = { translatableResourcesByIds: { nodes: [] } };
+      else if (op === 'translationsRegister') data = { translationsRegister: { translations: [], userErrors: [] } };
+      else if (op === 'publishablePublish') data = { publishablePublish: { userErrors: [] } };
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    };
+
+    const opts = { samplesDir: join(tmp, 'samples'), reportDir: join(tmp, 'reports'), applyMode: true, onProgress: () => {}, fetch: mockFetch, shopifyDomain: 'mock', shopifyToken: 'mock', rateLimit: { capacity: 100, refillPerSec: 100 }, concurrency: 1 };
+    const r1 = await runFullImport(opts);
+    const r2 = await runFullImport(opts);
+    assert(r1.fingerprints['DET-001']?.fingerprint === r2.fingerprints['DET-001']?.fingerprint, `same input → same fingerprint`);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
 function testMfBatches_ignoresNonProductNamespace() {
   console.log('Test 18: buildMetafieldTranslationBatches — ignores non-product namespace metafields');
   const model = makeModelWithMetafieldTranslations();
@@ -362,7 +649,7 @@ function testMfBatches_ignoresNonProductNamespace() {
   assert(batches[0].translations.every((t) => t.translatableContentDigest === 'd-right'), `expected d-right digest in all entries`);
 }
 
-function main() {
+async function main() {
   testBuildProductSetInput_basic();
   testBuildProductSetInput_handleLowercase();
   testBuildProductSetInput_variantWithInventory();
@@ -381,6 +668,10 @@ function main() {
   testMfBatches_skipsMetafieldsMissingFromProduct();
   testMfBatches_skipsWhenDigestMissing();
   testMfBatches_ignoresNonProductNamespace();
+  await testRunFullImportDryRun();
+  await testRunFullImportApplyWithMockFetch();
+  await testRunFullImportDbUpsert();
+  await testRunFullImportFingerprintDeterminism();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
@@ -390,4 +681,4 @@ function main() {
   }
 }
 
-main();
+main().catch((err) => { console.error('FATAL:', err); process.exit(1); });

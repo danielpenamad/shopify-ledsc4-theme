@@ -1,0 +1,18 @@
+{
+  "name": "shopify-ledsc4-theme",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LedsC4 B2B Outlet — Shopify theme + import pipeline + Supabase backoffice infra. The 'main' artifact is the Liquid theme + edge functions; this package.json exists only to declare optional Node dependencies for the importer (scripts/import-write.mjs) when run with --with-db (fingerprint upsert into private.sku_state). Default CLI runs without DB do NOT need any deps.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node scripts/import-parse.test.mjs && node scripts/import-map.test.mjs && node scripts/import-write.test.mjs && node scripts/rate-limiter.test.mjs && node scripts/fingerprint.test.mjs",
+    "import:dry-run": "node scripts/import-write.mjs",
+    "import:apply": "node --env-file=shopify-ledsc4-theme.env scripts/import-write.mjs --apply"
+  },
+  "dependencies": {
+    "postgres": "^3.4.4"
+  }
+}
