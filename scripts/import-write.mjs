@@ -12,9 +12,10 @@
 //
 // Two callable surfaces:
 //
-//   - **CLI (unchanged from I3.5)**:
-//       node scripts/import-write.mjs                  # dry-run
-//       node scripts/import-write.mjs --apply          # write to shop
+//   - **CLI**:
+//       node scripts/import-write.mjs                  # dry-run, full path
+//       node scripts/import-write.mjs --apply          # full: products + translations + publish
+//       node scripts/import-write.mjs --apply --stock-only        # only inventory levels
 //       node scripts/import-write.mjs --apply --limit 5
 //       node scripts/import-write.mjs --apply --sku 05-6396-21-M1
 //       node scripts/import-write.mjs --samples-dir=samples
@@ -30,9 +31,12 @@
 //     is safe at default. Override with --rate-refill if your shop has
 //     stricter limits or you're seeing sustained throttling.
 //
-//   - **Library (PR-X)**: import `runFullImport(options)` and call it
-//     from another Node script (GitHub Actions cron). Returns
-//     { counts, sampleProductIds, fingerprints, reportPaths, elapsedMs }.
+//   - **Library**: import `runFullImport(options)` (PR-X) for the full
+//     daily cron, OR `runStockOnly(options)` (PR-Y) for the 6h stock cron.
+//     Both return { counts, fingerprints, reportPaths, elapsedMs, ... }.
+//     Stock-only path: parses stock.csv only, resolves each SKU's
+//     inventoryItem.id via productVariants(query: "sku:X"), then mutates
+//     inventorySetQuantities. Skips SKUs not yet in Shopify with a warning.
 //
 // Convention with .env: prefix the command with --env-file:
 //   node --env-file=shopify-ledsc4-theme.env scripts/import-write.mjs --apply
@@ -55,7 +59,7 @@ import { dirname, resolve, join } from 'node:path';
 import { parseSurtido, parseStock, parsePrecios } from './import-parse.mjs';
 import { buildShopifyModel } from './import-map.mjs';
 import { createTokenBucket, runWithConcurrency } from './rate-limiter.mjs';
-import { buildSkuFingerprint, sortPayloadForFingerprint } from './fingerprint.mjs';
+import { buildSkuFingerprint, sortPayloadForFingerprint, buildStockFingerprint } from './fingerprint.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
@@ -448,6 +452,65 @@ async function publishProduct(ctx, productId, publicationId) {
   return { errors };
 }
 
+// ----- API client: stock-only path --------------------------------------
+
+const VARIANT_BY_SKU_QUERY = `
+  query VariantBySku($q: String!) {
+    productVariants(first: 1, query: $q) {
+      nodes {
+        id
+        sku
+        inventoryItem { id }
+      }
+    }
+  }
+`;
+
+const INVENTORY_SET_QUANTITIES_MUTATION = `
+  mutation InventorySetQuantities($input: InventorySetQuantitiesInput!) {
+    inventorySetQuantities(input: $input) {
+      inventoryAdjustmentGroup { id reason }
+      userErrors { field message code }
+    }
+  }
+`;
+
+// Resolve a SKU to its inventoryItem GID via productVariants(query). Returns
+// null if no variant matches (SKU not yet in Shopify) — caller skips with a
+// warning. Shopify SKU search uses query syntax: `sku:<value>`. SKUs with
+// special chars need quoting; ours are URL-safe so simple interpolation is OK.
+async function fetchInventoryItemBySku(ctx, sku) {
+  const data = await gql(ctx, VARIANT_BY_SKU_QUERY, { q: `sku:${sku}` });
+  const node = data.productVariants?.nodes?.[0];
+  if (!node) return null;
+  // Shopify's variant query is fuzzy-ish; verify exact SKU match before trusting.
+  if (node.sku !== sku) return null;
+  return node.inventoryItem?.id ?? null;
+}
+
+async function setInventoryQuantity(ctx, inventoryItemId, locationId, quantity, reason = 'correction') {
+  // API version note: Shopify renamed the CAS field over time.
+  // - 2025-10 (current pin): `ignoreCompareQuantity: true` at top level skips
+  //   the compare-and-set check.
+  // - Later versions (>=2026-01): per-item `changeFromQuantity: null` instead.
+  // We're the source of truth for inventory in this app — skip the CAS check.
+  const data = await gql(ctx, INVENTORY_SET_QUANTITIES_MUTATION, {
+    input: {
+      reason,
+      name: 'available',
+      ignoreCompareQuantity: true,
+      referenceDocumentUri: 'gid://ledsc4-importer/StockSync/cron',
+      quantities: [{
+        inventoryItemId,
+        locationId,
+        quantity,
+      }],
+    },
+  });
+  const errors = data.inventorySetQuantities.userErrors ?? [];
+  return { errors, group: data.inventorySetQuantities.inventoryAdjustmentGroup };
+}
+
 // ----- model loading -----------------------------------------------------
 
 async function loadMapping(mappingPath) {
@@ -719,6 +782,9 @@ export async function runFullImport(options = {}) {
     metafield_translations: { entries_written: 0, batches_ok: 0, batches_failed: 0 },
     publish: { ok: 0, failed: 0, skipped: 0 },
     skus: { ok: 0, failed: 0 },
+    // Tracks DB upserts (PR-Y fix). Only meaningful when options.dbConnection
+    // is set; otherwise both stay 0.
+    sku_state: { upserted_ok: 0, upsert_failed: 0 },
   };
   const fingerprints = {};
 
@@ -837,7 +903,9 @@ export async function runFullImport(options = {}) {
                  last_published = excluded.last_published`,
               [v.sku, v.fingerprint, options.runId ?? null, pub.ok],
             );
+            counts.sku_state.upserted_ok++;
           } catch (err) {
+            counts.sku_state.upsert_failed++;
             onProgress(`[warn] sku_state upsert failed for ${v.sku}: ${err.message}`);
           }
         }
@@ -884,7 +952,9 @@ export async function runFullImport(options = {}) {
     `- publishablePublish:           ok=${counts.publish.ok} failed=${counts.publish.failed} skipped=${counts.publish.skipped}\n` +
     `- SKUs overall:                 ok=${counts.skus.ok} failed=${counts.skus.failed}\n` +
     `- Fingerprints computed:        ${Object.keys(fingerprints).length}` +
-    (options.dbConnection ? ' (upserted to private.sku_state)' : ' (in-memory only)') + `\n` +
+    (options.dbConnection
+      ? ` (sku_state: upserted=${counts.sku_state.upserted_ok}/${Object.keys(fingerprints).length}, failed=${counts.sku_state.upsert_failed})`
+      : ' (in-memory only)') + `\n` +
     `\n` +
     (sampleProductIds.length > 0
       ? `SAMPLE PRODUCTS (for spot check in admin)\n` +
@@ -907,11 +977,324 @@ export async function runFullImport(options = {}) {
   };
 }
 
+// ----- runStockOnly (PR-Y: lightweight stock-only path for cron 6h) ------
+
+/**
+ * Stock-only import: parse stock.csv and update inventory levels in Shopify
+ * for SKUs that already exist there. Does NOT touch products, translations,
+ * publish state, or metafields. Designed for the 6h-cadence cron in Fase A.
+ *
+ * Flow per SKU:
+ *   1. Query Shopify: productVariants(query: "sku:X") → inventoryItem.id.
+ *      If no exact match, log warning + skip (SKU not yet imported via full).
+ *   2. Mutate: inventorySetQuantities with { reason='correction',
+ *      name='available', quantities: [{inventoryItemId, locationId, quantity}] }.
+ *   3. Compute fingerprint = sha256({sku, locationId, quantity}).
+ *   4. If dbConnection set: UPDATE-only on private.sku_state
+ *      (fingerprint_stock + stock_last_seen_at). If row doesn't exist
+ *      (SKU never went through a full run), warn and skip the upsert.
+ *
+ * @param {object} options                Same shape as runFullImport, except
+ *                                        no productSet-related options.
+ * @param {string} options.samplesDir
+ * @param {string} [options.reportDir]
+ * @param {boolean} options.applyMode
+ * @param {string|null} [options.skuFilter]
+ * @param {number|null} [options.limit]
+ * @param {(msg:string)=>void} [options.onProgress]
+ * @param {object} [options.dbConnection]
+ * @param {string|null} [options.runId]
+ * @param {{capacity:number, refillPerSec:number}} [options.rateLimit]
+ * @param {number} [options.concurrency]
+ * @param {string} [options.shopifyDomain]
+ * @param {string} [options.shopifyToken]
+ * @param {string} [options.apiVersion]
+ * @param {typeof fetch} [options.fetch]
+ *
+ * @returns {Promise<{
+ *   counts: object,
+ *   fingerprints: Record<string, {fingerprint:string, quantity:number}>,
+ *   reportPaths: { summary:string, changes:string, fingerprints:string },
+ *   elapsedMs: number,
+ *   reportDir: string,
+ * }>}
+ */
+export async function runStockOnly(options = {}) {
+  const t0 = Date.now();
+
+  const samplesDir = options.samplesDir ?? resolve(REPO_ROOT, 'samples');
+  const reportRoot = options.reportDir ?? resolve(REPO_ROOT, 'reports');
+  const applyMode = options.applyMode === true;
+  const skuFilter = options.skuFilter ?? null;
+  const limit = Number.isFinite(options.limit) ? options.limit : null;
+  const onProgress = options.onProgress ?? ((msg) => console.log(msg));
+  const concurrency = Number.isFinite(options.concurrency) ? options.concurrency : 4;
+  const rateLimit = options.rateLimit ?? { capacity: 50, refillPerSec: 10 };
+
+  const fetchImpl = options.fetch ?? globalThis.fetch;
+  const shopifyDomain = options.shopifyDomain ?? process.env.SHOPIFY_STORE_DOMAIN;
+  const shopifyToken = options.shopifyToken ?? process.env.SHOPIFY_ADMIN_TOKEN;
+  const apiVersion = options.apiVersion ?? process.env.SHOPIFY_API_VERSION ?? '2025-10';
+
+  if (applyMode && (!shopifyDomain || !shopifyToken)) {
+    throw new Error('applyMode=true requires shopifyDomain + shopifyToken');
+  }
+
+  // Parse just stock.csv. No surtido, no precios.
+  onProgress(`${applyMode ? '' : '[dry-run] '}Reading stock from: ${samplesDir}/stock/stock.csv`);
+  const stockResult = await parseStock(join(samplesDir, 'stock', 'stock.csv'));
+
+  // Apply skuFilter / limit. SKUs with non-numeric or invalid inventario are
+  // dropped by parseStock already (warnings emitted there).
+  let records = stockResult.records;
+  if (skuFilter) records = records.filter((r) => r.sku === skuFilter);
+  else if (limit != null) records = records.slice(0, limit);
+
+  onProgress(`${records.length} SKUs to sync (stock-only).`);
+
+  // Resolve shop context once.
+  let locationId = null;
+  let ctx = null;
+  if (applyMode) {
+    const bucket = createTokenBucket(rateLimit);
+    ctx = {
+      endpoint: `https://${shopifyDomain}/admin/api/${apiVersion}/graphql.json`,
+      token: shopifyToken,
+      fetch: fetchImpl,
+      bucket,
+    };
+    const shopCtx = await fetchShopContext(ctx);
+    locationId = shopCtx.locationId;
+    onProgress(`Location: ${locationId}`);
+    onProgress(`Rate limit: capacity=${rateLimit.capacity}, refill=${rateLimit.refillPerSec}/sec, concurrency=${concurrency}`);
+  } else {
+    locationId = 'gid://shopify/Location/PLACEHOLDER';
+  }
+
+  // Reports dir.
+  const ts = nowIsoStamp();
+  const reportDir = join(reportRoot, `import-write-stock-${ts}`);
+  await mkdir(reportDir, { recursive: true });
+
+  let changesCsv = csvRow([
+    'sku', 'inventory_item_id', 'quantity_target',
+    'resolve_status', 'mutation_status',
+    'sku_state_status', 'errors',
+  ]);
+
+  const counts = {
+    resolved: { ok: 0, not_found: 0, failed: 0 },
+    mutation: { ok: 0, failed: 0, skipped: 0 },
+    sku_state: { upserted_ok: 0, upsert_failed: 0, skipped_no_row: 0, skipped_no_db: 0 },
+    // SKUs not in Shopify (resolved=NOT_FOUND) are NOT counted as failed —
+    // the cron's job is to sync inventory for SKUs that exist; ones not yet
+    // imported by a full run are out of scope for this run.
+    skus: { ok: 0, failed: 0, skipped: 0 },
+  };
+  const fingerprints = {};
+
+  if (!applyMode) {
+    // Dry-run: write a row per SKU showing the intended quantity. No Shopify
+    // calls. Useful to confirm parsing + filter behaviour.
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+      const qty = parseInt(String(r.inventario).trim(), 10);
+      changesCsv += csvRow([
+        r.sku, '', String(Number.isNaN(qty) ? '' : qty),
+        'WOULD_RESOLVE', 'WOULD_SET',
+        options.dbConnection ? 'WOULD_UPDATE_FINGERPRINT_STOCK' : 'NO_DB',
+        '',
+      ]);
+      counts.skus.ok++;
+      if ((i + 1) % 100 === 0 || i === records.length - 1) {
+        onProgress(`[${i + 1}/${records.length}] (dry-run) ${r.sku}`);
+      }
+    }
+  } else {
+    // Apply path: parallel worker pool with rate limiter (same machinery as
+    // runFullImport).
+    const items = records.map((r) => ({ sku: r.sku, quantity: parseInt(String(r.inventario).trim(), 10) }));
+    let progressCounter = 0;
+    const results = await runWithConcurrency({
+      items,
+      concurrency,
+      work: async (it) => {
+        const out = { sku: it.sku, quantity: it.quantity };
+        // Skip SKUs whose stock didn't parse to a non-negative integer.
+        if (!Number.isInteger(it.quantity) || it.quantity < 0) {
+          out.resolveStatus = 'SKIP_BAD_QTY';
+          out.mutationStatus = 'SKIPPED';
+          out.error = `quantity="${it.quantity}" not a non-negative integer`;
+          return out;
+        }
+
+        // 1. Resolve inventoryItem.id
+        let inventoryItemId = null;
+        try {
+          inventoryItemId = await fetchInventoryItemBySku(ctx, it.sku);
+        } catch (err) {
+          out.resolveStatus = 'FAILED';
+          out.error = err.message;
+          return out;
+        }
+        if (!inventoryItemId) {
+          out.resolveStatus = 'NOT_FOUND';
+          out.mutationStatus = 'SKIPPED';
+          return out;
+        }
+        out.resolveStatus = 'OK';
+        out.inventoryItemId = inventoryItemId;
+
+        // 2. Mutate
+        try {
+          const r = await setInventoryQuantity(ctx, inventoryItemId, locationId, it.quantity);
+          if (r.errors.length > 0) {
+            out.mutationStatus = 'FAILED';
+            out.error = r.errors.map((e) => `[${e.code ?? ''}] ${e.message}`).join('; ');
+            return out;
+          }
+          out.mutationStatus = 'OK';
+        } catch (err) {
+          out.mutationStatus = 'FAILED';
+          out.error = err.message;
+          return out;
+        }
+
+        // 3. Fingerprint
+        out.fingerprint = buildStockFingerprint({ sku: it.sku, locationId, quantity: it.quantity });
+        return out;
+      },
+    });
+
+    progressCounter = 0;
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      progressCounter++;
+      if (progressCounter % 50 === 0 || progressCounter === results.length) {
+        onProgress(`[${progressCounter}/${results.length}] ${results[i].ok ? results[i].value.sku : items[i].sku}`);
+      }
+      if (!r.ok) {
+        const sku = items[i].sku;
+        counts.skus.failed++;
+        counts.resolved.failed++;
+        changesCsv += csvRow([sku, '', String(items[i].quantity), 'FAILED', 'SKIPPED', 'SKIPPED', `worker error: ${r.error?.message ?? r.error}`]);
+        continue;
+      }
+      const v = r.value;
+
+      // Counts: resolve
+      if (v.resolveStatus === 'OK') counts.resolved.ok++;
+      else if (v.resolveStatus === 'NOT_FOUND') counts.resolved.not_found++;
+      else counts.resolved.failed++;
+
+      // Counts: mutation
+      if (v.mutationStatus === 'OK') counts.mutation.ok++;
+      else if (v.mutationStatus === 'SKIPPED') counts.mutation.skipped++;
+      else counts.mutation.failed++;
+
+      // Overall sku tally:
+      //   ok      = mutation succeeded
+      //   skipped = SKU not in Shopify (NOT_FOUND), or quantity invalid
+      //   failed  = real error (resolve threw, mutation returned userErrors)
+      if (v.mutationStatus === 'OK') counts.skus.ok++;
+      else if (v.mutationStatus === 'SKIPPED') counts.skus.skipped++;
+      else counts.skus.failed++;
+
+      // Fingerprint + optional UPDATE-only sku_state
+      let skuStateStatus = '';
+      if (v.fingerprint && v.mutationStatus === 'OK') {
+        fingerprints[v.sku] = { fingerprint: v.fingerprint, quantity: v.quantity };
+        if (options.dbConnection) {
+          try {
+            const upd = await options.dbConnection.query(
+              `update private.sku_state
+               set fingerprint_stock = $1,
+                   stock_last_seen_at = now(),
+                   last_run_id = $2
+               where sku = $3`,
+              [v.fingerprint, options.runId ?? null, v.sku],
+            );
+            if (upd.rowCount === 0) {
+              counts.sku_state.skipped_no_row++;
+              skuStateStatus = 'NO_ROW';
+              onProgress(`[warn] sku_state has no row for ${v.sku}; stock fingerprint not persisted (run a full import first)`);
+            } else {
+              counts.sku_state.upserted_ok++;
+              skuStateStatus = 'UPDATED';
+            }
+          } catch (err) {
+            counts.sku_state.upsert_failed++;
+            skuStateStatus = 'FAILED';
+            onProgress(`[warn] sku_state update failed for ${v.sku}: ${err.message}`);
+          }
+        } else {
+          counts.sku_state.skipped_no_db++;
+          skuStateStatus = 'NO_DB';
+        }
+      }
+
+      changesCsv += csvRow([
+        v.sku, v.inventoryItemId ?? '', String(v.quantity),
+        v.resolveStatus,
+        v.mutationStatus,
+        skuStateStatus,
+        v.error ?? '',
+      ]);
+    }
+  }
+
+  // Write reports.
+  const changesPath = join(reportDir, 'changes.csv');
+  await writeFile(changesPath, changesCsv, 'utf8');
+  const fingerprintsPath = join(reportDir, 'fingerprints.json');
+  await writeFile(fingerprintsPath, JSON.stringify(fingerprints, null, 2), 'utf8');
+
+  const elapsedMs = Date.now() - t0;
+  const elapsedSec = (elapsedMs / 1000).toFixed(2);
+
+  const summary =
+    `LedsC4 B2B Outlet — Stock-only Import Report (PR-Y)\n` +
+    `Generated: ${new Date().toISOString()}\n` +
+    `Mode:      ${applyMode ? 'apply' : 'dry-run'}\n` +
+    `Samples:   ${samplesDir}\n` +
+    `Target:    ${shopifyDomain ?? '(no creds)'}\n` +
+    (applyMode ? `Concurrency=${concurrency}, rate=${rateLimit.capacity}/${rateLimit.refillPerSec} (capacity/refillPerSec)\n` : '') +
+    `\n` +
+    `INPUT\n` +
+    `- Stock records to sync:        ${records.length}` +
+    (limit != null ? ` (limit=${limit})` : '') +
+    (skuFilter ? ` (sku=${skuFilter})` : '') + `\n` +
+    `\n` +
+    `RESULTS\n` +
+    `- Resolve (variant by SKU):     ok=${counts.resolved.ok} not_found=${counts.resolved.not_found} failed=${counts.resolved.failed}\n` +
+    `- inventorySetQuantities:       ok=${counts.mutation.ok} failed=${counts.mutation.failed} skipped=${counts.mutation.skipped}\n` +
+    `- SKUs overall:                 ok=${counts.skus.ok} skipped=${counts.skus.skipped} failed=${counts.skus.failed}\n` +
+    `- Fingerprints computed:        ${Object.keys(fingerprints).length}` +
+    (options.dbConnection
+      ? ` (sku_state: updated=${counts.sku_state.upserted_ok}/${Object.keys(fingerprints).length}, no_row=${counts.sku_state.skipped_no_row}, failed=${counts.sku_state.upsert_failed})`
+      : ' (in-memory only)') + `\n` +
+    `\n` +
+    `Elapsed: ${elapsedSec}s\n` +
+    `Report:  ${reportDir}\n`;
+
+  const summaryPath = join(reportDir, 'summary.txt');
+  await writeFile(summaryPath, summary, 'utf8');
+  onProgress('\n' + summary);
+
+  return {
+    counts,
+    fingerprints,
+    reportPaths: { summary: summaryPath, changes: changesPath, fingerprints: fingerprintsPath },
+    elapsedMs,
+    reportDir,
+  };
+}
+
 // ----- main (CLI argv wrapper) ------------------------------------------
 
 function parseArgs(argv) {
   const args = argv.slice(2);
-  const opts = { applyMode: false, samplesDir: null, limit: null, skuFilter: null, concurrency: null, rateLimit: null, withDb: false };
+  const opts = { applyMode: false, samplesDir: null, limit: null, skuFilter: null, concurrency: null, rateLimit: null, withDb: false, stockOnly: false };
   if (args.includes('--apply')) opts.applyMode = true;
   const samplesArg = args.find((a) => a.startsWith('--samples-dir='));
   if (samplesArg) opts.samplesDir = resolve(REPO_ROOT, samplesArg.slice('--samples-dir='.length));
@@ -930,6 +1313,7 @@ function parseArgs(argv) {
     };
   }
   if (args.includes('--with-db')) opts.withDb = true;
+  if (args.includes('--stock-only')) opts.stockOnly = true;
   return opts;
 }
 
@@ -968,7 +1352,7 @@ async function main() {
   }
 
   try {
-    await runFullImport({
+    const opts = {
       samplesDir: cli.samplesDir ?? undefined,
       reportDir: undefined, // default <repoRoot>/reports
       applyMode: cli.applyMode,
@@ -977,7 +1361,12 @@ async function main() {
       concurrency: cli.concurrency ?? undefined,
       rateLimit: cli.rateLimit ?? undefined,
       dbConnection,
-    });
+    };
+    if (cli.stockOnly) {
+      await runStockOnly(opts);
+    } else {
+      await runFullImport(opts);
+    }
   } finally {
     if (dbConnection) {
       try { await dbConnection.end(); } catch (_e) { /* ignore */ }
