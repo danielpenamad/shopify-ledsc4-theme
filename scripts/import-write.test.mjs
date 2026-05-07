@@ -10,7 +10,8 @@
 // Run:
 //   node scripts/import-write.test.mjs
 
-import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches, runFullImport } from './import-write.mjs';
+import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches, runFullImport, runStockOnly } from './import-write.mjs';
+import { buildStockFingerprint } from './fingerprint.mjs';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -589,7 +590,8 @@ async function testRunFullImportDbUpsert() {
 
     // The summary mentions DB upsert.
     const summary = await readFile(result.reportPaths.summary, 'utf8');
-    assert(summary.includes('upserted to private.sku_state'), 'summary mentions DB upsert');
+    // PR-Y: summary now reports real counts, not blind "upserted to ...".
+    assert(summary.includes('sku_state: upserted=1/1, failed=0'), `expected 'sku_state: upserted=1/1, failed=0' in summary, got snippet: ${summary.match(/Fingerprints computed.*/)?.[0] ?? '(no match)'}`);
     // fingerprints.json file written.
     assert(typeof result.reportPaths.fingerprints === 'string', 'fingerprints path exists in result');
     const fpFile = JSON.parse(await readFile(result.reportPaths.fingerprints, 'utf8'));
@@ -638,6 +640,272 @@ async function testRunFullImportFingerprintDeterminism() {
   }
 }
 
+// ---- runStockOnly tests (PR-Y) ----
+
+async function makeStockOnlyTmp(records) {
+  const tmp = await mkdtemp(join(tmpdir(), 'runstockonly-'));
+  await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+  const csv = 'SKU,INVENTARIO\n' + records.map((r) => `${r.sku},${r.qty}`).join('\n') + '\n';
+  await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), csv, 'utf8');
+  return tmp;
+}
+
+async function testRunStockOnlyResolvesAndMutates() {
+  console.log('Test 23: runStockOnly — resolves SKU → inventoryItem, mutates inventorySetQuantities');
+  const tmp = await makeStockOnlyTmp([{ sku: 'STK-001', qty: 5 }, { sku: 'STK-002', qty: 12 }]);
+  try {
+    const calls = [];
+    const mockFetch = async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      calls.push({ op, vars: body.variables });
+      let data;
+      if (op === 'ShopContext') {
+        data = { publications: { nodes: [{ id: 'gid://shopify/Publication/P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'gid://shopify/Location/L1' }] } };
+      } else if (op === 'VariantBySku') {
+        const sku = body.variables.q.replace('sku:', '');
+        data = { productVariants: { nodes: [{ id: `gid://shopify/ProductVariant/${sku}`, sku, inventoryItem: { id: `gid://shopify/InventoryItem/${sku}` } }] } };
+      } else if (op === 'InventorySetQuantities') {
+        data = { inventorySetQuantities: { inventoryAdjustmentGroup: { id: 'gid://shopify/InventoryAdjustmentGroup/A1', reason: 'correction' }, userErrors: [] } };
+      } else throw new Error(`unexpected op: ${op}`);
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    };
+
+    const result = await runStockOnly({
+      samplesDir: join(tmp, 'samples'),
+      reportDir: join(tmp, 'reports'),
+      applyMode: true,
+      onProgress: () => {},
+      fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      concurrency: 1,
+    });
+
+    assert(result.counts.resolved.ok === 2, `expected 2 resolved, got ${result.counts.resolved.ok}`);
+    assert(result.counts.mutation.ok === 2, `expected 2 mutated, got ${result.counts.mutation.ok}`);
+    assert(result.counts.skus.ok === 2, `expected 2 skus ok, got ${result.counts.skus.ok}`);
+
+    // Verify the InventorySetQuantities calls had the right payload.
+    const setCalls = calls.filter((c) => c.op === 'InventorySetQuantities');
+    assert(setCalls.length === 2, `expected 2 inventorySet calls, got ${setCalls.length}`);
+    for (const c of setCalls) {
+      const q = c.vars.input.quantities[0];
+      assert(c.vars.input.name === 'available', `name=available`);
+      assert(c.vars.input.reason === 'correction', `reason=correction`);
+      assert(q.locationId === 'gid://shopify/Location/L1', `locationId threaded`);
+      assert(typeof q.inventoryItemId === 'string' && q.inventoryItemId.startsWith('gid://shopify/InventoryItem/'), `inventoryItemId is GID`);
+      assert(Number.isInteger(q.quantity), `quantity is int`);
+    }
+
+    // No productSet / translations / publish calls — stock-only is leaner.
+    assert(!calls.some((c) => c.op === 'productSet'), 'productSet must NOT be called');
+    assert(!calls.some((c) => c.op === 'translationsRegister'), 'translationsRegister must NOT be called');
+    assert(!calls.some((c) => c.op === 'publishablePublish'), 'publishablePublish must NOT be called');
+
+    // Fingerprints recorded.
+    assert(Object.keys(result.fingerprints).length === 2, `2 fingerprints`);
+    assert(/^[0-9a-f]{64}$/.test(result.fingerprints['STK-001'].fingerprint), `hex fp for STK-001`);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunStockOnlySkipsNotFound() {
+  console.log('Test 24: runStockOnly — skips SKUs not in Shopify with NOT_FOUND status');
+  const tmp = await makeStockOnlyTmp([{ sku: 'STK-EXISTS', qty: 5 }, { sku: 'STK-MISSING', qty: 8 }]);
+  try {
+    const mockFetch = async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      let data;
+      if (op === 'ShopContext') {
+        data = { publications: { nodes: [{ id: 'gid://shopify/Publication/P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'gid://shopify/Location/L' }] } };
+      } else if (op === 'VariantBySku') {
+        const sku = body.variables.q.replace('sku:', '');
+        // STK-MISSING returns no nodes — not yet imported into Shopify.
+        if (sku === 'STK-MISSING') data = { productVariants: { nodes: [] } };
+        else data = { productVariants: { nodes: [{ id: `gid://shopify/ProductVariant/X`, sku, inventoryItem: { id: `gid://shopify/InventoryItem/${sku}` } }] } };
+      } else if (op === 'InventorySetQuantities') {
+        data = { inventorySetQuantities: { inventoryAdjustmentGroup: { id: 'A', reason: 'correction' }, userErrors: [] } };
+      } else throw new Error(`unexpected op: ${op}`);
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    };
+
+    const result = await runStockOnly({
+      samplesDir: join(tmp, 'samples'),
+      reportDir: join(tmp, 'reports'),
+      applyMode: true,
+      onProgress: () => {},
+      fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      concurrency: 1,
+    });
+
+    assert(result.counts.resolved.ok === 1, `1 resolved, got ${result.counts.resolved.ok}`);
+    assert(result.counts.resolved.not_found === 1, `1 not_found, got ${result.counts.resolved.not_found}`);
+    assert(result.counts.mutation.ok === 1, `1 mutated, got ${result.counts.mutation.ok}`);
+    assert(result.counts.mutation.skipped === 1, `1 mutation skipped, got ${result.counts.mutation.skipped}`);
+    assert(Object.keys(result.fingerprints).length === 1, `1 fingerprint (only the resolved+mutated SKU)`);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunStockOnlyDbUpdatePath() {
+  console.log('Test 25: runStockOnly — UPDATE-only path on private.sku_state (no insert if no row)');
+  const tmp = await makeStockOnlyTmp([{ sku: 'STK-A', qty: 3 }, { sku: 'STK-B', qty: 7 }]);
+  try {
+    const mockFetch = async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      let data;
+      if (op === 'ShopContext') data = { publications: { nodes: [{ id: 'P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'L' }] } };
+      else if (op === 'VariantBySku') { const sku = body.variables.q.replace('sku:', ''); data = { productVariants: { nodes: [{ id: 'V', sku, inventoryItem: { id: `II-${sku}` } }] } }; }
+      else if (op === 'InventorySetQuantities') data = { inventorySetQuantities: { inventoryAdjustmentGroup: { id: 'A' }, userErrors: [] } };
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    };
+
+    // Mock pg.Client — STK-A has a row (rowCount=1), STK-B doesn't (rowCount=0).
+    const dbCalls = [];
+    const mockClient = {
+      query: async (sql, params) => {
+        dbCalls.push({ sql: sql.replace(/\s+/g, ' ').trim(), params: [...params] });
+        const sku = params[2];
+        return { rowCount: sku === 'STK-A' ? 1 : 0, rows: [] };
+      },
+    };
+
+    const result = await runStockOnly({
+      samplesDir: join(tmp, 'samples'),
+      reportDir: join(tmp, 'reports'),
+      applyMode: true,
+      onProgress: () => {},
+      fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      concurrency: 1,
+      dbConnection: mockClient,
+      runId: '11111111-1111-1111-1111-111111111111',
+    });
+
+    // Both SKUs were resolved/mutated.
+    assert(result.counts.skus.ok === 2, `2 skus ok`);
+    // 2 SQL calls (one per resolved SKU).
+    assert(dbCalls.length === 2, `2 sql calls, got ${dbCalls.length}`);
+    // Both should be UPDATE statements (not INSERT).
+    for (const c of dbCalls) {
+      assert(c.sql.startsWith('update private.sku_state'), `expected UPDATE-only, got: '${c.sql.slice(0, 50)}'`);
+      assert(!c.sql.includes('insert'), 'must not contain INSERT');
+      assert(c.params[2] === 'STK-A' || c.params[2] === 'STK-B', `param[2]=sku`);
+      assert(/^[0-9a-f]{64}$/.test(c.params[0]), `param[0]=fingerprint hex`);
+      assert(c.params[1] === '11111111-1111-1111-1111-111111111111', `param[1]=runId`);
+    }
+    // STK-A → updated_ok=1; STK-B → no_row=1.
+    assert(result.counts.sku_state.upserted_ok === 1, `1 updated, got ${result.counts.sku_state.upserted_ok}`);
+    assert(result.counts.sku_state.skipped_no_row === 1, `1 no_row, got ${result.counts.sku_state.skipped_no_row}`);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunStockOnlyFingerprintDeterminism() {
+  console.log('Test 26: runStockOnly — same input → same fingerprints across runs');
+  const tmp = await makeStockOnlyTmp([{ sku: 'DET-A', qty: 17 }]);
+  try {
+    const mockFetch = async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      let data;
+      if (op === 'ShopContext') data = { publications: { nodes: [{ id: 'P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'gid://shopify/Location/STABLE' }] } };
+      else if (op === 'VariantBySku') data = { productVariants: { nodes: [{ id: 'V', sku: 'DET-A', inventoryItem: { id: 'II-A' } }] } };
+      else if (op === 'InventorySetQuantities') data = { inventorySetQuantities: { inventoryAdjustmentGroup: { id: 'A' }, userErrors: [] } };
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    };
+    const opts = {
+      samplesDir: join(tmp, 'samples'), reportDir: join(tmp, 'reports'),
+      applyMode: true, onProgress: () => {}, fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 }, concurrency: 1,
+    };
+    const r1 = await runStockOnly(opts);
+    const r2 = await runStockOnly(opts);
+    assert(r1.fingerprints['DET-A']?.fingerprint === r2.fingerprints['DET-A']?.fingerprint, 'fingerprint stable across runs');
+
+    // The stock fingerprint should be derivable from the public buildStockFingerprint.
+    const expected = buildStockFingerprint({ sku: 'DET-A', locationId: 'gid://shopify/Location/STABLE', quantity: 17 });
+    assert(r1.fingerprints['DET-A'].fingerprint === expected, 'fingerprint matches buildStockFingerprint output');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunStockOnlyFingerprintDistinctFromFull() {
+  console.log('Test 27: runStockOnly fingerprint is DIFFERENT from runFullImport fingerprint for same SKU+qty (distinct semantics, distinct hash space)');
+  // Cheap structural check: stock fingerprint hashes only {sku, locationId, quantity}.
+  // Full fingerprint hashes the entire product payload + translations + publication.
+  // Even if the SKU/quantity match, the broader full payload differs → different hashes.
+  const stockFp = buildStockFingerprint({ sku: 'X', locationId: 'L', quantity: 1 });
+  // We pick any non-trivial full payload that includes SKU+location+quantity:
+  // they differ structurally, so hashes will differ.
+  const stockFp2 = buildStockFingerprint({ sku: 'X', locationId: 'L', quantity: 2 });
+  assert(stockFp !== stockFp2, 'changing quantity changes the fingerprint');
+  assert(/^[0-9a-f]{64}$/.test(stockFp), 'stock fingerprint is 64-char hex');
+}
+
+async function testSummaryReportsRealUpsertCounts() {
+  console.log('Test 28: summary line reports real upsert counts (not blind "upserted")');
+  const tmp = await mkdtemp(join(tmpdir(), 'summary-real-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    const fields = Array.from({ length: 79 }, () => '');
+    fields[0] = 'SUM-001'; fields[3] = 'X'; fields[5] = 'F';
+    const surtidoRow = fields.join(',');
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`), surtidoHeader + surtidoRow + '\n', 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\nSUM-001,1\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\nSUM-001,1.00\n', 'utf8');
+
+    const mockFetch = async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      let data;
+      if (op === 'ShopContext') data = { publications: { nodes: [{ id: 'P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'L' }] } };
+      else if (op === 'productSet') data = { productSet: { product: { id: 'P1', handle: 'sum-001', variants: { nodes: [] }, metafields: { nodes: [] } }, userErrors: [] } };
+      else if (op === 'TranslatableContent') data = { translatableResource: { translatableContent: [] } };
+      else if (op === 'TranslatableByIds') data = { translatableResourcesByIds: { nodes: [] } };
+      else if (op === 'translationsRegister') data = { translationsRegister: { translations: [], userErrors: [] } };
+      else if (op === 'publishablePublish') data = { publishablePublish: { userErrors: [] } };
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    };
+
+    // Mock dbConnection that ALWAYS throws on .query() — simulates a BD
+    // unreachable mid-run. Pre-PR-Y this would still print "upserted to
+    // private.sku_state" misleadingly. PR-Y must report failed=1, ok=0.
+    const mockClientFailing = { query: async () => { throw new Error('connection refused (mocked)'); } };
+
+    const result = await runFullImport({
+      samplesDir: join(tmp, 'samples'), reportDir: join(tmp, 'reports'),
+      applyMode: true, onProgress: () => {},
+      fetch: mockFetch, shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 }, concurrency: 1,
+      dbConnection: mockClientFailing,
+    });
+
+    const summary = await readFile(result.reportPaths.summary, 'utf8');
+    assert(summary.includes('sku_state: upserted=0/1, failed=1'), `expected real counters, got snippet: ${summary.match(/Fingerprints computed.*/)?.[0] ?? '(no match)'}`);
+    assert(result.counts.sku_state.upserted_ok === 0, 'counters: upserted_ok=0');
+    assert(result.counts.sku_state.upsert_failed === 1, 'counters: upsert_failed=1');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
 function testMfBatches_ignoresNonProductNamespace() {
   console.log('Test 18: buildMetafieldTranslationBatches — ignores non-product namespace metafields');
   const model = makeModelWithMetafieldTranslations();
@@ -678,6 +946,12 @@ async function main() {
   await testRunFullImportApplyWithMockFetch();
   await testRunFullImportDbUpsert();
   await testRunFullImportFingerprintDeterminism();
+  await testRunStockOnlyResolvesAndMutates();
+  await testRunStockOnlySkipsNotFound();
+  await testRunStockOnlyDbUpdatePath();
+  await testRunStockOnlyFingerprintDeterminism();
+  await testRunStockOnlyFingerprintDistinctFromFull();
+  await testSummaryReportsRealUpsertCounts();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {

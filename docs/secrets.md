@@ -44,7 +44,7 @@ Edge Runtime (no se setean manualmente, vienen incluidos en cada invocación):
 | `SUPABASE_URL` * | URL del proyecto. | Cualquier function que necesite construir Storage URLs o crear cliente Supabase. | Auto-inyectado | No tocar. |
 | `SUPABASE_ANON_KEY` * | Anon key (JWT). | Functions que validan JWT del request. | Auto-inyectado | No tocar. |
 | `SUPABASE_SERVICE_ROLE_KEY` * | Service role key (JWT). Bypasses RLS y schema gates de PostgREST. | `sftp-sync` (Storage uploads). En el futuro `shopify-write` (Storage downloads + insert en `private.import_runs`). | Auto-inyectado | **Nunca exponer al cliente / al storefront.** |
-| `SUPABASE_DB_URL` * | Connection string Postgres directa (pooler 6543). | `sftp-sync` para escribir a `private.import_runs` vía `postgres@3.4.4` (sin pasar por PostgREST). | Auto-inyectado | No tocar. Coexiste con la opción de conectarse vía service role + supabase-js para schemas expuestos. |
+| `SUPABASE_DB_URL` * | Connection string Postgres directa (pooler). | `sftp-sync` (Edge) para escribir a `private.import_runs` vía `postgres@3.4.4` — funciona en Edge Runtime (Deno) con auto-inyección. | Auto-inyectado | No tocar. NB: el Edge Runtime auto-inyecta esto y `postgres@3.4.4` SÍ funciona allí; en Node CLI desde local hace falta `pg` (ver §2). |
 
 **¿Cómo añadir/editar uno?** Supabase Dashboard → Settings (cog) → Edge Functions → Secrets → Add new secret. Nombre exacto + valor. Las functions desplegadas leen el nuevo valor en la siguiente invocación (sin redeploy).
 
@@ -65,7 +65,7 @@ Archivo gitignored (`.gitignore` tiene `*.env` con whitelist solo para `*.env.ex
 | `SHOPIFY_STORE_DOMAIN` | Para que los scripts CLI (`apply-metafield-definitions.mjs`, `import-write.mjs`, etc.) llamen a Shopify. | Mismo valor que el secret en Supabase. |
 | `SHOPIFY_ADMIN_TOKEN` | Para CLI Shopify. | Mismo valor que el secret en Supabase. **No** mismo token que el de la theme app (Shopify CLI tiene el suyo). |
 | `SHOPIFY_API_VERSION` | Pin de versión. | Mismo valor que en Supabase. |
-| _(pendiente, próximamente)_ `SUPABASE_DB_URL` | Para que `node scripts/import-write.mjs --apply --with-db` upserte fingerprints en `private.sku_state` desde local. | Dani añade hoy 2026-05-07. Connection string del pooler (6543, transaction mode). Mismo valor que el auto-inyectado en Edge — pero en local hay que ponerlo a mano. |
+| `SUPABASE_DB_URL` | Para que `node scripts/import-write.mjs --apply --with-db` upserte fingerprints en `private.sku_state` desde local (y `--stock-only` para `fingerprint_stock`). | **Session pooler** (puerto 5432, host `aws-0-<region>.pooler.supabase.com`, user `postgres.<project-ref>`). NO usar el tab "Direct" del Dashboard — en Free plan resuelve solo a IPv6 y no es ruteable desde redes con NAT IPv4. Última rotación 2026-05-07 (16-char alfanumérica) durante debugging del SCRAM bug. |
 
 **Plantilla**: `shopify-ledsc4-theme/.env.example` (committed) + `supabase/.env.example` (committed, se está quedando desactualizado vs §1; pendiente refresh — ver "Plan de transferencia").
 
@@ -92,7 +92,7 @@ GitHub Actions necesitará invocar el writer (`scripts/import-write.mjs --apply 
 | `SHOPIFY_API_VERSION` | Pin. | Copy de Supabase secret. |
 | `SUPABASE_URL` | Para inicializar cliente Supabase y descargar de Storage. | Copy de Supabase auto-inyectado (visible en dashboard). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Para descargar de Storage (bucket privado) con bypass de RLS. | Copy de Supabase auto-inyectado. |
-| `SUPABASE_DB_URL` | Para upsert de fingerprints en `private.sku_state` vía `postgres@3.4.4`. | Pooler URI (6543, transaction mode) desde Supabase Dashboard → Settings → Database → Connection string. |
+| `SUPABASE_DB_URL` | Para upsert de fingerprints en `private.sku_state` (full + stock-only) desde el writer corriendo en GHA, vía `pg` driver. | **Session pooler URI** (5432, host `aws-0-<region>.pooler.supabase.com`) desde Supabase Dashboard → Settings → Database → Connection string → tab Session pooler. NB: el writer en CLI Node usa `pg` (no `postgres@3.4.4`) por bug SCRAM-SHA-256 contra el Session pooler. Edge Functions sí pueden usar `postgres@3.4.4` (allí funciona). |
 
 **¿Cómo añadirlos en GitHub?** Settings → Secrets and variables → Actions → "New repository secret". Cada secret se referencia desde el workflow YAML como `${{ secrets.NOMBRE }}`.
 

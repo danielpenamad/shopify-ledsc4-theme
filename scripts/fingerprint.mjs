@@ -93,6 +93,16 @@ export function buildSkuFingerprint({
   return sha256Hex(stableStringify(payload));
 }
 
+// Build the fingerprint for a stock_only run. Distinct from full-run
+// fingerprint — covers ONLY (sku, locationId, quantity) tuple. Used by
+// runStockOnly to decide if a SKU's stock has changed vs the last
+// stock_last_seen_at recorded in private.sku_state.fingerprint_stock.
+//
+// Stable: same inputs → same hex.
+export function buildStockFingerprint({ sku, locationId, quantity }) {
+  return sha256Hex(stableStringify({ sku, locationId, quantity }));
+}
+
 // Sort the order-independent arrays inside a ProductSetInput so the
 // fingerprint is stable regardless of input shuffling. Mutates the input.
 //   - tags: sorted lexicographically.
