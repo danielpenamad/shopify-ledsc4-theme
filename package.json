@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "LedsC4 B2B Outlet — Shopify theme + import pipeline + Supabase backoffice infra. The 'main' artifact is the Liquid theme + edge functions; this package.json exists only to declare optional Node dependencies for the importer (scripts/import-write.mjs) when run with --with-db (fingerprint upsert into private.sku_state). Default CLI runs without DB do NOT need any deps.",
+  "description": "LedsC4 B2B Outlet — Shopify theme + import pipeline + Supabase backoffice infra. The 'main' artifact is the Liquid theme + edge functions; this package.json exists only to declare optional Node dependencies for the importer (scripts/import-write.mjs) when run with --with-db (fingerprint upsert into private.sku_state). Default CLI runs without DB do NOT need any deps. NB: we use `pg` (not `postgres@3.x`) — the latter has a SCRAM-SHA-256 bug against Supabase Session pooler (auth fails with 28P01 even though pg with the same URL works fine).",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -13,6 +13,6 @@
     "import:apply": "node --env-file=shopify-ledsc4-theme.env scripts/import-write.mjs --apply"
   },
   "dependencies": {
-    "postgres": "^3.4.4"
+    "pg": "^8.13.0"
   }
 }
