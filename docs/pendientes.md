@@ -10,6 +10,20 @@ se archiva en `docs/pendientes-archivo.md`.
 
 ## Activas
 
+### [INFO] Límite de tamaño in-memory en sftp-sync
+- Origen: implementación I4.1 (2026-05-07).
+- Estado: la Edge Function `sftp-sync` usa `sftp.get(remotePath)` que
+  devuelve el fichero en memoria (Buffer) en lugar de
+  `sftp.fastGet()` que escribe a disco. Razón: `Deno.lstatSync` está
+  blocklisted en Supabase Edge Runtime, lo que rompe `fastGet`.
+- Implicación: si los CSVs del cliente crecen significativamente
+  (>50 MB total combinado), Edge Function podría OOM. Hoy total
+  ~7.4 MB, holgado.
+- Acción si llega el caso: migrar a streaming chunked vía
+  `sftp.get()` con stream API, escribiendo directamente a Supabase
+  Storage sin buffer intermedio.
+- NO actuar ahora. Solo monitor en runs reales.
+
 ### [P3] b2b.cbm_caja — definition huérfana, decidir mapping desde CSV
 - Origen: diagnóstico campos vacíos SKU 05-6398-21-M1 (2026-05-07).
 - Estado: la definition `b2b.cbm_caja` se creó en I1 pero ninguna
