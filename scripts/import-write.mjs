@@ -18,8 +18,17 @@
 //       node scripts/import-write.mjs --apply --limit 5
 //       node scripts/import-write.mjs --apply --sku 05-6396-21-M1
 //       node scripts/import-write.mjs --samples-dir=samples
-//       node scripts/import-write.mjs --apply --concurrency=4 --rate-cap=50 --rate-refill=2
+//       node scripts/import-write.mjs --apply --concurrency=4 --rate-cap=50 --rate-refill=10
 //       node scripts/import-write.mjs --apply --with-db        # also upsert sku_state
+//
+//     Defaults: concurrency=4, rate-cap=50, rate-refill=10. The 10/sec
+//     default matches Shopify Admin GraphQL on Basic (100 cost points/sec
+//     restore, typical mutation costs ~10 points → ~10 ops/sec sustained
+//     headroom). NOT the same as Shopify REST's 2 req/sec — that's a
+//     separate API surface we don't use. The retry logic in gql() handles
+//     the rare THROTTLED responses that may still slip through, so 10
+//     is safe at default. Override with --rate-refill if your shop has
+//     stricter limits or you're seeing sustained throttling.
 //
 //   - **Library (PR-X)**: import `runFullImport(options)` and call it
 //     from another Node script (GitHub Actions cron). Returns
@@ -609,7 +618,7 @@ async function processSku({ ctx, model, locationId, publicationId }) {
  * @param {(msg:string)=>void} [options.onProgress]   Optional progress logger.
  * @param {object} [options.dbConnection]      Optional postgres.js connection. If set, fingerprints are upserted into private.sku_state.
  * @param {string|null} [options.runId]        Optional uuid stored as last_run_id in sku_state.
- * @param {{capacity:number, refillPerSec:number}} [options.rateLimit]   Rate limiter config. Default {50, 2}.
+ * @param {{capacity:number, refillPerSec:number}} [options.rateLimit]   Rate limiter config. Default {capacity:50, refillPerSec:10} — matches Shopify Admin GraphQL Basic cost-point restore (100/s, ~10 ops/s for typical mutations). The 10/s default is safe because gql() retries 429/THROTTLED with backoff.
  * @param {number} [options.concurrency]       Worker pool size. Default 4.
  * @param {string} [options.shopifyDomain]     Override SHOPIFY_STORE_DOMAIN.
  * @param {string} [options.shopifyToken]      Override SHOPIFY_ADMIN_TOKEN.
@@ -636,7 +645,7 @@ export async function runFullImport(options = {}) {
   const limit = Number.isFinite(options.limit) ? options.limit : null;
   const onProgress = options.onProgress ?? ((msg) => console.log(msg));
   const concurrency = Number.isFinite(options.concurrency) ? options.concurrency : 4;
-  const rateLimit = options.rateLimit ?? { capacity: 50, refillPerSec: 2 };
+  const rateLimit = options.rateLimit ?? { capacity: 50, refillPerSec: 10 };
 
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const shopifyDomain = options.shopifyDomain ?? process.env.SHOPIFY_STORE_DOMAIN;
@@ -912,7 +921,7 @@ function parseArgs(argv) {
   if (capArg || refArg) {
     opts.rateLimit = {
       capacity: capArg ? parseInt(capArg.slice('--rate-cap='.length), 10) : 50,
-      refillPerSec: refArg ? parseFloat(refArg.slice('--rate-refill='.length)) : 2,
+      refillPerSec: refArg ? parseFloat(refArg.slice('--rate-refill='.length)) : 10,
     };
   }
   if (args.includes('--with-db')) opts.withDb = true;
