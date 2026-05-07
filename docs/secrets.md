@@ -14,7 +14,7 @@ Tres planos:
 1. **Supabase Edge Functions** — Project Settings → Edge Functions → Secrets.
 2. **Local de desarrollo** — `shopify-ledsc4-theme.env` (gitignored).
 3. **GitHub Actions** — Settings → Secrets and variables → Actions
-   (todavía no poblado; se rellena al construir I4.2-A).
+   (5 secrets repo-level desde PR-A1, ver §3).
 
 ---
 
@@ -79,24 +79,61 @@ Estos NO son secrets, son overrides puntuales con defaults razonables. No es nec
 
 ---
 
-## 3. Secrets en GitHub (cuando lleguen)
+## 3. Secrets en GitHub Actions
 
-**Estado a 2026-05-07:** _Pendiente — se poblará cuando se configure GitHub Actions en I4.2-A._
+### 3.1. Workflow `ledsc4-import.yml` (PR-A1, 2026-05-07)
 
-GitHub Actions necesitará invocar el writer (`scripts/import-write.mjs --apply --with-db`) desde un cron diario (full) y otro cada 6h (stock_only) sobre los CSVs ya descargados a Storage por `sftp-sync` (Job 1). Para eso requerirá:
+`.github/workflows/ledsc4-import.yml` ejecuta el writer (`runFullImport` o
+`runStockOnly` desde `scripts/import-write.mjs`) end-to-end contra un row de
+`private.import_runs` ya en estado `downloaded`. Disparable solo manualmente
+vía `workflow_dispatch` con inputs `run_id` (UUID) y `kind_override` opcional
+(`full|stock_only`). El chain automático desde `sftp-sync` llega en PR-A2.
 
-| Nombre previsto | Propósito | Origen del valor |
+Secrets requeridos a nivel de **repo** (Settings → Secrets and variables →
+Actions → New repository secret):
+
+| Nombre | Propósito | Origen del valor |
 |---|---|---|
-| `SHOPIFY_STORE_DOMAIN` | Lo mismo que en Supabase / local. | Copy de Supabase secret. |
-| `SHOPIFY_ADMIN_TOKEN` | Para mutations Shopify desde el cron. | Copy de Supabase secret. |
-| `SHOPIFY_API_VERSION` | Pin. | Copy de Supabase secret. |
-| `SUPABASE_URL` | Para inicializar cliente Supabase y descargar de Storage. | Copy de Supabase auto-inyectado (visible en dashboard). |
-| `SUPABASE_SERVICE_ROLE_KEY` | Para descargar de Storage (bucket privado) con bypass de RLS. | Copy de Supabase auto-inyectado. |
-| `SUPABASE_DB_URL` | Para upsert de fingerprints en `private.sku_state` (full + stock-only) desde el writer corriendo en GHA, vía `pg` driver. | **Session pooler URI** (5432, host `aws-0-<region>.pooler.supabase.com`) desde Supabase Dashboard → Settings → Database → Connection string → tab Session pooler. NB: el writer en CLI Node usa `pg` (no `postgres@3.4.4`) por bug SCRAM-SHA-256 contra el Session pooler. Edge Functions sí pueden usar `postgres@3.4.4` (allí funciona). |
+| `SUPABASE_URL` | Endpoint REST de Storage (`<url>/storage/v1/object/<bucket>/<path>`) para descargar inputs y subir reports. | Supabase Dashboard → Settings → API → Project URL. Mismo valor que `SUPABASE_URL` auto-inyectado en Edge Functions (§1). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Authorization Bearer para descargar/subir a `ledsc4-imports` (bucket privado, bypass RLS). | Supabase Dashboard → Settings → API → service_role key. Mismo valor que el auto-inyectado en Edge Functions (§1). **Nunca exponer al storefront.** |
+| `SUPABASE_DB_URL` | Connection string Postgres (Session pooler) para fetch del row, marcar `processing`, upsert de `private.sku_state` desde el writer y close de la run con counts + `report_storage_prefix`. | Supabase Dashboard → Settings → Database → Connection string → tab **Session pooler** (puerto 5432, host `aws-0-<region>.pooler.supabase.com`, user `postgres.<project-ref>`). NO usar Direct (Free plan = solo IPv6). El driver es `pg@^8.13` (no `postgres@3.4.4` por el bug SCRAM contra el pooler). |
+| `SHOPIFY_SHOP` | Dominio del shop (ej. `ledsc4-b2b-outlet.myshopify.com`). El workflow lo mapea a `SHOPIFY_STORE_DOMAIN` para el writer. | Copy del secret `SHOPIFY_STORE_DOMAIN` en Supabase (§1). |
+| `SHOPIFY_ADMIN_TOKEN` | Custom App access token (`shpat_…`) para Admin API GraphQL desde el writer. | Copy del secret `SHOPIFY_ADMIN_TOKEN` en Supabase (§1). |
 
-**¿Cómo añadirlos en GitHub?** Settings → Secrets and variables → Actions → "New repository secret". Cada secret se referencia desde el workflow YAML como `${{ secrets.NOMBRE }}`.
+**No** se setea `SHOPIFY_API_VERSION` — el writer aplica su default `2025-10`
+(ver `scripts/import-write.mjs`). Si en algún momento se necesita pinear desde
+GHA, añadirlo como secret repo-level y reflejarlo en el workflow.
 
-**Decisión pendiente** sobre granularidad: secrets en el repo (todos los workflows pueden leerlos) vs en un environment dedicado (e.g. `production`) que pide review-gate antes de ejecutar el job. Para un cron sin pull-requests, repo-level está bien; cuando llegue I4.2-A confirmar.
+**Cómo crearlos** (CLI, gh):
+
+```sh
+gh secret set SUPABASE_URL              -b "https://<project-ref>.supabase.co"
+gh secret set SUPABASE_SERVICE_ROLE_KEY -b "<service_role_jwt>"
+gh secret set SUPABASE_DB_URL           -b "postgresql://postgres.<ref>:<pwd>@aws-0-eu-west-1.pooler.supabase.com:5432/postgres"
+gh secret set SHOPIFY_SHOP              -b "ledsc4-b2b-outlet.myshopify.com"
+gh secret set SHOPIFY_ADMIN_TOKEN       -b "shpat_..."
+```
+
+(O desde UI: Settings → Secrets and variables → Actions → New repository
+secret, uno por uno.)
+
+**Cómo disparar manualmente** (tras configurar los 5 secrets):
+
+```sh
+# Kind heredado del row (caso normal):
+gh workflow run ledsc4-import.yml -f run_id=<uuid>
+
+# Forzar kind:
+gh workflow run ledsc4-import.yml -f run_id=<uuid> -f kind_override=stock_only
+```
+
+O desde la UI: Actions → "LedsC4 import — writer" → Run workflow.
+
+### 3.2. Granularidad: repo-level vs environment
+
+Por ahora **repo-level**. Cuando se transfiera al cliente y se quiera un gate
+extra antes de tocar producción, considerar moverlos a un environment
+`production` con required reviewers. Para cron sin PR no hace falta.
 
 ---
 

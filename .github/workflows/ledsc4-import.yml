@@ -1,0 +1,393 @@
+name: LedsC4 import — writer
+
+# Fase A — PR-A1.
+#
+# Procesa un row de private.import_runs ya dejado en estado 'downloaded' por
+# sftp-sync, ejecutando el writer (runFullImport / runStockOnly) end-to-end
+# contra Shopify y Supabase. Disparable solo manualmente; el chain automático
+# desde sftp-sync via repository_dispatch llega en PR-A2.
+#
+# Flujo:
+#   1. checkout + setup Node + npm ci
+#   2. fetch metadata: lee row, valida status='downloaded', resuelve kind.
+#   3. download: descarga ficheros desde Storage manteniendo subdirs
+#      (productos/, stock/, precios/) bajo ./tmp/inputs.
+#   4. mark processing: UPDATE status='processing' (lock contra re-disparos
+#      del mismo run_id; runs colgados son detectables como processing con
+#      started_at viejo y sin completed_at/failed_at).
+#   5. run writer: invoca runFullImport o runStockOnly con dbConnection
+#      abierta (upsert sku_state). Captura stdout/stderr a run.log.
+#   6. upload reports: sube ./tmp/reports/* a Storage en runs/<id>/reports/.
+#   7. close run (always): si writer-result.json indica ok=true, marca
+#      'completed' + counts. Si stage='writer'|'upload_reports', marca
+#      'failed'. Si la falla es pre-writer (fetch/download/mark_processing),
+#      no toca el row — operador puede re-disparar contra el mismo run_id.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: UUID del row en private.import_runs (debe estar en status 'downloaded').
+        required: true
+        type: string
+      kind_override:
+        description: Forzar kind. Vacío = usar kind de import_runs.
+        required: false
+        type: choice
+        default: ''
+        options:
+          - ''
+          - full
+          - stock_only
+
+permissions:
+  contents: read
+
+jobs:
+  writer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RUN_ID: ${{ inputs.run_id }}
+      KIND_OVERRIDE: ${{ inputs.kind_override }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_SHOP }}
+      SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
+      STORAGE_BUCKET: ledsc4-imports
+      REPORT_PREFIX: runs/${{ inputs.run_id }}/reports/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Setup tmp dirs
+        run: mkdir -p tmp/inputs tmp/reports
+
+      - name: Fetch run metadata
+        id: meta
+        run: |
+          set -o pipefail
+          node - << 'EOF'
+          import { writeFile, appendFile } from 'node:fs/promises';
+          import pgPkg from 'pg';
+          const { Client } = pgPkg;
+
+          const client = new Client({
+            connectionString: process.env.SUPABASE_DB_URL,
+            ssl: { rejectUnauthorized: false },
+            connectionTimeoutMillis: 10000,
+          });
+          await client.connect();
+          const { rows } = await client.query(
+            `select id, kind, status, files, storage_prefix
+               from private.import_runs
+              where id = $1`,
+            [process.env.RUN_ID],
+          );
+          await client.end();
+
+          async function bail(stage, message) {
+            await writeFile('tmp/writer-result.json', JSON.stringify({ ok: false, stage, message }));
+            console.error(message);
+            process.exit(1);
+          }
+
+          if (rows.length === 0) {
+            await bail('fetch_metadata', `run_id ${process.env.RUN_ID} not found in private.import_runs`);
+          }
+          const row = rows[0];
+          // Strict guard: only 'downloaded' rows are processable. This blocks
+          // both re-disparos of in-flight runs ('processing') and reruns of
+          // historical runs ('completed' / 'failed'). Reruns must use a fresh
+          // run_id (i.e. a new sftp-sync invocation).
+          if (row.status !== 'downloaded') {
+            await bail('fetch_metadata', `run_id ${process.env.RUN_ID} has status '${row.status}', expected 'downloaded'`);
+          }
+
+          const override = process.env.KIND_OVERRIDE || '';
+          const kind = override === '' ? row.kind : override;
+          if (kind !== 'full' && kind !== 'stock_only') {
+            await bail('fetch_metadata', `kind '${kind}' invalid (expected 'full' or 'stock_only')`);
+          }
+
+          // Pass through the files JSON verbatim to the next step. Shape is
+          // owned by sftp-sync (see supabase/functions/sftp-sync/index.ts):
+          //   [{ name, path_in_storage, size_bytes, sftp_mtime }, ...]
+          const filesJson = JSON.stringify(row.files ?? []);
+          await appendFile(process.env.GITHUB_OUTPUT, `kind=${kind}\n`);
+          await appendFile(process.env.GITHUB_OUTPUT, `storage_prefix=${row.storage_prefix ?? ''}\n`);
+          const delim = `EOF_FILES_${Date.now()}`;
+          await appendFile(process.env.GITHUB_OUTPUT, `files_json<<${delim}\n${filesJson}\n${delim}\n`);
+          console.log(`run_id=${process.env.RUN_ID} kind=${kind} files=${(row.files ?? []).length}`);
+          EOF
+
+      - name: Download files from Storage
+        env:
+          FILES_JSON: ${{ steps.meta.outputs.files_json }}
+          STORAGE_PREFIX: ${{ steps.meta.outputs.storage_prefix }}
+        run: |
+          set -o pipefail
+          node - << 'EOF'
+          import { writeFile, mkdir } from 'node:fs/promises';
+          import { dirname, join } from 'node:path';
+
+          // sftp-sync writes private.import_runs.files as an array of objects:
+          //   { name, path_in_storage, size_bytes, sftp_mtime }
+          // We only consume `path_in_storage`. If sftp-sync changes the shape
+          // this step fails in runtime with the offending entry logged — fix
+          // it here, no separate doc to update.
+          const files = JSON.parse(process.env.FILES_JSON || '[]');
+          const prefix = process.env.STORAGE_PREFIX || '';
+          if (files.length === 0) {
+            await writeFile('tmp/writer-result.json', JSON.stringify({ ok: false, stage: 'download', message: 'import_runs.files is empty; sftp-sync should have populated it' }));
+            console.error('no files to download');
+            process.exit(1);
+          }
+          const baseUrl = `${process.env.SUPABASE_URL}/storage/v1/object/${process.env.STORAGE_BUCKET}`;
+          for (const f of files) {
+            const path = f?.path_in_storage;
+            if (!path || typeof path !== 'string') {
+              await writeFile('tmp/writer-result.json', JSON.stringify({ ok: false, stage: 'download', message: `file entry missing path_in_storage: ${JSON.stringify(f)}` }));
+              console.error('bad file entry', f);
+              process.exit(1);
+            }
+            // Strip storage_prefix so the local path preserves subdirs
+            // (productos/, stock/, precios/). The writer expects samplesDir
+            // to contain those subdirs literally — see
+            // scripts/import-write.mjs buildModelFromSamples().
+            let rel = path;
+            if (prefix && rel.startsWith(prefix)) rel = rel.slice(prefix.length);
+            const dest = join('tmp/inputs', rel);
+            await mkdir(dirname(dest), { recursive: true });
+
+            const res = await fetch(`${baseUrl}/${path}`, {
+              headers: {
+                Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+                apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+              },
+            });
+            if (!res.ok) {
+              const body = await res.text().catch(() => '');
+              await writeFile('tmp/writer-result.json', JSON.stringify({ ok: false, stage: 'download', message: `GET ${path}: HTTP ${res.status} — ${body.slice(0, 200)}` }));
+              console.error(`download failed for ${path}: ${res.status}`);
+              process.exit(1);
+            }
+            const buf = Buffer.from(await res.arrayBuffer());
+            await writeFile(dest, buf);
+            console.log(`downloaded ${path} -> ${dest} (${buf.length} bytes)`);
+          }
+          EOF
+
+      - name: Mark run as processing
+        run: |
+          set -o pipefail
+          node - << 'EOF'
+          import { writeFile } from 'node:fs/promises';
+          import pgPkg from 'pg';
+          const { Client } = pgPkg;
+          const client = new Client({
+            connectionString: process.env.SUPABASE_DB_URL,
+            ssl: { rejectUnauthorized: false },
+            connectionTimeoutMillis: 10000,
+          });
+          await client.connect();
+          // Conditional UPDATE so we never overwrite a non-'downloaded' state
+          // (race vs another concurrent workflow_dispatch on the same run_id).
+          const r = await client.query(
+            `update private.import_runs set status = 'processing' where id = $1 and status = 'downloaded'`,
+            [process.env.RUN_ID],
+          );
+          await client.end();
+          if (r.rowCount === 0) {
+            await writeFile('tmp/writer-result.json', JSON.stringify({ ok: false, stage: 'mark_processing', message: 'no row updated; status changed concurrently?' }));
+            console.error('mark_processing affected 0 rows');
+            process.exit(1);
+          }
+          console.log('marked processing');
+          EOF
+
+      - name: Run writer
+        env:
+          KIND: ${{ steps.meta.outputs.kind }}
+        run: |
+          set -o pipefail
+          mkdir -p tmp/reports
+          node - 2>&1 << 'EOF' | tee tmp/reports/run.log
+          import { writeFile } from 'node:fs/promises';
+          import pgPkg from 'pg';
+          const { Client } = pgPkg;
+          const { runFullImport, runStockOnly } = await import('./scripts/import-write.mjs');
+
+          const kind = process.env.KIND;
+          const client = new Client({
+            connectionString: process.env.SUPABASE_DB_URL,
+            ssl: { rejectUnauthorized: false },
+            connectionTimeoutMillis: 10000,
+          });
+          await client.connect();
+          try {
+            const opts = {
+              samplesDir: './tmp/inputs',
+              reportDir: './tmp/reports',
+              applyMode: true,
+              dbConnection: client,
+              runId: process.env.RUN_ID,
+              onProgress: (msg) => console.log(msg),
+            };
+            const fn = kind === 'full' ? runFullImport : runStockOnly;
+            const result = await fn(opts);
+            await writeFile('tmp/writer-result.json', JSON.stringify({
+              ok: true,
+              kind,
+              counts: result.counts,
+              reportDir: result.reportDir,
+              elapsedMs: result.elapsedMs,
+            }, null, 2));
+            console.log('writer done OK');
+          } catch (err) {
+            await writeFile('tmp/writer-result.json', JSON.stringify({
+              ok: false,
+              stage: 'writer',
+              message: err.message ?? String(err),
+            }));
+            console.error('writer threw:', err.message);
+            console.error(err.stack);
+            process.exit(1);
+          } finally {
+            try { await client.end(); } catch {}
+          }
+          EOF
+
+      - name: Upload reports to Storage
+        if: always()
+        run: |
+          set -o pipefail
+          node - << 'EOF'
+          import { readdir, readFile, stat } from 'node:fs/promises';
+          import { join, relative } from 'node:path';
+
+          async function* walk(dir) {
+            for (const entry of await readdir(dir, { withFileTypes: true })) {
+              const p = join(dir, entry.name);
+              if (entry.isDirectory()) yield* walk(p);
+              else yield p;
+            }
+          }
+
+          try { await stat('tmp/reports'); } catch { console.log('no tmp/reports dir; nothing to upload'); process.exit(0); }
+
+          const baseUrl = `${process.env.SUPABASE_URL}/storage/v1/object/${process.env.STORAGE_BUCKET}`;
+          const prefix = process.env.REPORT_PREFIX;
+          let count = 0;
+          let failed = 0;
+          for await (const p of walk('tmp/reports')) {
+            const rel = relative('tmp/reports', p).split('\\').join('/');
+            const dest = `${prefix}${rel}`;
+            const buf = await readFile(p);
+            const contentType =
+              p.endsWith('.json') ? 'application/json' :
+              p.endsWith('.csv')  ? 'text/csv' :
+              p.endsWith('.txt')  ? 'text/plain' :
+              p.endsWith('.log')  ? 'text/plain' :
+              'application/octet-stream';
+            const res = await fetch(`${baseUrl}/${dest}`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+                apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+                'Content-Type': contentType,
+                'x-upsert': 'true',
+              },
+              body: buf,
+            });
+            if (!res.ok) {
+              const body = await res.text().catch(() => '');
+              console.error(`upload ${dest} failed: HTTP ${res.status} — ${body.slice(0, 200)}`);
+              failed++;
+              continue;
+            }
+            count++;
+            console.log(`uploaded ${dest}`);
+          }
+          console.log(`uploaded ${count} report files (${failed} failed)`);
+          EOF
+
+      - name: Close import_runs row
+        if: always()
+        run: |
+          set -o pipefail
+          node - << 'EOF'
+          import { readFile } from 'node:fs/promises';
+          import pgPkg from 'pg';
+          const { Client } = pgPkg;
+
+          let payload;
+          try {
+            payload = JSON.parse(await readFile('tmp/writer-result.json', 'utf8'));
+          } catch {
+            payload = { ok: false, stage: 'unknown', message: 'workflow failed before any step wrote tmp/writer-result.json' };
+          }
+
+          const client = new Client({
+            connectionString: process.env.SUPABASE_DB_URL,
+            ssl: { rejectUnauthorized: false },
+            connectionTimeoutMillis: 10000,
+          });
+          await client.connect();
+          try {
+            // Only act on rows we actually marked 'processing'. If a pre-writer
+            // step failed (fetch_metadata / download / mark_processing), the
+            // row is left in its original state for re-attempt. A row that's
+            // 'completed' or 'failed' is treated as immutable history.
+            if (payload.ok) {
+              const r = await client.query(
+                `update private.import_runs
+                    set status = 'completed',
+                        completed_at = now(),
+                        counts = $1,
+                        report_storage_prefix = $2,
+                        error_stage = null,
+                        error_message = null
+                  where id = $3 and status = 'processing'`,
+                [payload.counts ?? null, process.env.REPORT_PREFIX, process.env.RUN_ID],
+              );
+              if (r.rowCount === 0) console.error('warn: close (completed) affected 0 rows — row not in processing state');
+              else console.log(`closed run as completed (rowCount=${r.rowCount})`);
+            } else if (payload.stage === 'writer') {
+              const r = await client.query(
+                `update private.import_runs
+                    set status = 'failed',
+                        failed_at = now(),
+                        error_stage = $1,
+                        error_message = $2,
+                        report_storage_prefix = $3,
+                        counts = $4
+                  where id = $5 and status = 'processing'`,
+                [
+                  payload.stage,
+                  String(payload.message ?? '').slice(0, 4000),
+                  process.env.REPORT_PREFIX,
+                  payload.counts ?? null,
+                  process.env.RUN_ID,
+                ],
+              );
+              if (r.rowCount === 0) console.error('warn: close (failed) affected 0 rows — row not in processing state');
+              else console.log(`closed run as failed (stage=${payload.stage}, rowCount=${r.rowCount})`);
+            } else {
+              // Pre-writer failure: do not touch the row. The workflow run
+              // itself is red, which is the operator's signal.
+              console.log(`pre-writer failure (stage=${payload.stage}); leaving row untouched. message=${payload.message}`);
+            }
+          } finally {
+            try { await client.end(); } catch {}
+          }
+
+          if (!payload.ok) process.exit(1);
+          EOF
