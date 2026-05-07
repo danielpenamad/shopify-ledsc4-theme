@@ -61,3 +61,8 @@ verify_jwt = false
 # fecha_rechazo ANTES del cambio de tag para que W3 envíe el email 5 con
 # el motivo poblado. Cambia tags atómicamente pendiente→rechazado.
 verify_jwt = false
+
+[functions.sftp-probe]
+# THROWAWAY — validación pre-I4 de los 6 secrets SFTP del cliente.
+# Vive en branch scratch claude/scratch-sftp-probe. Borrar tras validar.
+verify_jwt = false
