@@ -60,12 +60,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Repo ignores package-lock.json by policy (Shopify theme).
+      # No `cache: npm` in setup-node and `npm install` instead of `npm ci`,
+      # both of which would require a lockfile. Don't reintroduce either
+      # without first changing that policy.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
 
       - name: Setup tmp dirs
         run: mkdir -p tmp/inputs tmp/reports
