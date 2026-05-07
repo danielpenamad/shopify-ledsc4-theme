@@ -1,8 +1,20 @@
 // Supabase Edge Function: sftp-sync (Fase I4.1)
 //
 // Job 1 of the I4 import pipeline. Downloads CSVs from the LedsC4 SFTP into
-// Supabase Storage and tracks the run in public.import_runs. Does NOT call
+// Supabase Storage and tracks the run in private.import_runs. Does NOT call
 // Shopify and does NOT invoke Job 2 — that comes in I4.2.
+//
+// DB access pattern:
+//   - import_runs lives in the `private` schema, NOT exposed via PostgREST.
+//     The supabase-js client is bound to PostgREST and can't reach `private`
+//     without listing it as an exposed schema (which would defeat the
+//     hide-from-anon goal).
+//   - So for import_runs we connect directly to Postgres via `npm:postgres`
+//     (same path pg_cron uses internally — no PostgREST involvement).
+//     `SUPABASE_DB_URL` is auto-injected by the Edge Runtime with creds
+//     equivalent to a postgres-role connection.
+//   - For Storage we still use supabase-js (the Storage API path is fine,
+//     it's not gated by db-schemas).
 //
 // Workflow per invocation:
 //   1. Parse payload { kind: "full" | "stock_only" }, default "full".
@@ -24,6 +36,7 @@
 import SftpClient from 'npm:ssh2-sftp-client@10.0.3';
 import { Buffer } from 'node:buffer';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import postgres from 'npm:postgres@3.4.4';
 
 const REQUIRED_SECRETS = [
   'LEDSC4_SFTP_HOST',
@@ -134,12 +147,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(result, 500);
   }
 
-  // Supabase admin client (service role bypasses RLS + Storage policies).
+  // Supabase admin client — used for STORAGE only (Storage API isn't gated
+  // by db-schemas). DB writes to private.import_runs go via direct postgres
+  // connection below.
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!SUPABASE_URL || !SERVICE_ROLE) {
+  const DB_URL = Deno.env.get('SUPABASE_DB_URL');
+  if (!SUPABASE_URL || !SERVICE_ROLE || !DB_URL) {
     result.error_stage = 'secret_load';
-    result.error_message = `Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY (auto-injected by Edge runtime).`;
+    const missingEnv: string[] = [];
+    if (!SUPABASE_URL) missingEnv.push('SUPABASE_URL');
+    if (!SERVICE_ROLE) missingEnv.push('SUPABASE_SERVICE_ROLE_KEY');
+    if (!DB_URL) missingEnv.push('SUPABASE_DB_URL');
+    result.error_message = `Missing auto-injected env vars: ${missingEnv.join(', ')}`;
     result.elapsed_ms = Date.now() - t0;
     return jsonResponse(result, 500);
   }
@@ -147,28 +167,37 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false },
   });
 
+  // Postgres direct client. Single short-lived connection; we close it in
+  // finally. The Edge Runtime's pooler serializes well for this.
+  const sql = postgres(DB_URL, { max: 1, idle_timeout: 5, connect_timeout: 10 });
+
   // 3. Insert import_runs row, status='started'.
-  const insertRes = await supabase
-    .from('import_runs')
-    .insert({ kind, status: 'started' })
-    .select('id')
-    .single();
-  if (insertRes.error || !insertRes.data) {
+  let runId: string;
+  try {
+    const rows = await sql<{ id: string }[]>`
+      insert into private.import_runs (kind, status)
+      values (${kind}, 'started')
+      returning id
+    `;
+    if (!rows[0]?.id) throw new Error('insert returned no row');
+    runId = rows[0].id;
+  } catch (err) {
     result.error_stage = 'db_insert';
-    result.error_message = insertRes.error?.message ?? 'insert returned no row';
+    result.error_message = (err as Error).message;
     result.elapsed_ms = Date.now() - t0;
+    try { await sql.end(); } catch (_e) { /* ignore */ }
     return jsonResponse(result, 500);
   }
-  const runId = insertRes.data.id as string;
   const storagePrefix = `runs/${runId}/`;
   result.run_id = runId;
 
   // Patch the row with its storage_prefix immediately so it's visible even
   // if subsequent steps fail.
-  await supabase
-    .from('import_runs')
-    .update({ storage_prefix: storagePrefix })
-    .eq('id', runId);
+  await sql`
+    update private.import_runs
+    set storage_prefix = ${storagePrefix}
+    where id = ${runId}
+  `;
 
   // Helper to mark a run as failed and return 502.
   const failRun = async (stage: string, message: string, extraFiles?: FileRecord[]) => {
@@ -176,16 +205,17 @@ Deno.serve(async (req: Request) => {
     result.error_message = message;
     result.elapsed_ms = Date.now() - t0;
     if (extraFiles) result.files_count = extraFiles.length;
-    await supabase
-      .from('import_runs')
-      .update({
-        status: 'failed',
-        failed_at: new Date().toISOString(),
-        error_stage: stage,
-        error_message: message,
-        files: extraFiles ?? null,
-      })
-      .eq('id', runId);
+    try {
+      await sql`
+        update private.import_runs
+        set status = 'failed',
+            failed_at = now(),
+            error_stage = ${stage},
+            error_message = ${message},
+            files = ${extraFiles ? sql.json(extraFiles as any) : null}
+        where id = ${runId}
+      `;
+    } catch (_e) { /* db unreachable; surface only via response */ }
     return jsonResponse(result, 502);
   };
 
@@ -301,27 +331,26 @@ Deno.serve(async (req: Request) => {
     const flagsNote = nonCsvFlags.length > 0
       ? `flagged_unexpected_entries: ${nonCsvFlags.join('; ')}`
       : null;
-    const { error: updErr } = await supabase
-      .from('import_runs')
-      .update({
-        status: 'downloaded',
-        downloaded_at: new Date().toISOString(),
-        files: downloaded,
-        // Surface non-csv / subdir flags via error_message for visibility,
-        // even on success (status stays 'downloaded'). Non-fatal.
-        error_message: flagsNote,
-      })
-      .eq('id', runId);
-    if (updErr) {
-      return await failRun('db_update', updErr.message, downloaded);
+    try {
+      await sql`
+        update private.import_runs
+        set status = 'downloaded',
+            downloaded_at = now(),
+            files = ${sql.json(downloaded as any)},
+            error_message = ${flagsNote}
+        where id = ${runId}
+      `;
+    } catch (err) {
+      return await failRun('db_update', (err as Error).message, downloaded);
     }
 
     result.status = 'ok';
     result.files_count = downloaded.length;
     if (flagsNote) result.error_message = flagsNote; // informational, not a failure
   } finally {
-    // Always close SFTP. No /tmp cleanup needed — we buffer in memory.
+    // Always close SFTP and Postgres. No /tmp cleanup — we buffer in memory.
     try { await sftp.end(); } catch (_e) { /* ignore */ }
+    try { await sql.end(); } catch (_e) { /* ignore */ }
     result.elapsed_ms = Date.now() - t0;
   }
 
