@@ -547,16 +547,20 @@ async function testRunFullImportDbUpsert() {
       return new Response(JSON.stringify({ data }), { status: 200 });
     };
 
-    // Mock dbConnection that captures the upsert. postgres.js's `sql` is a
-    // tagged-template literal — first arg is the strings array, rest are
-    // interpolated values. We just record the values and resolve.
+    // Mock dbConnection that captures the upsert. With pg.Client, the
+    // contract is `client.query(sql, params)` returning a Promise resolving
+    // to { rows: [...] }. We just record sql + params and resolve.
     const dbCalls = [];
-    const mockSql = (strings, ...values) => {
-      dbCalls.push({
-        sqlSnippet: strings.join('?').replace(/\s+/g, ' ').trim().slice(0, 80),
-        values: [...values],
-      });
-      return Promise.resolve([]);
+    const mockClient = {
+      query: async (sql, params) => {
+        const flat = sql.replace(/\s+/g, ' ').trim();
+        dbCalls.push({
+          sqlSnippet: flat.slice(0, 80),
+          sqlFull: flat,
+          params: [...params],
+        });
+        return { rows: [], rowCount: 1 };
+      },
     };
 
     const result = await runFullImport({
@@ -568,7 +572,7 @@ async function testRunFullImportDbUpsert() {
       shopifyDomain: 'mock', shopifyToken: 'mock',
       rateLimit: { capacity: 100, refillPerSec: 100 },
       concurrency: 1,
-      dbConnection: mockSql,
+      dbConnection: mockClient,
       runId: '00000000-0000-0000-0000-000000000123',
     });
 
@@ -576,10 +580,12 @@ async function testRunFullImportDbUpsert() {
     assert(dbCalls.length === 1, `expected 1 sku_state upsert, got ${dbCalls.length}`);
     const call = dbCalls[0];
     assert(call.sqlSnippet.includes('insert into private.sku_state'), `expected sku_state insert, got snippet '${call.sqlSnippet}'`);
-    assert(call.values[0] === 'DB-001', `arg[0]=sku, got ${call.values[0]}`);
-    assert(/^[0-9a-f]{64}$/.test(call.values[1]), `arg[1]=fingerprint hex, got ${call.values[1]}`);
-    assert(call.values[2] === '00000000-0000-0000-0000-000000000123', `arg[2]=runId, got ${call.values[2]}`);
-    assert(call.values[3] === true, `arg[3]=last_published, got ${call.values[3]}`);
+    // pg uses positional placeholders ($1, $2, ...). Verify they're in the SQL.
+    assert(call.sqlFull.includes('$1') && call.sqlFull.includes('$4'), `expected $1..$4 placeholders in SQL`);
+    assert(call.params[0] === 'DB-001', `params[0]=sku, got ${call.params[0]}`);
+    assert(/^[0-9a-f]{64}$/.test(call.params[1]), `params[1]=fingerprint hex, got ${call.params[1]}`);
+    assert(call.params[2] === '00000000-0000-0000-0000-000000000123', `params[2]=runId, got ${call.params[2]}`);
+    assert(call.params[3] === true, `params[3]=last_published, got ${call.params[3]}`);
 
     // The summary mentions DB upsert.
     const summary = await readFile(result.reportPaths.summary, 'utf8');
@@ -587,7 +593,7 @@ async function testRunFullImportDbUpsert() {
     // fingerprints.json file written.
     assert(typeof result.reportPaths.fingerprints === 'string', 'fingerprints path exists in result');
     const fpFile = JSON.parse(await readFile(result.reportPaths.fingerprints, 'utf8'));
-    assert(fpFile['DB-001']?.fingerprint === call.values[1], 'fingerprints.json matches dbCall arg');
+    assert(fpFile['DB-001']?.fingerprint === call.params[1], 'fingerprints.json matches dbCall arg');
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }

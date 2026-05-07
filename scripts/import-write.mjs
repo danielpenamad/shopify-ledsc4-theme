@@ -616,7 +616,7 @@ async function processSku({ ctx, model, locationId, publicationId }) {
  * @param {string|null} [options.skuFilter]    If set, only process this SKU.
  * @param {number|null} [options.limit]        If set, only process the first N SKUs.
  * @param {(msg:string)=>void} [options.onProgress]   Optional progress logger.
- * @param {object} [options.dbConnection]      Optional postgres.js connection. If set, fingerprints are upserted into private.sku_state.
+ * @param {object} [options.dbConnection]      Optional open pg.Client (or any { query(sql, params) → Promise } shape). If set, fingerprints are upserted into private.sku_state. Caller manages connect/end.
  * @param {string|null} [options.runId]        Optional uuid stored as last_run_id in sku_state.
  * @param {{capacity:number, refillPerSec:number}} [options.rateLimit]   Rate limiter config. Default {capacity:50, refillPerSec:10} — matches Shopify Admin GraphQL Basic cost-point restore (100/s, ~10 ops/s for typical mutations). The 10/s default is safe because gql() retries 429/THROTTLED with backoff.
  * @param {number} [options.concurrency]       Worker pool size. Default 4.
@@ -818,20 +818,25 @@ export async function runFullImport(options = {}) {
       ]);
 
       // Fingerprint accumulation + optional DB upsert.
+      // dbConnection is expected to be an open `pg.Client` (or any object
+      // with a `.query(sql, params)` method that returns a Promise).
+      // Caller is responsible for opening and closing it. The CLI's main()
+      // does this when --with-db is passed; library callers (GHA) pass
+      // their own open client.
       if (v.fingerprint) {
         fingerprints[v.sku] = { fingerprint: v.fingerprint, last_published: pub.ok };
         if (options.dbConnection) {
           try {
-            const sql = options.dbConnection;
-            await sql`
-              insert into private.sku_state (sku, fingerprint, last_run_id, last_seen_at, last_published)
-              values (${v.sku}, ${v.fingerprint}, ${options.runId ?? null}, now(), ${pub.ok})
-              on conflict (sku) do update set
-                fingerprint = excluded.fingerprint,
-                last_run_id = excluded.last_run_id,
-                last_seen_at = excluded.last_seen_at,
-                last_published = excluded.last_published
-            `;
+            await options.dbConnection.query(
+              `insert into private.sku_state (sku, fingerprint, last_run_id, last_seen_at, last_published)
+               values ($1, $2, $3, now(), $4)
+               on conflict (sku) do update set
+                 fingerprint = excluded.fingerprint,
+                 last_run_id = excluded.last_run_id,
+                 last_seen_at = excluded.last_seen_at,
+                 last_published = excluded.last_published`,
+              [v.sku, v.fingerprint, options.runId ?? null, pub.ok],
+            );
           } catch (err) {
             onProgress(`[warn] sku_state upsert failed for ${v.sku}: ${err.message}`);
           }
@@ -932,7 +937,12 @@ async function main() {
   const cli = parseArgs(process.argv);
 
   // Optional DB connection: only if user passed --with-db. We dynamic-import
-  // postgres so the dependency isn't required for default CLI runs.
+  // pg so the dependency isn't required for default CLI runs.
+  //
+  // Why pg and not postgres.js: postgres@3.4.4 has a SCRAM-SHA-256 bug
+  // against Supabase's Session pooler — auth fails with 28P01 even though
+  // pg with the same URL/credentials connects fine. Confirmed empirically
+  // 2026-05-07 with 4 successive auth attempts and 3 password rotations.
   let dbConnection = null;
   if (cli.withDb) {
     if (!process.env.SUPABASE_DB_URL) {
@@ -940,12 +950,19 @@ async function main() {
       process.exit(1);
     }
     try {
-      const pgMod = await import('postgres');
-      const pg = pgMod.default;
-      dbConnection = pg(process.env.SUPABASE_DB_URL, { max: 1, idle_timeout: 5, connect_timeout: 10 });
+      const pgMod = await import('pg');
+      const { Client } = pgMod.default;
+      dbConnection = new Client({
+        connectionString: process.env.SUPABASE_DB_URL,
+        // Supabase's pooler cert isn't in Node's CA bundle — accept it.
+        ssl: { rejectUnauthorized: false },
+        // Match the pool sizing/timeouts we used with postgres.js.
+        connectionTimeoutMillis: 10_000,
+      });
+      await dbConnection.connect();
     } catch (err) {
-      console.error(`--with-db requires the 'postgres' npm package. Install it: npm install postgres@3.4.4`);
-      console.error(`(import error: ${err.message})`);
+      console.error(`--with-db requires the 'pg' npm package. Install it: npm install pg`);
+      console.error(`(connect error: ${err.message})`);
       process.exit(1);
     }
   }
