@@ -61,3 +61,10 @@ verify_jwt = false
 # fecha_rechazo ANTES del cambio de tag para que W3 envíe el email 5 con
 # el motivo poblado. Cambia tags atómicamente pendiente→rechazado.
 verify_jwt = false
+
+# --- Importer (Fase I4) ---
+# Job 1: descarga los CSVs del SFTP del cliente a Storage y crea row de
+# tracking en public.import_runs. JWT obligatorio — solo invocable por
+# pg_cron (I4.3) o por Dani manualmente con anon/service key. NO público.
+[functions.sftp-sync]
+verify_jwt = true
