@@ -10,7 +10,7 @@
 // Run:
 //   node scripts/import-write.test.mjs
 
-import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches, runFullImport, runStockOnly } from './import-write.mjs';
+import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches, buildOrphansToUnpublish, runFullImport, runStockOnly } from './import-write.mjs';
 import { buildStockFingerprint } from './fingerprint.mjs';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -923,6 +923,57 @@ function testMfBatches_ignoresNonProductNamespace() {
   assert(batches[0].translations.every((t) => t.translatableContentDigest === 'd-right'), `expected d-right digest in all entries`);
 }
 
+// ---- buildOrphansToUnpublish() tests (I3.6) ----
+//
+// Pure function: returns sorted array of SKUs that were last_published=true
+// in sku_state but are not in the current run's publishables. Caller is
+// responsible for filtering sku_state on last_published=true before passing
+// in (so SKUs that are in publishables but were previously unpublished are
+// correctly excluded — they go through the regular productSet path).
+
+function testOrphans_publishablesEmpty_priorAll() {
+  console.log('Test: publishables empty + 5 prior published → all 5 returned, sorted');
+  const r = buildOrphansToUnpublish([], ['SKU-C', 'SKU-A', 'SKU-E', 'SKU-B', 'SKU-D']);
+  assert(Array.isArray(r) && r.length === 5, `expected 5 orphans, got ${r?.length}`);
+  assert(JSON.stringify(r) === JSON.stringify(['SKU-A', 'SKU-B', 'SKU-C', 'SKU-D', 'SKU-E']), `not sorted: ${JSON.stringify(r)}`);
+}
+
+function testOrphans_publishablesEqualPrior() {
+  console.log('Test: publishables == prior → no orphans');
+  const r = buildOrphansToUnpublish(['A', 'B', 'C'], ['A', 'B', 'C']);
+  assert(r.length === 0, `expected 0 orphans, got ${r.length}`);
+}
+
+function testOrphans_publishablesSubsetOfPrior() {
+  console.log('Test: publishables ⊂ prior → diff returned (those in prior but not in publishables)');
+  const r = buildOrphansToUnpublish(['A', 'C'], ['A', 'B', 'C', 'D']);
+  assert(JSON.stringify(r) === JSON.stringify(['B', 'D']), `expected [B, D], got ${JSON.stringify(r)}`);
+}
+
+function testOrphans_priorEmpty() {
+  console.log('Test: prior empty → no orphans');
+  const r = buildOrphansToUnpublish(['A', 'B'], []);
+  assert(r.length === 0, `expected 0 orphans, got ${r.length}`);
+}
+
+function testOrphans_priorIsAlreadyFilteredByCaller() {
+  console.log('Test: SKU in publishables but last_published=false in sku_state → caller filters BEFORE; not in priorPublished → not in result');
+  // Simulate the filtering the caller does: only pass last_published=true.
+  // Here SKU-X is in publishables but was last_published=false (so caller
+  // omits it from priorPublished). SKU-Y was last_published=true and is in
+  // publishables (caller passes it in but it's correctly excluded as not orphan).
+  const publishables = ['SKU-X', 'SKU-Y'];
+  const priorPublishedFiltered = ['SKU-Y']; // caller already dropped SKU-X
+  const r = buildOrphansToUnpublish(publishables, priorPublishedFiltered);
+  assert(r.length === 0, `expected 0 orphans, got ${r.length} (SKU-X must NOT be unpublished — it's a re-publish)`);
+}
+
+function testOrphans_acceptsIterables() {
+  console.log('Test: accepts Set + array (any iterable)');
+  const r = buildOrphansToUnpublish(new Set(['A']), ['A', 'B']);
+  assert(JSON.stringify(r) === JSON.stringify(['B']), `expected [B], got ${JSON.stringify(r)}`);
+}
+
 async function main() {
   testBuildProductSetInput_basic();
   testBuildProductSetInput_handleLowercase();
@@ -952,6 +1003,12 @@ async function main() {
   await testRunStockOnlyFingerprintDeterminism();
   await testRunStockOnlyFingerprintDistinctFromFull();
   await testSummaryReportsRealUpsertCounts();
+  testOrphans_publishablesEmpty_priorAll();
+  testOrphans_publishablesEqualPrior();
+  testOrphans_publishablesSubsetOfPrior();
+  testOrphans_priorEmpty();
+  testOrphans_priorIsAlreadyFilteredByCaller();
+  testOrphans_acceptsIterables();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
