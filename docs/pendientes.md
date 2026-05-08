@@ -149,17 +149,33 @@ se archiva en `docs/pendientes-archivo.md`.
   - W2 y W3 tenían condición rota (`AND` en lugar de
     `AND NOT contiene pendiente`) — corregidas manualmente
     durante smoke test 2026-05-05, sin commitear cambios al repo.
-- Bloque misterio Company creator:
-  - Al aprobar customer en BO-7, se creó una Company en Shopify
-    aunque ni W2 ni edge function `create-company-for-customer`
-    la crearon (verificado en logs Supabase).
-  - Events API atribuye creación a `Final_integration` (nuestra
-    custom app de Shopify, la que usa Code y las edge functions).
-  - Hipótesis fuerte: alguna de las queries de verificación
-    lanzadas desde Claude (asistente) durante el smoke test
-    disparó la creación implícita por side-effect de Shopify.
-  - Riesgo cutover: si no se entiende, en producción la Company
-    podría no crearse cuando un cliente real se apruebe.
+- Bloque misterio Company creator — **RESUELTO 2026-05-09**:
+  - Path correcto identificado: W2 → `Send HTTP request →
+    create-company-for-customer`. La edge function usa el access
+    token de la Custom App `Final_integration`, lo que explica la
+    atribución en Events API. No hay path oculto.
+  - Por qué pareció misterio: durante el smoke test 2026-05-05 la
+    condición de W2 estaba rota (`contiene pendiente AND contiene
+    aprobado`) — ver Bloque infra. Con el flip atómico de
+    `approve-customer` esa condición nunca se cumple, así que
+    asumimos que W2 no había fired y la Company venía de otro
+    lado. Tras corregir la condición manualmente durante el mismo
+    smoke test, W2 disparó y el path estándar produjo Company +
+    fecha para `ledsc4-test2`.
+  - Evidencia consistente: ledsc4-test2 (10589026910535) tiene
+    Company `ddd` y `b2b.fecha_aprobacion: 2026-05-05`. Víctor,
+    aprobado **antes** del fix W2, quedó sin Company ni fecha —
+    consistente con W2 no firing en su caso. Ver Bloque customer
+    zombi y la entrada Víctor (T3) que ahora hereda este path
+    oficial.
+  - Confirmación bytes-a-bytes pendiente (opcional): CLI v2.98.2
+    no expone `supabase functions logs`. Si se quiere cierre con
+    esa evidencia adicional, tirar logs desde Dashboard Supabase
+    (Functions → create-company-for-customer → Logs).
+  - Riesgo cutover original queda resuelto: la cadena
+    `approve-customer` → flip tag → W2 (condición correcta) →
+    `create-company-for-customer` es la oficial y funciona
+    end-to-end.
 - Bloque customer zombi:
   - `daniel.pena+test-pending1@creacciones.es`
     (gid://shopify/Customer/10510009467207) tiene tag `aprobado`
