@@ -2,7 +2,7 @@
 // Unit tests for scripts/import-map.mjs.
 // Zero dependencies. Run: node scripts/import-map.test.mjs
 
-import { buildTitle, coerce } from './import-map.mjs';
+import { buildTitle, coerce, parsePrice } from './import-map.mjs';
 
 let passed = 0;
 let failed = 0;
@@ -120,6 +120,96 @@ function testCoerceDiameterPrefixStillFails() {
   assert(r.warning?.kind === 'numeric_unparsable', 'warning still emitted');
 }
 
+// ---- parsePrice() tests (SFTP price format fix, 2026-05-08) ----
+//
+// Bug context: the ERP exports prices as "15,00€" (ES decimal + currency
+// suffix). The old loader called Number() on the raw string, which yields
+// NaN, so every SKU got mapped to null and classified as price_zero. Run
+// 3fbcc5c2 (full pipeline against SFTP CSV) hid all 733 SKUs because of
+// this. parsePrice() normalizes the string before Number() and distinguishes
+// genuinely-invalid values from legitimate zeros.
+
+function assertPrice(input, expectedValue, expectedInvalid, label) {
+  const r = parsePrice(input);
+  assertEq(r.value, expectedValue, `${label}: value`);
+  assertEq(r.invalid, expectedInvalid, `${label}: invalid flag`);
+}
+
+function testParsePriceUsDecimal() {
+  console.log('Test 15: parsePrice("28.87") → value=28.87, invalid=false (US decimal, no symbol)');
+  assertPrice('28.87', 28.87, false, '"28.87"');
+}
+
+function testParsePriceEsDecimal() {
+  console.log('Test 16: parsePrice("15,00") → value=15, invalid=false (ES decimal, no symbol)');
+  assertPrice('15,00', 15, false, '"15,00"');
+}
+
+function testParsePriceEsDecimalWithEuro() {
+  console.log('Test 17: parsePrice("15,00€") → value=15, invalid=false (ES decimal + €) — the actual SFTP format');
+  assertPrice('15,00€', 15, false, '"15,00€"');
+}
+
+function testParsePriceUsDecimalWithEuro() {
+  console.log('Test 18 (edge): parsePrice("15.00€") → value=15, invalid=false (US decimal + €)');
+  assertPrice('15.00€', 15, false, '"15.00€"');
+}
+
+function testParsePriceEsThousandsAndDecimal() {
+  console.log('Test 19: parsePrice("1.234,56") → value=1234.56, invalid=false (ES thousands sep + decimal)');
+  assertPrice('1.234,56', 1234.56, false, '"1.234,56"');
+}
+
+function testParsePriceMultipleEsThousands() {
+  console.log('Test 20: parsePrice("1.234.567,89") → value=1234567.89, invalid=false (multiple ES thousands sep)');
+  assertPrice('1.234.567,89', 1234567.89, false, '"1.234.567,89"');
+}
+
+function testParsePriceUsDecimalNoSymbol() {
+  console.log('Test 21: parsePrice("1234.56") → value=1234.56, invalid=false (period as decimal, no thousands)');
+  assertPrice('1234.56', 1234.56, false, '"1234.56"');
+}
+
+function testParsePriceEmpty() {
+  console.log('Test 22: parsePrice("") → value=null, invalid=true');
+  assertPrice('', null, true, '""');
+}
+
+function testParsePriceGarbage() {
+  console.log('Test 23: parsePrice("abc") → value=null, invalid=true');
+  assertPrice('abc', null, true, '"abc"');
+}
+
+function testParsePriceZeroNotInvalid() {
+  console.log('Test 24: parsePrice("0,00") → value=0, invalid=false (zero is a valid price, not invalid)');
+  assertPrice('0,00', 0, false, '"0,00"');
+}
+
+function testParsePriceZeroWithEuroNotInvalid() {
+  console.log('Test 25: parsePrice("0,00€") → value=0, invalid=false');
+  assertPrice('0,00€', 0, false, '"0,00€"');
+}
+
+function testParsePriceWhitespaceAndSpacedEuro() {
+  console.log('Test 26: parsePrice("  15,00 €") → value=15, invalid=false (leading/trailing/internal spaces)');
+  assertPrice('  15,00 €', 15, false, '"  15,00 €"');
+}
+
+function testParsePriceNbspBeforeEuro() {
+  console.log('Test 27: parsePrice("15,00\\u00a0€") → value=15, invalid=false (NBSP between value and currency)');
+  assertPrice('15,00 €', 15, false, '"15,00<NBSP>€"');
+}
+
+function testParsePriceNullInput() {
+  console.log('Test 28: parsePrice(null) → value=null, invalid=true');
+  assertPrice(null, null, true, 'null');
+}
+
+function testParsePriceCurrencyCodeSuffix() {
+  console.log('Test 29: parsePrice("15,00 EUR") → value=15, invalid=false (currency code instead of symbol)');
+  assertPrice('15,00 EUR', 15, false, '"15,00 EUR"');
+}
+
 function main() {
   testCleanIdempotent();
   testDoubleSpaceCollapsed();
@@ -135,6 +225,21 @@ function main() {
   testCoerceIntegerTruncatesDecimal();
   testCoerceTextPrefixedRangeStillFails();
   testCoerceDiameterPrefixStillFails();
+  testParsePriceUsDecimal();
+  testParsePriceEsDecimal();
+  testParsePriceEsDecimalWithEuro();
+  testParsePriceUsDecimalWithEuro();
+  testParsePriceEsThousandsAndDecimal();
+  testParsePriceMultipleEsThousands();
+  testParsePriceUsDecimalNoSymbol();
+  testParsePriceEmpty();
+  testParsePriceGarbage();
+  testParsePriceZeroNotInvalid();
+  testParsePriceZeroWithEuroNotInvalid();
+  testParsePriceWhitespaceAndSpacedEuro();
+  testParsePriceNbspBeforeEuro();
+  testParsePriceNullInput();
+  testParsePriceCurrencyCodeSuffix();
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     console.error('\nFailures:');
