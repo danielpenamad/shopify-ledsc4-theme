@@ -94,7 +94,7 @@ async function main() {
   for (const w of mapperWarnings) allWarnings.push({ source: 'mapper', ...w });
 
   // Compute publish_reason breakdown for the summary.
-  const reasonCounts = { missing_stock: 0, stock_zero: 0, missing_price: 0, price_zero: 0 };
+  const reasonCounts = { missing_stock: 0, stock_zero: 0, missing_price: 0, price_invalid: 0, price_zero: 0 };
   let publishCount = 0;
   for (const m of products.values()) {
     if (m.publish) publishCount++;
@@ -135,8 +135,9 @@ async function main() {
     `- SKUs would NOT publish:                                ${products.size - publishCount}\n` +
     `  · missing_stock  (in surtido, not in stock):           ${reasonCounts.missing_stock}\n` +
     `  · stock_zero     (in surtido & stock, qty=0):          ${reasonCounts.stock_zero}\n` +
-    `  · missing_price  (in surtido & stock>0, not in precios): ${reasonCounts.missing_price}\n` +
-    `  · price_zero     (in surtido & stock>0 & price=0):     ${reasonCounts.price_zero}\n` +
+    `  · missing_price  (in surtido & stock>0, not in precios):    ${reasonCounts.missing_price}\n` +
+    `  · price_invalid  (in surtido & stock>0, value unparseable): ${reasonCounts.price_invalid}\n` +
+    `  · price_zero     (in surtido & stock>0 & price<=0):         ${reasonCounts.price_zero}\n` +
     `- Orphan SKUs in stock (not in surtido):                 ${orphans.in_stock.length}\n` +
     `- Orphan SKUs in precios (not in surtido):               ${orphans.in_precios.length}` +
     (orphans.in_precios.length > 0 ? ` (${orphans.in_precios.join(', ')})` : '') +

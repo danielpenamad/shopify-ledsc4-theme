@@ -103,6 +103,51 @@ export function coerce(rawString, type, sku, columnIndex, locale) {
   }
 }
 
+// Parse a precio value from the SFTP export.
+//
+// The ERP exports ES decimal + currency suffix: "15,00€", "1.234,56€", "0,00€".
+// Samples (dev fixtures) use plain US decimal: "28.87". Both must work.
+//
+// Approach:
+//   1. Strip everything that isn't a digit, sign, comma, or period (so €, EUR,
+//      $, NBSP, regular spaces all disappear).
+//   2. Detect separator format:
+//      - If both "," and "." are present, ES thousands+decimal: drop "." and
+//        convert "," to "." (e.g. "1.234,56" → "1234.56").
+//      - If only "," is present, ES decimal: convert to "." ("15,00" → "15.00").
+//      - If only "." or no separator, leave as is.
+//   3. Coerce with Number(); NaN means unparseable.
+//
+// Returns { value, invalid }:
+//   - { value: <number>, invalid: false } when parseable (including 0).
+//   - { value: null, invalid: true } when input is empty after stripping or NaN.
+//
+// Why Number() and not parseFloat: parseFloat is permissive in a way that hides
+// bugs ("36-61" → 36 silently). Number() is strict, but only meaningful AFTER
+// we normalize separators and strip currency symbols — otherwise it rejects
+// the whole ERP export ("15,00€" → NaN). This was the root cause of run
+// 3fbcc5c2 marking 733 SKUs as price_zero when in fact every SKU's price was
+// simply unparseable. See docs/import-pipeline.md §11.5 (to be added).
+//
+// Exported for unit testing.
+export function parsePrice(rawString) {
+  if (rawString == null) return { value: null, invalid: true };
+  let s = String(rawString).trim();
+  if (s === '') return { value: null, invalid: true };
+  s = s.replace(/[^\d,.\-]/g, '');
+  if (s === '') return { value: null, invalid: true };
+  const hasComma = s.includes(',');
+  const hasPeriod = s.includes('.');
+  if (hasComma && hasPeriod) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (hasComma) {
+    s = s.replace(',', '.');
+  }
+  const n = Number(s);
+  if (Number.isNaN(n)) return { value: null, invalid: true };
+  return { value: n, invalid: false };
+}
+
 // Detect HTML in a free-text field. Surfaced as an observation, not a problem.
 function looksLikeHtml(s) {
   if (s == null) return false;
@@ -162,14 +207,26 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
     stockMap.set(r.sku, n);
   }
 
+  // Map<sku, { value: number|null, invalid: boolean }>
+  // - missing key: SKU not in precios file at all → publish_reason='missing_price'
+  // - { invalid: true }:  parse failed (NaN, currency garbage, etc.) → publish_reason='price_invalid'
+  // - { value: 0 }:       parsed as zero → publish_reason='price_zero'
+  // The three buckets are kept distinct so the operator can tell the difference
+  // between "ERP didn't send a price" and "ERP sent a price we can't parse".
   const preciosMap = new Map();
+  const invalidPrices = [];
   for (const r of precios.records) {
     if (r.tarifa == null) continue;
-    // Accept ES decimal too.
-    let s = String(r.tarifa).trim();
-    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
-    const n = Number(s);
-    preciosMap.set(r.sku, Number.isNaN(n) ? null : n);
+    const parsed = parsePrice(r.tarifa);
+    preciosMap.set(r.sku, parsed);
+    if (parsed.invalid) invalidPrices.push({ sku: r.sku, raw: r.tarifa });
+  }
+  if (invalidPrices.length > 0) {
+    const examples = invalidPrices.slice(0, 5)
+      .map((p) => `${p.sku}=${JSON.stringify(p.raw)}`)
+      .join(', ');
+    const more = invalidPrices.length > 5 ? ` (+${invalidPrices.length - 5} more)` : '';
+    console.error(`WARNING: ${invalidPrices.length} price entries unparseable, examples: ${examples}${more}`);
   }
 
   // 2) Index columns by destination for quick mapper lookups.
@@ -228,7 +285,8 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
     const inStock = stockMap.has(sku);
     const stockQty = stockMap.get(sku) ?? null;
     const inPrecios = preciosMap.has(sku);
-    const price = preciosMap.get(sku) ?? null;
+    const priceEntry = preciosMap.get(sku);
+    const price = priceEntry?.value ?? null;
 
     let publish = false;
     let publishReason = null;
@@ -238,6 +296,8 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
       publishReason = 'stock_zero';
     } else if (!inPrecios) {
       publishReason = 'missing_price';
+    } else if (priceEntry.invalid) {
+      publishReason = 'price_invalid';
     } else if (price == null || price <= 0) {
       publishReason = 'price_zero';
     } else {
