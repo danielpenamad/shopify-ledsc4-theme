@@ -452,6 +452,96 @@ async function publishProduct(ctx, productId, publicationId) {
   return { errors };
 }
 
+// ----- API client: I3.6 unpublish-orphans path --------------------------
+
+// Lookup product GID + status from a SKU. Used by the unpublish-orphans
+// phase to resolve which Shopify product to flip to DRAFT for SKUs that
+// exist in private.sku_state with last_published=true but are no longer
+// in the current run's publishables. The `node.sku !== sku` exact-match
+// check defends against Shopify's fuzzy variant search.
+const ORPHAN_LOOKUP_QUERY = `
+  query OrphanLookup($q: String!) {
+    productVariants(first: 1, query: $q) {
+      nodes {
+        sku
+        product { id status }
+      }
+    }
+  }
+`;
+
+const PRODUCT_UPDATE_STATUS_MUTATION = `
+  mutation productUpdateStatus($input: ProductInput!) {
+    productUpdate(input: $input) {
+      product { id status }
+      userErrors { field message code }
+    }
+  }
+`;
+
+// Compute SKUs that need unpublishing: rows in sku_state whose
+// last_published=true that are NOT in the current run's publishables.
+//
+// Inputs:
+//   publishableSkus:    Iterable<string> — SKUs the writer will publish this run.
+//   priorPublishedSkus: Iterable<string> — SKUs from sku_state where last_published=true.
+//                       Caller is responsible for filtering on last_published=true
+//                       before passing in (so a SKU currently in publishables that
+//                       was previously NOT published is correctly excluded — it'll
+//                       be turned ACTIVE by the regular productSet path, not by us).
+//
+// Returns: sorted array of SKU strings.
+//
+// Pure: testable in isolation. No I/O, no side effects.
+export function buildOrphansToUnpublish(publishableSkus, priorPublishedSkus) {
+  const pub = new Set(publishableSkus);
+  const out = [];
+  for (const sku of priorPublishedSkus) {
+    if (!pub.has(sku)) out.push(sku);
+  }
+  out.sort();
+  return out;
+}
+
+async function fetchProductIdBySku(ctx, sku) {
+  const data = await gql(ctx, ORPHAN_LOOKUP_QUERY, { q: `sku:${sku}` });
+  const node = data.productVariants?.nodes?.[0];
+  if (!node || node.sku !== sku) return null;
+  return node.product?.id ?? null;
+}
+
+async function productUpdateStatus(ctx, productId, status) {
+  const data = await gql(ctx, PRODUCT_UPDATE_STATUS_MUTATION, {
+    input: { id: productId, status },
+  });
+  return {
+    errors: data.productUpdate.userErrors ?? [],
+    product: data.productUpdate.product,
+  };
+}
+
+// Process one orphan SKU: resolve its product GID, flip status to DRAFT.
+// Returns one of:
+//   { sku, status: 'ok',        productId, errors: [] }
+//   { sku, status: 'failed',    productId, errors: [...] }     // unexpected/userErrors
+//   { sku, status: 'not_found', productId: null, errors: [] }  // SKU no longer in shop
+async function processUnpublishOrphan(ctx, sku) {
+  let productId = null;
+  try {
+    productId = await fetchProductIdBySku(ctx, sku);
+  } catch (err) {
+    return { sku, status: 'failed', productId: null, errors: [{ message: err.message }] };
+  }
+  if (!productId) return { sku, status: 'not_found', productId: null, errors: [] };
+  try {
+    const r = await productUpdateStatus(ctx, productId, 'DRAFT');
+    if (r.errors.length > 0) return { sku, status: 'failed', productId, errors: r.errors };
+    return { sku, status: 'ok', productId, errors: [] };
+  } catch (err) {
+    return { sku, status: 'failed', productId, errors: [{ message: err.message }] };
+  }
+}
+
 // ----- API client: stock-only path --------------------------------------
 
 const VARIANT_BY_SKU_QUERY = `
@@ -785,6 +875,11 @@ export async function runFullImport(options = {}) {
     // Tracks DB upserts (PR-Y fix). Only meaningful when options.dbConnection
     // is set; otherwise both stay 0.
     sku_state: { upserted_ok: 0, upsert_failed: 0 },
+    // I3.6: SKUs that we've previously published but aren't in this run's
+    // publishables (descatalogados, sin stock, sin precio…). They get
+    // status:DRAFT in Shopify and last_published=false in sku_state.
+    // Only populated when options.dbConnection is set.
+    unpublished_orphans: { ok: 0, failed: 0, not_found: 0 },
   };
   const fingerprints = {};
 
@@ -916,6 +1011,95 @@ export async function runFullImport(options = {}) {
     counts._sampleProductIds = sampleProductIds;
   }
 
+  // ---- I3.6: Unpublish orphans ----
+  //
+  // After the regular publish path, look up which SKUs we've already
+  // published in past runs (sku_state.last_published=true) and that are
+  // NOT in this run's publishables. They're descatalogados / sin stock /
+  // sin precio, so the writer flips them to status:DRAFT in Shopify and
+  // updates sku_state.last_published=false.
+  //
+  // Constraints:
+  //   - Only runs in apply mode AND when dbConnection is provided.
+  //     Without sku_state we have no source of truth for "previously
+  //     published SKUs"; iterating the shop blindly is out of scope by
+  //     design (the writer ignores products it didn't create).
+  //   - On failure, sku_state.last_published stays true so the next run
+  //     retries. On not_found (SKU no longer exists in shop), we still
+  //     flip it to false so we don't keep retrying a deleted product.
+  //   - Reuses ctx (same rate limiter + concurrency) as the publish path.
+  let orphansCsv = '';
+  if (applyMode && options.dbConnection) {
+    let priorPublished = [];
+    try {
+      const r = await options.dbConnection.query(
+        `select sku from private.sku_state where last_published = true`
+      );
+      priorPublished = r.rows.map((row) => row.sku);
+    } catch (err) {
+      onProgress(`[warn] could not read sku_state for orphan detection: ${err.message}; skipping unpublish phase`);
+      priorPublished = null;
+    }
+
+    if (priorPublished !== null) {
+      const publishablesSkus = publishables.map((p) => p.sku);
+      const orphans = buildOrphansToUnpublish(publishablesSkus, priorPublished);
+      onProgress(`Unpublish phase: ${orphans.length} orphan SKU${orphans.length === 1 ? '' : 's'} (in sku_state.last_published, not in current publishables)`);
+      orphansCsv = csvRow(['sku', 'product_id', 'status', 'errors']);
+
+      if (orphans.length > 0) {
+        const orphanItems = orphans.map((sku) => ({ sku }));
+        let orphanCounter = 0;
+        const orphanResults = await runWithConcurrency({
+          items: orphanItems,
+          concurrency,
+          work: async (it) => {
+            const r = await processUnpublishOrphan(ctx, it.sku);
+            orphanCounter++;
+            if (orphanCounter % 25 === 0 || orphanCounter === orphanItems.length) {
+              onProgress(`[orphan ${orphanCounter}/${orphanItems.length}] ${r.sku} → ${r.status}`);
+            }
+            return r;
+          },
+        });
+
+        for (let i = 0; i < orphanResults.length; i++) {
+          const r = orphanResults[i];
+          if (!r.ok) {
+            counts.unpublished_orphans.failed++;
+            orphansCsv += csvRow([
+              orphanItems[i].sku, '', 'WORKER_ERROR', String(r.error?.message ?? r.error),
+            ]);
+            continue;
+          }
+          const v = r.value;
+          counts.unpublished_orphans[v.status]++;
+          orphansCsv += csvRow([
+            v.sku, v.productId ?? '', v.status.toUpperCase(),
+            v.errors.map((e) => `[${e.code ?? ''}] ${e.message}`).join('; '),
+          ]);
+
+          // Persist sku_state. Skip on 'failed' so the next run retries.
+          // Both 'ok' and 'not_found' should flip last_published=false.
+          if (v.status === 'ok' || v.status === 'not_found') {
+            try {
+              await options.dbConnection.query(
+                `update private.sku_state
+                    set last_published = false,
+                        last_run_id = $1,
+                        last_seen_at = now()
+                  where sku = $2`,
+                [options.runId ?? null, v.sku],
+              );
+            } catch (err) {
+              onProgress(`[warn] sku_state unpublish-state update failed for ${v.sku}: ${err.message}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Write reports.
   const changesPath = join(reportDir, 'changes.csv');
   await writeFile(changesPath, changesCsv, 'utf8');
@@ -923,6 +1107,13 @@ export async function runFullImport(options = {}) {
   // against previous reports without needing the DB. Empty in dry-run.
   const fingerprintsPath = join(reportDir, 'fingerprints.json');
   await writeFile(fingerprintsPath, JSON.stringify(fingerprints, null, 2), 'utf8');
+
+  // I3.6 orphans report. Only present when the unpublish phase ran.
+  let orphansPath = null;
+  if (orphansCsv) {
+    orphansPath = join(reportDir, 'orphans.csv');
+    await writeFile(orphansPath, orphansCsv, 'utf8');
+  }
 
   const elapsedMs = Date.now() - t0;
   const elapsedSec = (elapsedMs / 1000).toFixed(2);
@@ -950,6 +1141,7 @@ export async function runFullImport(options = {}) {
     `- translations (product):       ok=${counts.translations.ok} skipped=${counts.translations.skipped} failed=${counts.translations.failed}\n` +
     `- translations (metafields):    batches_ok=${counts.metafield_translations.batches_ok} batches_failed=${counts.metafield_translations.batches_failed} entries_written=${counts.metafield_translations.entries_written}\n` +
     `- publishablePublish:           ok=${counts.publish.ok} failed=${counts.publish.failed} skipped=${counts.publish.skipped}\n` +
+    `- Unpublished orphans:          ok=${counts.unpublished_orphans.ok} failed=${counts.unpublished_orphans.failed} not_found=${counts.unpublished_orphans.not_found}\n` +
     `- SKUs overall:                 ok=${counts.skus.ok} failed=${counts.skus.failed}\n` +
     `- Fingerprints computed:        ${Object.keys(fingerprints).length}` +
     (options.dbConnection
@@ -971,7 +1163,7 @@ export async function runFullImport(options = {}) {
     counts,
     sampleProductIds,
     fingerprints,
-    reportPaths: { summary: summaryPath, changes: changesPath, fingerprints: fingerprintsPath },
+    reportPaths: { summary: summaryPath, changes: changesPath, fingerprints: fingerprintsPath, orphans: orphansPath },
     elapsedMs,
     reportDir,
   };

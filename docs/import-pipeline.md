@@ -496,6 +496,50 @@ En la tienda de pruebas (Development plan, ~450 publishables):
 Sequencial, sin paralelismo. Suficiente para el cron diario de I4
 (precios y surtido).
 
+### Fase I3.6 — Despublicar SKUs que salen del surtido
+
+Tras el bucle de publishables, el writer ejecuta una fase de
+**unpublish orphans**: SKUs que en runs previos quedaron publicados
+(`private.sku_state.last_published = true`) pero que en el run actual
+no aparecen entre los publishables (porque salieron del surtido,
+perdieron stock, o perdieron precio).
+
+**Decisión**: despublicar = `productUpdate(input: { id, status: DRAFT })`.
+
+- **No se archiva** ni se borra. El producto queda en DRAFT, oculto
+  de la storefront pero recuperable; si vuelve al surtido en runs
+  futuros, el flujo regular `productSet` lo pasa a `ACTIVE`
+  automáticamente (la mutation siempre envía `status: 'ACTIVE'` para
+  los publishables, así que reabilita el producto sin código extra).
+- **Source of truth**: `private.sku_state.last_published`. La fase
+  **NO itera** sobre el shop entero — los productos que el writer
+  no ha creado quedan ignorados por diseño. Ediciones manuales del
+  catálogo en el admin de Shopify no se ven afectadas.
+
+**Persistencia**: tras despublicar con éxito (o tras detectar que el
+producto ya no existe en el shop, p. ej. borrado manual por el
+operador), `sku_state.last_published` pasa a `false`. En caso de
+fallo (userError o error inesperado), `last_published` se mantiene
+en `true` para que el siguiente run reintente.
+
+**Reuso de infraestructura**: la fase usa el mismo `ctx`,
+rate-limiter (`capacity=50, refill=10/s`) y `concurrency=4` que el
+bucle principal. La query de resolución `sku → productId` es la
+misma que el path stock-only (`productVariants(query: "sku:X")`),
+con verificación exacta de SKU para evitar matches fuzzy.
+
+**Output**: `<reportDir>/orphans.csv` con columnas
+`sku,product_id,status,errors`. `summary.txt` añade la línea
+`Unpublished orphans: ok=N failed=M not_found=K`. La row de
+`private.import_runs.counts` añade el bucket
+`unpublished_orphans: { ok, failed, not_found }`.
+
+**Cuándo NO se ejecuta**: si `dbConnection` no se ha pasado al
+writer (CLI sin `--with-db`, o llamada library sin `dbConnection`),
+la fase entera se salta silenciosamente — sin sku_state como
+source of truth no hay forma de saber qué SKUs hemos publicado en
+el pasado.
+
 ---
 
 ## 11. Tratamiento de anomalías en datos del cliente
