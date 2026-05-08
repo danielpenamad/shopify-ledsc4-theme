@@ -1,8 +1,9 @@
-// Supabase Edge Function: sftp-sync (Fase I4.1)
+// Supabase Edge Function: sftp-sync (Fase I4.1 + PR-A2 chain)
 //
 // Job 1 of the I4 import pipeline. Downloads CSVs from the LedsC4 SFTP into
-// Supabase Storage and tracks the run in private.import_runs. Does NOT call
-// Shopify and does NOT invoke Job 2 — that comes in I4.2.
+// Supabase Storage, tracks the run in private.import_runs, and (PR-A2)
+// triggers Job 2 (`ledsc4-import.yml` GitHub Actions workflow) via
+// `repository_dispatch` once the row reaches status='downloaded'.
 //
 // DB access pattern:
 //   - import_runs lives in the `private` schema, NOT exposed via PostgREST.
@@ -27,7 +28,12 @@
 //      Edge Runtime blocklists Deno.lstatSync that ssh2-sftp-client's
 //      fastGet depends on. Files are 3-7 MB so memory pressure is fine.)
 //   6. Update import_runs row: status="downloaded", downloaded_at, files=[...].
-//   7. Return JSON with run_id + counts + elapsed.
+//   7. POST a `repository_dispatch` (event_type=ledsc4-import,
+//      client_payload={run_id}) to GitHub. Best-effort: failure here is
+//      logged + reported in the response but does NOT mark the row failed
+//      — the download is committed, and `workflow_dispatch` (PR-A1) is
+//      the manual fallback for the same run_id.
+//   8. Return JSON with run_id + counts + elapsed + dispatch_status.
 //
 // Auth: verify_jwt = true. Service role key not required from caller; we use
 // the in-runtime SUPABASE_SERVICE_ROLE_KEY for DB + Storage writes.
@@ -53,6 +59,15 @@ const CONNECT_TIMEOUT_MS = 10_000;
 const DOWNLOAD_TIMEOUT_MS = 30_000;
 
 const STORAGE_BUCKET = 'ledsc4-imports';
+
+// PR-A2: GitHub repository_dispatch target. Hardcoded — if Phase 2 needs
+// multi-environment (sandbox vs client org), parametrize then. The token
+// is fine-grained PAT scoped to this exact repo (see docs/secrets.md §1
+// `GITHUB_DISPATCH_TOKEN`).
+const GITHUB_DISPATCHES_URL =
+  'https://api.github.com/repos/danielpenamad/shopify-ledsc4-theme/dispatches';
+const GITHUB_DISPATCH_EVENT_TYPE = 'ledsc4-import';
+const DISPATCH_TIMEOUT_MS = 10_000;
 
 // Subdirectories on the SFTP that we mirror into Storage. Order matters
 // only for log readability.
@@ -98,6 +113,42 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+// PR-A2: best-effort POST to GitHub's repository_dispatch endpoint. Returns
+// `{ ok: true }` only on HTTP 204 (the documented success status); anything
+// else (4xx/5xx, timeout, network error) is reported as `{ ok: false, error }`
+// for the caller to log. Does not throw.
+async function triggerWorkflow(
+  runId: string,
+  token: string,
+): Promise<{ ok: boolean; error: string | null }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), DISPATCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(GITHUB_DISPATCHES_URL, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'ledsc4-sftp-sync',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event_type: GITHUB_DISPATCH_EVENT_TYPE,
+        client_payload: { run_id: runId },
+      }),
+    });
+    if (res.status === 204) return { ok: true, error: null };
+    const body = await res.text().catch(() => '');
+    return { ok: false, error: `HTTP ${res.status}: ${body.slice(0, 300)}` };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message ?? String(err) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const t0 = Date.now();
 
@@ -111,6 +162,10 @@ Deno.serve(async (req: Request) => {
     elapsed_ms: 0,
     error_stage: null as string | null,
     error_message: null as string | null,
+    // PR-A2: dispatch outcome. null until the dispatch step runs; 'ok' on
+    // HTTP 204 from GitHub; 'failed' otherwise (with reason in dispatch_error).
+    dispatch_status: null as string | null,
+    dispatch_error: null as string | null,
   };
 
   // 1. Parse payload.
@@ -143,6 +198,19 @@ Deno.serve(async (req: Request) => {
   if (missing.length > 0) {
     result.error_stage = 'secret_load';
     result.error_message = `Missing secrets: ${missing.join(', ')}`;
+    result.elapsed_ms = Date.now() - t0;
+    return jsonResponse(result, 500);
+  }
+
+  // PR-A2: GITHUB_DISPATCH_TOKEN is a hard config requirement at startup —
+  // missing it means the chain to Job 2 is broken and we'd silently leave
+  // every run in 'downloaded'. Fail loud BEFORE any side effects (DB insert,
+  // SFTP connect, Storage upload). Cron jobs without this secret should
+  // never partially execute.
+  const GITHUB_DISPATCH_TOKEN = Deno.env.get('GITHUB_DISPATCH_TOKEN');
+  if (!GITHUB_DISPATCH_TOKEN) {
+    result.error_stage = 'secret_load';
+    result.error_message = 'GITHUB_DISPATCH_TOKEN not configured';
     result.elapsed_ms = Date.now() - t0;
     return jsonResponse(result, 500);
   }
@@ -342,6 +410,18 @@ Deno.serve(async (req: Request) => {
       `;
     } catch (err) {
       return await failRun('db_update', (err as Error).message, downloaded);
+    }
+
+    // 9. PR-A2: trigger Job 2 via GitHub repository_dispatch. Best-effort —
+    // a failure here does NOT roll back the row (the download is genuinely
+    // done) and does NOT mark it failed (manual workflow_dispatch with the
+    // same run_id is the documented fallback). Caller sees dispatch_status
+    // in the response and Supabase Logs has the full error via console.error.
+    const dispatch = await triggerWorkflow(runId, GITHUB_DISPATCH_TOKEN);
+    result.dispatch_status = dispatch.ok ? 'ok' : 'failed';
+    result.dispatch_error = dispatch.error;
+    if (!dispatch.ok) {
+      console.error(`[dispatch] failed for run_id=${runId}: ${dispatch.error}`);
     }
 
     result.status = 'ok';

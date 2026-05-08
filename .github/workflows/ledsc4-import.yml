@@ -1,11 +1,18 @@
 name: LedsC4 import — writer
 
-# Fase A — PR-A1.
+# Fase A — PR-A1 + PR-A2.
 #
 # Procesa un row de private.import_runs ya dejado en estado 'downloaded' por
 # sftp-sync, ejecutando el writer (runFullImport / runStockOnly) end-to-end
-# contra Shopify y Supabase. Disparable solo manualmente; el chain automático
-# desde sftp-sync via repository_dispatch llega en PR-A2.
+# contra Shopify y Supabase.
+#
+# Triggers (PR-A2):
+#   - workflow_dispatch: invocación manual desde la UI o `gh workflow run`.
+#     Acepta inputs `run_id` (required) y `kind_override` (optional choice).
+#   - repository_dispatch: invocación automática desde sftp-sync vía
+#     POST /repos/.../dispatches con event_type='ledsc4-import' y
+#     client_payload={run_id}. Solo run_id viaja en el payload — kind se
+#     resuelve desde la row de import_runs en el step `Fetch run metadata`.
 #
 # Flujo:
 #   1. checkout + setup Node + npm ci
@@ -39,6 +46,8 @@ on:
           - ''
           - full
           - stock_only
+  repository_dispatch:
+    types: [ledsc4-import]
 
 permissions:
   contents: read
@@ -48,15 +57,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      RUN_ID: ${{ inputs.run_id }}
-      KIND_OVERRIDE: ${{ inputs.kind_override }}
+      # PR-A2: dual-source. workflow_dispatch populates `inputs`;
+      # repository_dispatch populates `github.event.client_payload`. Exactly
+      # one is set per invocation; `||` picks the non-empty one. kind_override
+      # only travels via workflow_dispatch (per PR-A2 D5: client_payload only
+      # carries run_id), so for repository_dispatch it falls back to '' and
+      # the writer uses kind from the import_runs row.
+      RUN_ID: ${{ inputs.run_id || github.event.client_payload.run_id }}
+      KIND_OVERRIDE: ${{ inputs.kind_override || '' }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_SHOP }}
       SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
       STORAGE_BUCKET: ledsc4-imports
-      REPORT_PREFIX: runs/${{ inputs.run_id }}/reports/
+      REPORT_PREFIX: runs/${{ inputs.run_id || github.event.client_payload.run_id }}/reports/
     steps:
       - uses: actions/checkout@v4
 
