@@ -8,7 +8,7 @@ Workflow **W3 — Rechazo manual**. Dispara cuando staff añade el tag
 
 ```
 Trigger  Customer tags added
- └→ Condition  (customer.tags contiene 'pendiente' AND 'rechazado')
+ └→ Condition  (customer.tags NO contiene 'pendiente' AND contiene 'rechazado')
     ├─ Verdadero
     │   ├─ Remove tag 'pendiente'
     │   └─ [PENDIENTE GROW] Send marketing mail → template 05
@@ -16,6 +16,11 @@ Trigger  Customer tags added
 ```
 
 Es el workflow más corto. Sin Company, sin Supabase, sin internal email: todo lo que pasa es quitar el tag pendiente y, en producción, avisar al cliente con email 05 (que maneja el conditional del motivo).
+
+> **Por qué "NO contiene pendiente"** (mismo motivo que W2). Tras el
+> flip atómico de `reject-customer` los tags ya son `[..., 'rechazado']`
+> sin `pendiente`. La condición vieja `contiene pendiente AND contiene
+> rechazado` no disparaba. La nueva exige el estado post-flip.
 
 ## Paso 0 — Crear
 
@@ -29,10 +34,11 @@ Es el workflow más corto. Sin Company, sin Supabase, sin internal email: todo l
 
 IF: Todos.
 
-Criterio 1: `Al menos uno de customer / tags` → Igual a · `pendiente`.
+Criterio 1: `Ningún customer / tags` → Igual a · `pendiente`. (negación)
 Criterio 2: `Al menos uno de customer / tags` → Igual a · `rechazado`.
 
-Mismo patrón que W2. Mismo caveat (ambos cambios de tag en un solo guardado).
+Mismo patrón que W2 tras el fix: el primer criterio se invierte para
+disparar correctamente sobre el flip atómico de `reject-customer`.
 
 ## Paso 3 — Rama Verdadero
 
