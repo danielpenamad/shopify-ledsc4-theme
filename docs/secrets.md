@@ -41,7 +41,7 @@ Edge Runtime (no se setean manualmente, vienen incluidos en cada invocación):
 | `LEDSC4_SFTP_BASE_PATH` | Directorio raíz que contiene `productos/`, `stock/`, `precios/`. | `sftp-sync`. | Fase I4 | — |
 | `LEDSC4_SFTP_HOST_KEY` | Línea formato known_hosts del host key SSH (`<host> ssh-ed25519 AAAA...`). | `sftp-sync` para el `hostVerifier` byte-a-byte. | Fase I4 | Verificación crítica: si cambia, alguien rotó el host (legítimo) o estamos siendo MITM-ed. **Confirmar siempre con el cliente antes de actualizar.** |
 | `LEDSC4_SFTP_HOST_KEY_FINGERPRINT` | Fingerprint humano-leíble (sha256). | (Ninguno por ahora — solo referencia operativa.) | Fase I4 | Útil para comparación visual cuando el cliente nos da un fingerprint nuevo. |
-| `GITHUB_DISPATCH_TOKEN` | GitHub PAT fine-grained. `sftp-sync` lo usa tras marcar el run `downloaded` para invocar `POST /repos/danielpenamad/shopify-ledsc4-theme/dispatches` con `event_type=ledsc4-import` y `client_payload={run_id}` — dispara el workflow `ledsc4-import.yml` (Job 2). | `sftp-sync` (PR-A2). | Fase A — PR-A2 (2026-05-08) | Scope mínimo: **Contents=Read, Actions=Read+Write** sobre el repo `danielpenamad/shopify-ledsc4-theme`. Si missing al arrancar, sftp-sync devuelve HTTP 500 con `error_stage='secret_load'` ANTES de tocar SFTP/BD/Storage (fail-fast contra crons silenciosamente rotos). Si el dispatch HTTP falla en runtime (post-update a `downloaded`), es best-effort: se logguea + se incluye `dispatch_status='failed'` en la response, pero el row queda en `downloaded` y `workflow_dispatch` manual con el mismo `run_id` es el fallback documentado. Rotar anualmente o ante sospecha. Al transferir el repo a la org del cliente, regenerar contra el nuevo path. |
+| `GITHUB_DISPATCH_TOKEN` | GitHub PAT fine-grained. `sftp-sync` lo usa tras marcar el run `downloaded` para invocar `POST /repos/danielpenamad/shopify-ledsc4-theme/dispatches` con `event_type=ledsc4-import` y `client_payload={run_id}` — dispara el workflow `ledsc4-import.yml` (Job 2). | `sftp-sync` (PR-A2). | Fase A — PR-A2 (2026-05-08) | Scope mínimo: **Contents=Write, Metadata=Read (auto)** sobre el repo `danielpenamad/shopify-ledsc4-theme`. NO requiere Actions write — el endpoint `POST /repos/{owner}/{repo}/dispatches` lo cataloga GitHub bajo Contents (confirmado vía header `x-accepted-github-permissions: contents=write`). Si missing al arrancar, sftp-sync devuelve HTTP 500 con `error_stage='secret_load'` ANTES de tocar SFTP/BD/Storage (fail-fast contra crons silenciosamente rotos). Si el dispatch HTTP falla en runtime (post-update a `downloaded`), es best-effort: se logguea + se incluye `dispatch_status='failed'` en la response, pero el row queda en `downloaded` y `workflow_dispatch` manual con el mismo `run_id` es el fallback documentado. Rotar anualmente o ante sospecha — ver **Procedimiento de rotación** debajo de la tabla. Al transferir el repo a la org del cliente, regenerar contra el nuevo path. |
 | `SUPABASE_URL` * | URL del proyecto. | Cualquier function que necesite construir Storage URLs o crear cliente Supabase. | Auto-inyectado | No tocar. |
 | `SUPABASE_ANON_KEY` * | Anon key (JWT). | Functions que validan JWT del request. | Auto-inyectado | No tocar. |
 | `SUPABASE_SERVICE_ROLE_KEY` * | Service role key (JWT). Bypasses RLS y schema gates de PostgREST. | `sftp-sync` (Storage uploads). En el futuro `shopify-write` (Storage downloads + insert en `private.import_runs`). | Auto-inyectado | **Nunca exponer al cliente / al storefront.** |
@@ -50,6 +50,53 @@ Edge Runtime (no se setean manualmente, vienen incluidos en cada invocación):
 **¿Cómo añadir/editar uno?** Supabase Dashboard → Settings (cog) → Edge Functions → Secrets → Add new secret. Nombre exacto + valor. Las functions desplegadas leen el nuevo valor en la siguiente invocación (sin redeploy).
 
 **¿Cómo listar los actuales sin valores?** `supabase secrets list --project-ref mbjvmhaglbhnxoccwyex` (CLI). Devuelve solo nombres + hashes.
+
+### Procedimiento de rotación de `GITHUB_DISPATCH_TOKEN`
+
+Cuando se regenera el PAT en GitHub (rotación anual o ante sospecha de
+compromiso), el PAT anterior queda **invalidado al instante**. Para
+evitar que el chain `sftp-sync → workflow` falle silenciosamente con
+HTTP 401:
+
+1. Generar el nuevo PAT en GitHub manteniendo los mismos permisos
+   (`Contents=Write`).
+
+2. Validar el PAT antes de actualizar Supabase con un `curl` directo a
+   `GET /user`:
+
+   ```sh
+   curl -i "https://api.github.com/user" \
+     -H "Authorization: Bearer <PAT-NUEVO>" \
+     -H "Accept: application/vnd.github+json"
+   ```
+
+   Esperar HTTP 200 con `"login": "<owner>"` antes de seguir. Si
+   devuelve 401 → el PAT no se copió bien.
+
+3. Actualizar el secret en Supabase:
+
+   ```sh
+   supabase secrets set GITHUB_DISPATCH_TOKEN=<PAT-NUEVO> \
+     --project-ref mbjvmhaglbhnxoccwyex
+   ```
+
+4. Re-deploy obligatorio (el Edge Runtime cachea env vars hasta el
+   siguiente deploy):
+
+   ```sh
+   supabase functions deploy sftp-sync \
+     --project-ref mbjvmhaglbhnxoccwyex
+   ```
+
+5. Verificar invocando `sftp-sync` con body `{}` y confirmando que el
+   response trae `dispatch_status: "ok"`.
+
+**Síntoma de PAT desincronizado entre GitHub y Supabase:**
+`dispatch_status: "failed"` con `dispatch_error: "HTTP 401: Bad
+credentials"` en el response de `sftp-sync`. El run queda en
+`downloaded` pero el workflow no arranca. Disparable manualmente vía
+`gh workflow run ledsc4-import.yml -f run_id=<uuid>` mientras se
+resuelve.
 
 ---
 
