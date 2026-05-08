@@ -470,11 +470,16 @@ const ORPHAN_LOOKUP_QUERY = `
   }
 `;
 
+// productUpdate returns `UserError` (only `field` + `message`), NOT
+// `ProductUserError` (which has `code`). Selecting `code` here makes
+// GraphQL reject the mutation with `undefinedField`. productSet's
+// userErrors are `ProductUserError` and DO have `code` — the asymmetry
+// is intentional in Shopify's API.
 const PRODUCT_UPDATE_STATUS_MUTATION = `
   mutation productUpdateStatus($input: ProductInput!) {
     productUpdate(input: $input) {
       product { id status }
-      userErrors { field message code }
+      userErrors { field message }
     }
   }
 `;
