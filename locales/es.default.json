@@ -64,6 +64,10 @@
       "next_slide": "Diapositiva a la derecha",
       "previous_slide": "Diapositiva a la izquierda",
       "name": "Carrusel"
+    },
+    "meta": {
+      "tags": "etiquetado \"{{ tags }}\"",
+      "page_number": "Página {{ page }}"
     }
   },
   "newsletter": {
