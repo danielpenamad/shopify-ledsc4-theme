@@ -134,30 +134,26 @@ se archiva en `docs/pendientes-archivo.md`.
   post-cutover.
 - Estimación: 30 min - 2h según opción.
 
-### [P3] Auditoría completa de Flow + customer zombi
+### [ACTIVA] Sub-deuda cutover Development → producción real
 
-Sub-bloques cerrados (ver Cerradas):
-- T2 misterio Final_integration → CERRADO 2026-05-09 (commit `bd1fac5`).
-- T3 Víctor → CERRADO 2026-05-09 (descarte: Dani borró el customer).
-- T5 semántica transiciones → CERRADO 2026-05-09 (PR #41, redeploy v12).
-- T6 bug tab pais → CERRADO 2026-05-09 (PRs #34 + #40).
-- T7 smoke test → CERRADO 2026-05-09 (V1 sobre el zombi).
-- T1 commits walkthroughs en main → CERRADO en PR #34 (merge `2c2052d`).
+Activar `Send email` actions en flows W2/W3/W4 cuando el shop salga
+del plan Development. En Development las actions de email están
+deshabilitadas, por eso los flows actuales no envían notificaciones.
 
-Sub-bloques vivos:
-- **T1 paso UI**: exportar W2 y W3 a
-  `flows/W2-aprobacion-manual.flow.json` y
-  `flows/W3-rechazo-manual.flow.json` desde Shopify Flow UI (Dani).
-- **T4**: eliminar vestigios W2 en Shopify Flow UI (Dani):
-  - Rama `Send internal email` legacy (creación manual de Company,
-    obsoleta porque `create-company-for-customer` lo hace).
-  - Rama `Send HTTP request → create-company-for-customer` en
-    estado `Detenido` (verificar si está apagada y si la creación
-    va por path principal; eliminar la duplicada si confirma).
-  - Nodo `Remove customer tags pendiente` redundante (la edge
-    function aprovecha flip atómico).
+Plantillas a preparar:
+- **W2 (rama Verdadero)**: email bienvenida cliente aprobado.
+- **W3 (rama Verdadero)**: email notificación cliente rechazado,
+  incluyendo motivo desde `b2b.motivo_rechazo`. Hoy esa rama está
+  vacía y la rama Falso tiene un nodo `Count items` inocuo como
+  placeholder (Shopify Flow exige al menos una acción para guardar
+  el flow).
+- **W4 (revisar)**: si aplica notificación de re-evaluación
+  whitelist.
 
-Cuando ambos cerrados, mover [P3] entero a Cerradas.
+Bloqueado por: cutover de plan Shopify y decisión cliente sobre
+cuándo empezar a comunicar con clientes reales.
+
+Decisión de copy y tono: cliente.
 
 ### [P4] Limpiar emails de test en whitelist antes del cutover
 - Causa: durante BO-4/5/6 se añadieron 5 emails dummy a
@@ -182,6 +178,33 @@ Cuando ambos cerrados, mover [P3] entero a Cerradas.
 - Estimación: 30 min - 2h.
 
 ## Cerradas
+
+### [Cerrada] Bloque [P3] Auditoría completa de Flow + customer zombi
+- Cerrada: 2026-05-09 (bloque completo).
+
+Sub-bloques con entrada propia en Cerradas:
+- T2 misterio Final_integration → CERRADO 2026-05-09 (commit `bd1fac5`).
+- T5 semántica transiciones → CERRADO 2026-05-09 (PR #41, redeploy v12).
+- T6 bug tab pais → CERRADO 2026-05-09 (PRs #34 + #40).
+- T7 smoke test V1 → CERRADO 2026-05-09 (V1 sobre el zombi).
+
+Sub-bloques cerrados aquí:
+- T3 Víctor → CERRADO 2026-05-09 (descarte: Dani borró el customer).
+- T1 commits walkthroughs en main → CERRADO en PR #34 (merge `2c2052d`).
+- T1 paso UI → CERRADO en PR #42 (merge `ee2f991`): exports
+  `flows/W2-aprobacion-manual.flow.json` y
+  `flows/W3-rechazo-manual.flow.json`.
+- T4 vestigios W2/W3 → CERRADO en PR #42 (merge `ee2f991`):
+  - W2 sin `Update customer metafield b2b.fecha_aprobacion`
+    redundante (T5 ya lo escribe desde `approve-customer` v12).
+  - W3 sin `Remove customer tags pendiente` redundante (flip
+    atómico ya lo elimina). Operador de condición cambiado de
+    `no es igual a` a `no incluye` para alinear con W2.
+  - W3 rama Falso con `Count items` placeholder hasta el cutover
+    (Shopify Flow exige al menos una acción para guardar).
+
+[CERRADO 2026-05-09] Bloque completo. T4 + T1 paso UI cerrados vía
+export `flows/W2-W3.flow.json` (PR #42, merge `ee2f991`).
 
 ### [Cerrada] C.6 T7 — verificación funcional V1
 - Cerrada: 2026-05-09
