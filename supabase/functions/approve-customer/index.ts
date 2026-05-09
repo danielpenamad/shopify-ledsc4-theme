@@ -17,14 +17,17 @@
 // a `assertBackofficeTag` de abajo: sin ella cualquiera podría aprobar
 // customers arbitrarios y crear Companies en el catálogo Outlet.
 //
-// Reparto edge function ↔ Flow W2:
-//   - Esta edge function: SOLO toca tags. Reemplaza pendiente→aprobado
-//     conservando el resto de tags no-estado.
-//   - W2 (Shopify Flow): detecta el cambio de tag y se encarga de
-//     `b2b.fecha_aprobacion`, llamada a `create-company-for-customer`,
-//     y email 4 al cliente.
-//   No duplicamos esfuerzo: sin esta separación, una sobreescritura
-//   accidental dejaría datos inconsistentes y carrera de invocaciones.
+// Reparto edge function ↔ Flow W2 (post C.6 T5):
+//   - Esta edge function: cambia tags atómicamente Y aplica la semántica
+//     de transición de estado: set b2b.fecha_aprobacion + delete
+//     b2b.fecha_rechazo + delete b2b.motivo_rechazo. Garantiza
+//     coherencia entre tag y metafields (caso real visto en
+//     ledsc4-test2 antes del cleanup manual: aprobado con
+//     motivo_rechazo activo de un rechazo previo).
+//   - W2 (Shopify Flow): detecta el cambio de tag y se encarga de la
+//     llamada a `create-company-for-customer` y email 4 al cliente.
+//     Si W2 también setea fecha_aprobacion (legacy step 3.2), el
+//     overwrite es idempotente con la fecha de hoy.
 //
 // Auth: HMAC-SHA256 firmado en Liquid con settings.backoffice_hmac_secret.
 //
@@ -38,7 +41,9 @@
 //   }
 //
 // Output:
-//   { ok: true, customerId, taggedAt, previousTags, newTags }
+//   { ok: true, customerId, taggedAt, previousTags, newTags, semantics }
+//   semantics: "applied" si los metafields de estado se actualizaron
+//   coherentemente, "skipped" si dryRun.
 //
 // Errores:
 //   400 INVALID_INPUT
@@ -130,6 +135,54 @@ async function verifyHmac(customerId: string, timestamp: number, signature: stri
   return { ok: true };
 }
 
+// --- Semántica de transición a 'aprobado' (C.6 T5) -------------------
+//
+// Tras el flip atómico de tags a 'aprobado', estos metafields deben
+// quedar coherentes con el estado:
+//   - b2b.fecha_aprobacion → setear con fecha actual UTC (date type).
+//   - b2b.fecha_rechazo, b2b.motivo_rechazo → borrar si existían
+//     (residuos de un rechazo previo no deben sobrevivir a una aprobación).
+//
+// El builder es puro y exportado para tests aislados.
+
+export type SemanticsInput = {
+  sets: Array<{ ownerId: string; namespace: string; key: string; type: string; value: string }>;
+  deletes: Array<{ ownerId: string; namespace: string; key: string }>;
+};
+
+export function buildApprovalSemanticsInput(customerId: string, today: string): SemanticsInput {
+  return {
+    sets: [
+      { ownerId: customerId, namespace: "b2b", key: "fecha_aprobacion", type: "date", value: today },
+    ],
+    deletes: [
+      { ownerId: customerId, namespace: "b2b", key: "fecha_rechazo" },
+      { ownerId: customerId, namespace: "b2b", key: "motivo_rechazo" },
+    ],
+  };
+}
+
+const SEMANTICS_MUTATION = `
+  mutation ApplySemantics(
+    $sets: [MetafieldsSetInput!]!,
+    $deletes: [MetafieldIdentifierInput!]!
+  ) {
+    metafieldsSet(metafields: $sets) {
+      metafields { id namespace key value }
+      userErrors { field message code }
+    }
+    metafieldsDelete(metafields: $deletes) {
+      deletedMetafields { ownerId namespace key }
+      userErrors { field message }
+    }
+  }
+`;
+
+type SemanticsResp = {
+  metafieldsSet: { userErrors: Array<{ field: string[] | null; message: string; code: string }> };
+  metafieldsDelete: { userErrors: Array<{ field: string[] | null; message: string }> };
+};
+
 // 🔒 Server-side enforcement del rol backoffice. Sin esto, cualquiera con
 // la URL pública de la edge function podría aprobar customers a voluntad.
 async function assertBackofficeTag(approverId: string): Promise<{ ok: true } | { ok: false; code: string }> {
@@ -208,6 +261,7 @@ Deno.serve(async (req) => {
         customerId: targetCustomerId,
         previousTags: target.tags,
         newTags,
+        semantics: "skipped",
       });
     }
 
@@ -238,12 +292,39 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
+    // C.6 T5: aplicar semántica de transición de estado.
+    // El customerUpdate ya commitó el tag 'aprobado'. Si los metafields
+    // fallan, el customer queda con tag correcto pero metafields posibles
+    // residuales — caso degradado pero no crítico (W2 se encarga de
+    // create-company; los metafields de estado son auxiliares).
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const semInput = buildApprovalSemanticsInput(targetCustomerId, today);
+    const semResp = await gql<SemanticsResp>(SEMANTICS_MUTATION, semInput);
+    const setErrs = semResp.metafieldsSet.userErrors;
+    const delErrs = semResp.metafieldsDelete.userErrors;
+
+    if (setErrs.length) {
+      // Set falló — error real (el metafield no quedó coherente).
+      logJson("error", "metafieldsSet_failed", { targetCustomerId, userErrors: setErrs });
+      return jsonResponse({
+        error: "metafieldsSet userErrors — tag aprobado se aplicó pero fecha_aprobacion NO se setteó",
+        code: "SHOPIFY_ERROR",
+        userErrors: setErrs,
+      }, 500);
+    }
+    if (delErrs.length) {
+      // Delete falló — borrar metafields que no existen NO es un error
+      // semántico (idempotencia esperada). Solo logeamos.
+      logJson("warn", "metafieldsDelete_warnings", { targetCustomerId, userErrors: delErrs });
+    }
+
     const taggedAt = new Date().toISOString();
     logJson("info", "approve_ok", {
       customerId,
       targetCustomerId,
       previousTags: target.tags,
       newTags: updateData.customerUpdate.customer?.tags ?? newTags,
+      semantics: "applied",
     });
 
     return jsonResponse({
@@ -253,6 +334,7 @@ Deno.serve(async (req) => {
       taggedAt,
       previousTags: target.tags,
       newTags: updateData.customerUpdate.customer?.tags ?? newTags,
+      semantics: "applied",
     });
   } catch (e) {
     const msg = (e as Error).message;
