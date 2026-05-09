@@ -8,9 +8,19 @@ Workflow **W2 — Aprobación manual**. Dispara cuando staff añade el tag
 
 - Trigger: **`Customer tags added`** (no existe `Customer updated` en Flow 2026).
 - Condition combinando dos criterios AND sobre `customer.tags`:
-  1. contiene `pendiente` (evita disparos si viene de W1 auto-aprobación, que ya quitó `pendiente` antes de añadir `aprobado`)
+  1. **NO** contiene `pendiente`
   2. contiene `aprobado` (lo que acaba de añadir el staff)
 - Sintaxis Flow Liquid para metafields de customer: **`{{ customer.<keyCamelCase>.value }}`** (snake_case → camelCase, con `.value`).
+
+> **Por qué "NO contiene pendiente" y no "contiene pendiente".** La
+> condición original (`contiene pendiente AND contiene aprobado`) asumía
+> el flujo manual de doble-tag-en-un-Save: staff añadía `aprobado` con
+> `pendiente` aún presente. Con `approve-customer` (Fase BO) la edge
+> function reemplaza tags atómicamente vía `customerUpdate(input: { tags })`,
+> así que en el momento del trigger los tags ya son `[..., 'aprobado']` —
+> sin `pendiente`. La condición vieja no disparaba. El fix invierte el
+> primer criterio: ahora exige que `pendiente` haya desaparecido
+> (estado post-flip atómico) y que `aprobado` esté presente.
 
 ## Estructura final
 
@@ -39,7 +49,7 @@ Trigger  Customer tags added
 En el dropdown IF superior: **Todos** (AND).
 
 Criterio 1:
-- Dropdown: `Al menos uno de customer / tags`
+- Dropdown: `Ningún customer / tags` (negación: "no contiene")
 - Tags_item · Igual a · `pendiente`
 
 Criterio 2 (`Agregar criterio` inferior):
@@ -116,14 +126,12 @@ Save + Turn on.
 
 ## Caveat de la condición
 
-La condición AND `customer.tags contiene pendiente AND aprobado` funciona
-cuando el staff añade `aprobado` en el **mismo guardado** en que el tag
-`pendiente` aún sigue presente. Si staff quita `pendiente` en un primer
-guardado y luego añade `aprobado` en un segundo, al disparar el trigger
-`customer.tags` ya no contiene `pendiente` → W2 no fire.
-
-Documentar al staff en `docs/backoffice-aprobaciones.md` §3.1: ambos cambios
-de tag en un solo "Save".
+Con la condición `tags NO contiene pendiente AND tags contiene aprobado`
+el flow dispara correctamente tras el flip atómico de `approve-customer`.
+El path manual antiguo (staff editando tags en Admin) ya no es la fuente
+canónica: el cliente debe operar siempre desde la página BO
+`/pages/admin-backoffice`. Si por excepción se hiciera el cambio
+manualmente, recordar que ambos cambios deben ir en un solo Save.
 
 ## Export
 

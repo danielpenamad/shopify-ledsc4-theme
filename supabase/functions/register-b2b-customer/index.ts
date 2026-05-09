@@ -406,7 +406,12 @@ Deno.serve(async (req: Request) => {
               { namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa },
               { namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized! },
               { namespace: "b2b", key: "sector", type: "single_line_text_field", value: sector },
-              { namespace: "b2b", key: "pais", type: "single_line_text_field", value: paisIso! },
+              // Belt-and-suspenders trim: sanitizeText + normalizeCountry ya
+              // limpian, pero un set de customers historicos quedó con `\tES`
+              // o `\t\tES` en este metafield (root cause no localizada en el
+              // path actual; ver C.6 / docs/pendientes.md). Trim explícito
+              // aquí para garantizar que el write nunca persiste whitespace.
+              { namespace: "b2b", key: "pais", type: "single_line_text_field", value: paisIso!.trim() },
               ...(volumenEstimado
                 ? [{ namespace: "b2b", key: "volumen_estimado", type: "single_line_text_field", value: volumenEstimado }]
                 : []),
