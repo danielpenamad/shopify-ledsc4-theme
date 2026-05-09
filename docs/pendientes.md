@@ -228,6 +228,23 @@ se archiva en `docs/pendientes-archivo.md`.
 
 ## Cerradas
 
+### [Cerrada] C.6 T6 — bug tab en b2b.pais
+- Cerrada: 2026-05-09
+- Trim defensivo en `register-b2b-customer:409` (PR #34, merge `2c2052d`).
+- Cadena legacy `/account/register` eliminada (PR #40, merge `75030be`):
+  - `templates/customers/register.json`
+  - `sections/main-register.liquid`
+  - `snippets/b2b-register-fields.liquid`
+  - `assets/b2b-register.js`
+- Primer test del proyecto:
+  `tests/edge-functions/register-b2b-customer.test.ts` + workflow CI
+  `.github/workflows/test-edge-functions.yml`.
+- Causa raíz: helper Liquid `{{ all_country_option_tags }}` producía
+  whitespace en values, en path alternativo de registro que no pasaba
+  por la edge function (no tenía sanitización custom).
+- Contexto eliminación: shop en draft, sin clientes reales, sin
+  customers legacy migrados — sin riesgo.
+
 ### [Cerrada] Desbloquear update de product.catalogo
 - Cerrada: 2026-05-07
 - Resumen: arreglado vía admin UI de Shopify. Aplicado: name +
