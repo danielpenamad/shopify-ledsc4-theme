@@ -1,5 +1,7 @@
 # Página backoffice — Whitelist + Aprobaciones
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Esta página `/pages/admin-backoffice` reemplaza dos cosas que vivían en el
 admin Shopify:
 

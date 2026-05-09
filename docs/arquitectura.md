@@ -1,5 +1,7 @@
 # Arquitectura — LedsC4 B2B Outlet
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Fuente de verdad técnica del portal post-Fase D (deploy 2026-04-29).
 Sustituye al documento de kickoff `LedsC4_Arquitectura_F0.docx` (abril 2025),
 que queda como referencia histórica de qué se prometió al cliente. Ver
@@ -20,7 +22,7 @@ LedsC4 a través de B2B nativo de Shopify (no es un store separado), y solo
 muestra catálogo y precios a clientes que pasan por un proceso de alta y
 aprobación manual o por whitelist.
 
-Estado a 2026-05-04: **Fases A, B, C y D entregadas y en producción** sobre
+Estado a 2026-05-09: **Fases A, B, C y D entregadas y en producción** sobre
 el plan Development de Shopify. Tienda operativa con 745 SKUs publicados
 en el catálogo "Outlet general", flujo de registro y aprobación funcionando
 (W1–W3 en Shopify Flow + W4 en Supabase cron), gate de storefront híbrido
@@ -370,6 +372,13 @@ Scripts relevantes (`scripts/`):
 ---
 
 ## 9. Conector ERP — PENDIENTE
+
+> **NOTA: Esta sección está superseded por
+> [import-pipeline.md](import-pipeline.md), que es la fuente
+> de verdad operativa del pipeline de importación. Lo que
+> queda aquí abajo es el diseño original (abril 2026) previo
+> a la implementación contra SFTP real. Se mantiene como
+> histórico para contexto.**
 
 **No implementado.** Esta sección documenta lo que se sabe y lo que
 falta confirmar para abordarlo.

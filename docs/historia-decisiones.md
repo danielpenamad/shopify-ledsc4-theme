@@ -1,5 +1,7 @@
 # Historia de decisiones (ADRs)
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Architecture Decision Records ligeros — las ~6 decisiones que más
 cambiaron la arquitectura del proyecto desde el kickoff
 `LedsC4_Arquitectura_F0.docx` (abril 2025) hasta el deploy de Fase D

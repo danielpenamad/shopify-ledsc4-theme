@@ -1,5 +1,7 @@
 # Guía de backoffice — Solicitudes de pedido B2B
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Público: staff con rol **Backoffice Aprobaciones** o permisos equivalentes
 sobre Draft Orders.
 

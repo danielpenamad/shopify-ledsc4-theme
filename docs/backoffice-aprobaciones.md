@@ -1,5 +1,7 @@
 # Guía de backoffice — Aprobaciones B2B
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Público: staff con rol **Backoffice Aprobaciones**.
 Herramientas: Shopify Admin (vista Customers).
 Ámbito: revisar, aprobar o rechazar solicitudes de alta B2B.

@@ -1,5 +1,7 @@
 # Inventario de secrets — LedsC4 B2B Outlet
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Documento vivo. Cada vez que se añada o retire un secret en alguno de los
 tres planos (Supabase / local / GitHub), actualizar la fila correspondiente
 con la fecha de creación y propósito.

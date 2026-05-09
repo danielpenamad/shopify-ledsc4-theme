@@ -5,9 +5,10 @@ diseñado contra un formato hipotético "Excel multi-hoja + CSV 2-col" que
 el cliente ha redefinido). Esta es la arquitectura real del importador
 acordada con el cliente el 2026-05-04.
 
-Estado: **diseño cerrado, implementación pendiente** — bloqueada por
-acceso SFTP. Mientras tanto trabajamos contra ficheros de muestra en
-`reports/samples/`.
+Estado a 2026-05-09: I1, I2, I3, I3.5, I3.6, I4.1, I4.2 e I4.3
+implementadas y operativas. Pipeline corre automáticamente vía
+pg_cron de Supabase (stock_only cada 6h UTC + full diario UTC
+02:00). Última actualización: 2026-05-09.
 
 ---
 
@@ -310,15 +311,21 @@ No bloqueantes (se pueden cerrar en paralelo):
 Cuatro fases, cada una se manda a Claude Code como prompt
 auto-contenido con `--dry-run` obligatorio y validación previa:
 
-| Fase | Entregable | Bloqueante |
-|---|---|---|
-| **I1** | Ampliar `metafield-definitions.json` con los 30+ metafields nuevos del mapping. Aplicar con `apply-metafield-definitions.mjs`. | Ninguno — se puede ejecutar ya |
-| **I2** | Implementar parser + mapper contra ficheros locales `samples/`. Sin escribir en Shopify. Genera reporter completo. | I1 |
-| **I3** | Conectar writer (productSet + translationsRegister + publication). Probar con subset de 10 SKUs. | I2 + datos reales del SFTP |
-| **I4** | Sustituir source local por adaptador SFTP. Configurar pg_cron Supabase. Smoke test extremo a extremo. | I3 + credenciales SFTP |
+| Fase | Entregable | Bloqueante | Estado |
+|---|---|---|---|
+| **I1** | Ampliar `metafield-definitions.json` con los 30+ metafields nuevos del mapping. Aplicar con `apply-metafield-definitions.mjs`. | Ninguno — se puede ejecutar ya | ✓ aplicado 2026-05-08 (32 definitions namespace `product` en el shop, 1 BLOCKED por dependencia smart-collection — `product.catalogo`). |
+| **I2** | Implementar parser + mapper contra ficheros locales `samples/`. Sin escribir en Shopify. Genera reporter completo. | I1 | ✓ implementado y probado contra `samples/`. |
+| **I3** | Conectar writer (productSet + translationsRegister + publication). Probar con subset de 10 SKUs. | I2 + datos reales del SFTP | ✓ I3 (PR #17) + I3.5 metafield translations (PR #18) + I3.6 unpublish orphans (PR #36). Run productivo end-to-end 2026-05-08. |
+| **I4** | Sustituir source local por adaptador SFTP. Configurar pg_cron Supabase. Smoke test extremo a extremo. | I3 + credenciales SFTP | ✓ I4.1 sftp-sync deployado (PR original) + I4.2 GHA writer deployado (PR-A1/A2) + I4.3 cron schedule (PR #37, mergeado y aplicado 2026-05-09). |
 
 I1 e I2 se pueden empezar **ya** sin esperar al SFTP. I3 e I4 esperan
 al cliente.
+
+<!-- Numeración histórica: §9 vacío. La sección sobre Conector ERP que
+     antes ocupaba §9 vive ahora en este propio documento (§10 en
+     adelante); ver también la nota de superseded en
+     docs/arquitectura.md §9. La numeración se mantiene para no
+     invalidar referencias externas existentes. -->
 
 ---
 

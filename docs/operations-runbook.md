@@ -1,5 +1,7 @@
 # Runbook operacional — LedsC4 B2B Outlet
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Documento de referencia para mantenimiento y deploy del portal B2B una vez
 en producción. Recoge los procedimientos validados y los _gotchas_ vividos
 en el deploy 2026-04-29 (`main` ←_merge_— `feature/b2b-storefront-gate`).

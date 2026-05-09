@@ -1,5 +1,7 @@
 # LedsC4 B2B — Modelo de datos
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Documento de referencia del modelo de datos que soporta el portal outlet B2B de
 LedsC4 en Shopify (tema Dawn, plan Grow, B2B nativo + Locksmith).
 

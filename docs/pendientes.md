@@ -1,5 +1,7 @@
 # Pendientes — LedsC4 B2B Outlet
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 Tracking ligero de tareas no urgentes pero que conviene no
 olvidar. Cada entrada con: prioridad, alcance estimado, contexto
 mínimo, referencias.

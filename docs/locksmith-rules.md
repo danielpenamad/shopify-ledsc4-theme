@@ -1,5 +1,7 @@
 # Storefront gate (Fase C) — híbrido Locksmith + Liquid
 
+_Estado a 2026-05-09 — sujeto a actualización. Para handover de cierre del proyecto._
+
 **Realidad tras deploy 2026-04-19**: Locksmith falla instalación con
 "High-level job failure" al intentar 2 locks Entire Store o cierta
 combinación. Solución aplicada: **híbrido** —
