@@ -283,7 +283,7 @@ cliente. Pasos:
 1. Login como `daniel.pena+backoffice@creacciones.es` → ir a `/pages/admin-backoffice`.
 2. Verificar que se cargan: KPIs (pendiente, aprobado, rechazado, whitelist), tabla de pendientes, lista actual de whitelist.
 3. **Whitelist**: pegar 5 emails (mezcla de válidos, inválidos, duplicados con la lista, duplicados entre sí). Submit. Verificar que el feedback resume `added/duplicates/invalid` y que `b2b.whitelist_last_update` se refresca.
-4. **Aprobar**: registrar un cliente nuevo con `b2b-register.js` → entrar al backoffice → aprobar la fila → verificar:
+4. **Aprobar**: registrar un cliente nuevo desde `/pages/acceso-profesional` (form B2B + `b2b-register-v2.js` → edge function `register-b2b-customer`) → entrar al backoffice → aprobar la fila → verificar:
    - Tag `pendiente` fuera, `aprobado` dentro.
    - `b2b.fecha_aprobacion` rellenado por W2.
    - Company creada por `create-company-for-customer` (W2 la llama).

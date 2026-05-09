@@ -9,10 +9,9 @@
 // Activado por: <form id="b2b-registro-form" data-endpoint="...">
 // Graceful: si el form no está en la página, este script es no-op.
 //
-// Validación client-side (NIF/CIF/NIE, email, requeridos) reutiliza la
-// lógica de assets/b2b-register.js (replicada inline aquí, no se
-// importa para mantener boundary limpio — el b2b-register.js antiguo
-// terminará borrándose cuando el form classic deje de existir).
+// Validación client-side (NIF/CIF/NIE, email, requeridos) replicada
+// inline aquí — el registro classic (assets/b2b-register.js) fue
+// eliminado en cleanup C.6 T6 (2026-05-09).
 
 (function () {
   'use strict';
@@ -23,7 +22,7 @@
   var submitBtn = document.getElementById('b2b-registro-submit');
   var banner = document.getElementById('b2b-registro-banner');
 
-  // --- NIF / NIE / CIF (port directo de assets/b2b-register.js) ---
+  // --- NIF / NIE / CIF (port del registro classic, eliminado en C.6 T6) ---
 
   var DNI_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
   var CIF_CONTROL_LETTERS = 'JABCDEFGHI';

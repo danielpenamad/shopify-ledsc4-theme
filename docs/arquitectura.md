@@ -220,11 +220,15 @@ renderiza desde el tema** sino desde una URL hospedada por Shopify
 las páginas del storefront; la auth pasa por OAuth contra ese subdominio.
 
 Consecuencia para este repo: los archivos `templates/customers/login.json`,
-`templates/customers/register.json`, `templates/customers/reset_password.json`
-y `sections/main-login.liquid` / `sections/main-register.liquid` /
+`templates/customers/reset_password.json` y `sections/main-login.liquid` /
 `sections/main-reset-password.liquid` son del flujo classic (deprecado)
 y **no intervienen en el login real**. Se conservan por compatibilidad
-si Shopify reactivara classic en el futuro.
+si Shopify reactivara classic en el futuro. La cadena equivalente para
+register (`templates/customers/register.json`, `sections/main-register.liquid`,
+`snippets/b2b-register-fields.liquid`, `assets/b2b-register.js`) sí fue
+**eliminada** en el cleanup C.6 T6 (2026-05-09): el registro B2B vive en
+`/pages/acceso-profesional` + `b2b-register-v2.js` → edge function
+`register-b2b-customer`, sin path classic equivalente.
 
 **Personalización vía Branding API** (mutación `checkoutBrandingUpsert`
 sobre el `CheckoutProfile` publicado — el panel "Checkout & Customer
