@@ -228,6 +228,22 @@ se archiva en `docs/pendientes-archivo.md`.
 
 ## Cerradas
 
+### [Cerrada] C.6 T5 — semántica de transiciones de estado
+- Cerrada: 2026-05-09
+- `approve-customer`: tras flip atómico, set `b2b.fecha_aprobacion`
+  (date) + delete `b2b.fecha_rechazo` y `b2b.motivo_rechazo`. Mutation
+  combinada `metafieldsSet` + `metafieldsDelete` (PR #41, merge `bbc3483`).
+- `reject-customer`: análogo simétrico antes del flip (W3 lee
+  metafields al disparar). Set `b2b.fecha_rechazo` + `b2b.motivo_rechazo`
+  (si hay) + delete `b2b.fecha_aprobacion`.
+- Builders puros exportados (`buildApprovalSemanticsInput`,
+  `buildRejectionSemanticsInput`) + tests Deno en
+  `tests/edge-functions/`.
+- Redeploy: `approve-customer` v12, `reject-customer` v12 (ambas
+  desde v11) — `2026-05-09 12:29:11/12 UTC`.
+- Re-pendientar: fuera de alcance (sin UI ni edge function dedicada;
+  solo se hace manualmente vía MCP).
+
 ### [Cerrada] C.6 T6 — bug tab en b2b.pais
 - Cerrada: 2026-05-09
 - Trim defensivo en `register-b2b-customer:409` (PR #34, merge `2c2052d`).
