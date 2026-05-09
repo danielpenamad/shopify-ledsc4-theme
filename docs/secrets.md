@@ -212,6 +212,24 @@ Cuando el cliente (LedsC4) reciba el sistema, hay que migrarlo de
 "sandbox de Dani" a "proyecto del cliente" sin que ningún secret
 quede en sitios fantasma. Lista de tareas:
 
+### 4.0. Fases de transferencia
+
+La transferencia no es instantánea. Sucede por hitos a lo largo de
+varios meses tras el cierre del proyecto, según el recurso que se
+transfiere y cuándo se dan las condiciones (acceso al repo, Partner
+account abierta, shop a producción, etc.):
+
+| Fase | Cuándo | Qué se transfiere |
+|---|---|---|
+| **A** | Cierre del proyecto (mayo 2026) | Documentación + acceso del cliente al repo (collaborator), Supabase project (con cliente añadido), Shopify shop. Ownership sigue en Dani. |
+| **B** | T+3 meses tras entrega | Transfer de ownership del repo de GitHub a la org del cliente. Regenerar `GITHUB_DISPATCH_TOKEN` bajo el nuevo owner. Reapuntar `repository_dispatch` desde Supabase si hace falta. |
+| **C** | Cuando el shop pase a producción | Transfer del Shopify shop a la Partner account del cliente. Dani queda como collaborator (developer). |
+| **D** | Cuando el proyecto cierre del todo | Transfer del Supabase project a la org del cliente vía función nativa de Supabase (no recrear). |
+
+Cada bullet del checklist en §4.4 está anotado con `(Fase X)` para
+indicar a qué hito pertenece. El inventario de propiedades / cuentas
+afectadas vive en §4.6.
+
 ### 4.1. Inventario de secrets que el cliente debe generar
 
 Estos los **genera el cliente**, no los rotamos nosotros desde nuestros valores:
@@ -242,20 +260,27 @@ del cliente. NO copiamos los nuestros.
 
 ### 4.4. Checklist al hacer el cutover
 
-- [ ] Crear proyecto Supabase nuevo en la org del cliente.
-- [ ] Aplicar todas las migrations del repo (`supabase db push`).
-- [ ] Crear bucket `ledsc4-imports` privado (one-shot ya en migration).
-- [ ] Setear los ~15 secrets manuales (todo lo de §1 que NO esté marcado `*`).
-- [ ] Re-deployar todas las Edge Functions (`supabase functions deploy --all`).
-- [ ] Configurar 3 HMAC secrets en `theme/config/settings_data.json` y
+Anotado por fase (ver §4.0 para qué hito es cada una).
+
+- [ ] (Fase A) Compartir acceso al repo de GitHub con el cliente como collaborator.
+- [ ] (Fase A) Añadir al cliente como miembro del Supabase project (org de Dani por ahora).
+- [ ] (Fase D) Crear proyecto Supabase nuevo en la org del cliente — sólo si NO se va a usar la transfer feature de Supabase. Si se transfiere, omitir este bullet (el proyecto migra entero, las migrations ya están aplicadas).
+- [ ] (Fase D) Aplicar todas las migrations del repo (`supabase db push`) — sólo si se recrea desde cero.
+- [ ] (Fase D) Crear bucket `ledsc4-imports` privado (one-shot ya en migration) — sólo si se recrea.
+- [ ] (Fase D) Setear los ~15 secrets manuales (todo lo de §1 que NO esté marcado `*`) — sólo si se recrea o si el cliente quiere rotarlos.
+- [ ] (Fase D) Re-deployar todas las Edge Functions (`supabase functions deploy --all`) — sólo si se recrea.
+- [ ] (Fase A) Configurar 3 HMAC secrets en `theme/config/settings_data.json` y
       `CREATE_COMPANY_WEBHOOK_SECRET` en el step Send HTTP request del Flow W2.
-- [ ] Configurar GitHub Actions secrets (§3) en el repo del cliente
-      (asumiendo que el cliente toma el repo).
-- [ ] Smoke test: invocar `sftp-probe` (si aún existe; si no, `sftp-sync`
+- [ ] (Fase B) Transferir ownership del repo de GitHub a la org del cliente desde GitHub Settings → Transfer ownership.
+- [ ] (Fase B) Verificar que `repository_dispatch` desde Supabase a `sftp-sync` sigue funcionando post-transfer (GitHub redirige automáticamente, pero confirmar con un sftp-sync manual).
+- [ ] (Fase B) Regenerar `GITHUB_DISPATCH_TOKEN` bajo el nuevo owner del repo y actualizarlo en Supabase secrets.
+- [ ] (Fase B) Configurar GitHub Actions secrets (§3) en el repo del cliente. Si el repo se transfiere con sus secrets, sólo verificar; si se forkea, replicar todos.
+- [ ] (Fase C) Transferir el Shopify shop `ledsc4-b2b-outlet` a la Partner account del cliente. Dani queda como collaborator (developer access).
+- [ ] (Fase A) Smoke test: invocar `sftp-probe` (si aún existe; si no, `sftp-sync`
       con `--limit=1`) y verificar host key + listing.
-- [ ] Smoke test: invocar `shopify-write` (cuando exista, I4.2-A) sobre
+- [ ] (Fase A) Smoke test: invocar `shopify-write` (cuando exista, I4.2-A) sobre
       el run del paso anterior.
-- [ ] Documentar en este fichero la fecha del cutover y borrar las
+- [ ] (Fase D) Documentar en este fichero la fecha del cutover y borrar las
       referencias específicas a `mbjvmhaglbhnxoccwyex` (project ref del
       sandbox).
 
@@ -268,6 +293,26 @@ del cliente. NO copiamos los nuestros.
   el cliente usa los suyos.
 - **Productos pre-existentes con handle basado en título** (745 SKUs): ver
   `docs/pendientes.md` [P3] — limpieza separada antes del cutover.
+- **Drive folder de gestión interna** de Dani (presentaciones, propuestas,
+  contratos, notas internas): no es entrega oficial al cliente. La
+  documentación de entrega oficial vive en el repo (`docs/`, `README.md`,
+  walkthroughs en `flows/` y `email-templates/`).
+
+### 4.6. Inventario de propiedades / cuentas a migrar
+
+Tabla del estado actual y destino de cada recurso del proyecto.
+Cubre lo que NO son secrets pero sí entran en el handover:
+
+| Recurso | Propietario hoy | Propietario tras handover | Fase | Notas |
+|---|---|---|---|---|
+| GitHub repo `danielpenamad/shopify-ledsc4-theme` | Dani (cuenta personal) | Org del cliente | B | Acceso compartido en fase A (collaborator). Webhook `repository_dispatch` desde Supabase debe seguir apuntando al repo correcto tras transfer (GitHub redirige automáticamente, pero verificar con un sftp-sync manual post-transfer). |
+| GitHub Actions secrets (incl. `GITHUB_DISPATCH_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `SHOPIFY_ADMIN_TOKEN`) | Bajo repo de Dani | Bajo repo del cliente | B | `GITHUB_DISPATCH_TOKEN` es fine-grained PAT del repo; regenerable bajo nuevo owner. Otros secrets se transfieren con el repo si se usa `Transfer ownership`. |
+| Supabase project `mbjvmhaglbhnxoccwyex` | Org de Dani | Org del cliente | D | Vía función nativa de Supabase (Project settings → Transfer project), **no recrear**. Mantiene `private.import_runs`, `sku_state`, Storage `ledsc4-imports`, secrets, edge functions, pg_cron jobs. |
+| Shopify shop `ledsc4-b2b-outlet` | Partner account de Dani | Partner del cliente | C | Cuando el shop pase a producción. Dani queda como collaborator (developer). |
+| Shopify Apps de pago (Locksmith, Boost Commerce) | Cliente (ya paga) | Cliente | A | Sin acción — ya está bien. |
+| SFTP credentials (`LEDSC4_SFTP_*`) | Cliente | Cliente | A | El cliente las controla; sólo se consumen vía Supabase secrets. Si el cliente las rota, actualizar el secret en Supabase. |
+| Domain DNS (custom domain del shop) | Cliente | Cliente | A | El cliente lo controla. |
+| Drive folder de gestión interna | Dani | Dani | nunca | Es gestión interna, no entrega oficial al cliente. La documentación que se entrega vive en el repo. |
 
 ---
 
