@@ -1,5 +1,12 @@
 # W3 — Rechazo manual
 
+> **Nota — diseño superseded.**
+> Este documento describe el diseño original del flow con trigger
+> `Customer updated` y condición sobre `tags_previous`. La
+> implementación actual usa el trigger / condición descritos en
+> `W3-walkthrough.md`, que es la fuente de verdad operativa.
+> Este `.md` se mantiene como histórico para trazar la evolución.
+
 ## Trigger
 
 - **Type**: `Customer updated`
