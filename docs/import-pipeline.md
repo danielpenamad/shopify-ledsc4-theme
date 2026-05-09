@@ -702,3 +702,99 @@ bucket. El conector (Fase I4) lee de allí.
   detectaremos ficheros con el mismo timestamp del día anterior.
   El conector debe ser tolerante a esto — re-ejecutar sobre
   datos sin cambios es no-op (idempotente).
+
+---
+
+## 13. I4.3 — pg_cron schedule de sftp-sync
+
+Tres migraciones en orden alfabético (timestamps ascendentes):
+
+| Migración | Path | Qué hace |
+|---|---|---|
+| A | [`supabase/migrations/20260509120000_seed_anon_key.sql`](../supabase/migrations/20260509120000_seed_anon_key.sql) | INSERT placeholder `supabase_anon_key='REPLACE_ME_AFTER_MERGE'` en `private.config`. **Tras aplicar la migración, hacer UPDATE manual con la anon key real**. |
+| B | [`supabase/migrations/20260509120100_invoke_edge_function_auth.sql`](../supabase/migrations/20260509120100_invoke_edge_function_auth.sql) | Extiende `private.invoke_edge_function` con `with_auth boolean default false`. Si `with_auth=true`, lee `supabase_anon_key` de `private.config` y lo inyecta como `Authorization: Bearer <key>`. Hard-fail si la key falta o es el placeholder. Hacia atrás compatible: el cron `promote-whitelist-matches` no pasa el flag → comportamiento idéntico a hoy. |
+| C | [`supabase/migrations/20260509120200_setup_cron_sftp_sync.sql`](../supabase/migrations/20260509120200_setup_cron_sftp_sync.sql) | 5 jobs `cron.schedule` con `with_auth=true`, idempotentes (`cron.unschedule` previo en bloque DO/EXCEPTION). |
+
+### Schedule
+
+| jobname | Schedule (UTC) | UTC | Madrid CET (invierno) | Madrid CEST (verano) |
+|---|---|---|---|---|
+| `sftp-sync-stock-01h` | `0 1 * * *` | 01:00 | 02:00 | 03:00 |
+| `sftp-sync-full-02h` | `0 2 * * *` | 02:00 | 03:00 | 04:00 |
+| `sftp-sync-stock-07h` | `0 7 * * *` | 07:00 | 08:00 | 09:00 |
+| `sftp-sync-stock-13h` | `0 13 * * *` | 13:00 | 14:00 | 15:00 |
+| `sftp-sync-stock-19h` | `0 19 * * *` | 19:00 | 20:00 | 21:00 |
+
+Todos los días de la semana. La hora local se desplaza ±1h con DST sin
+afectar el orden de operaciones (full siempre justo después del primer
+stock del día).
+
+### Pasos manuales tras aplicar las migraciones
+
+```sql
+-- 1. Update la anon key real en private.config (la del proyecto Supabase
+--    actual, sección Project Settings → API → anon public).
+UPDATE private.config
+SET value = '<paste anon key here>'
+WHERE key = 'supabase_anon_key';
+
+-- 2. Verificar que el cron está activo y correctamente quoteado.
+SELECT jobname, schedule, command, active
+FROM cron.job
+WHERE jobname LIKE 'sftp-sync-%'
+ORDER BY jobname;
+
+-- 3. (Opcional) Disparar uno a mano para validar que la auth funciona.
+SELECT private.invoke_edge_function('sftp-sync', '{"kind":"stock_only"}'::jsonb, true);
+-- Debería devolver un bigint (request_id de pg_net) sin RAISE.
+```
+
+### Cómo pausar / desactivar un cron
+
+```sql
+-- Pausar todos los crons de sftp-sync (sin borrarlos):
+UPDATE cron.job SET active = false WHERE jobname LIKE 'sftp-sync-%';
+
+-- Reactivar:
+UPDATE cron.job SET active = true WHERE jobname LIKE 'sftp-sync-%';
+
+-- Borrar uno concreto (irreversible — requiere re-aplicar la migración):
+SELECT cron.unschedule('sftp-sync-stock-13h');
+```
+
+### Cómo monitorizar runs
+
+```sql
+-- Últimos 20 disparos de cualquier cron sftp-sync, con outcome:
+SELECT j.jobname, r.start_time, r.end_time, r.status, r.return_message
+FROM cron.job_run_details r
+JOIN cron.job j ON j.jobid = r.jobid
+WHERE j.jobname LIKE 'sftp-sync-%'
+ORDER BY r.start_time DESC
+LIMIT 20;
+
+-- Cruzar con los rows de import_runs creados (uno por disparo exitoso):
+SELECT id, kind, status, started_at, completed_at, error_stage
+FROM private.import_runs
+WHERE started_at >= now() - interval '24 hours'
+ORDER BY started_at DESC;
+```
+
+`cron.job_run_details.status = 'succeeded'` significa que la query que
+invoca a `pg_net` devolvió OK; **no garantiza** que la edge function haya
+terminado bien (es asíncrona). El estado real está en
+`private.import_runs.status` (debe llegar a `completed`) y en la columna
+`error_stage` si falló. La `return_message` del cron solo refleja errores
+SQL del propio invoke (p. ej. `supabase_anon_key no configurado`).
+
+### Por qué la anon key vive en `private.config` plain text
+
+La anon key de Supabase es **publicable por diseño**: viene incrustada
+en cualquier bundle de frontend que use el cliente Supabase. No es un
+secreto. Pasa el gate `verify_jwt` del Edge Runtime pero por sí sola no
+puede leer datos protegidos por RLS. Guardarla en `private.config` (la
+misma tabla que `supabase_url`) mantiene la coherencia con el patrón
+existente y evita el overhead de Vault para una key no-secreta.
+
+`sftp-sync` mantiene `verify_jwt = true` para que la URL pública del
+edge function siga rechazando requests sin JWT alguno.

@@ -98,6 +98,27 @@ credentials"` en el response de `sftp-sync`. El run queda en
 `gh workflow run ledsc4-import.yml -f run_id=<uuid>` mientras se
 resuelve.
 
+### `private.config` — config compartida entre pg_cron y edge functions
+
+No es estrictamente una tabla de secrets, pero sirve de "bag de
+strings" para que las funciones SQL de pg_cron lean valores que
+necesitan en runtime. Plain text por diseño — no almacenar nada
+secreto aquí.
+
+| Key | Propósito | Quién lo lee | Notas |
+|---|---|---|---|
+| `supabase_url` | URL base del proyecto (`https://<ref>.supabase.co`). Usada para construir la URL de cualquier edge function en `private.invoke_edge_function`. | `private.invoke_edge_function` (consumido por todos los crons del proyecto). | Sembrado en la migración inicial de cron (2026-04-19). Al migrar al proyecto del cliente, `UPDATE` esta fila con la nueva URL. |
+| `supabase_anon_key` | Anon key del proyecto (formato JWT). Inyectada como `Authorization: Bearer <key>` cuando un cron invoca una edge function con `verify_jwt = true` (p. ej. `sftp-sync`). | `private.invoke_edge_function` con `with_auth = true`. | Sembrado como placeholder `REPLACE_ME_AFTER_MERGE` en la migración I4.3 (2026-05-09). **UPDATE manual obligatorio tras aplicar** la migración con el valor real (Project Settings → API → anon public). La función raise si el placeholder sigue ahí cuando se invoca. **No es secreto**: la anon key se publica en cualquier frontend que use el cliente Supabase. |
+
+**¿Cómo añadir/editar valores?** SQL directo en Supabase Studio:
+
+```sql
+UPDATE private.config SET value = '<nuevo valor>' WHERE key = '<key>';
+-- o
+INSERT INTO private.config (key, value) VALUES ('<key>', '<value>')
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = now();
+```
+
 ---
 
 ## 2. Secrets en local (env files de desarrollo)
