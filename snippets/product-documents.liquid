@@ -5,9 +5,9 @@
 {%- assign ns = product.metafields.product -%}
 
 {%- capture doc_links -%}
-  {%- if ns.pdf_ficha.value != blank -%}
+  {%- if ns.ficha_url.value != blank -%}
     <li class="doc-link">
-      <a href="{{ ns.pdf_ficha.value }}" target="_blank" rel="noopener">
+      <a href="{{ ns.ficha_url.value }}" target="_blank" rel="noopener">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Ficha técnica
       </a>
@@ -21,22 +21,31 @@
       </a>
     </li>
   {%- endif -%}
-  {%- if ns.pdf_ee.value != blank -%}
+  {%- if ns.ee_url.value != blank -%}
     <li class="doc-link">
-      <a href="{{ ns.pdf_ee.value }}" target="_blank" rel="noopener">
+      <a href="{{ ns.ee_url.value }}" target="_blank" rel="noopener">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Etiqueta energética
       </a>
     </li>
   {%- endif -%}
-  {%- if ns.pdf_comercial.value != blank -%}
+  {%- if ns.ficha_comercial_url.value != blank -%}
     <li class="doc-link">
-      <a href="{{ ns.pdf_comercial.value }}" target="_blank" rel="noopener">
+      <a href="{{ ns.ficha_comercial_url.value }}" target="_blank" rel="noopener">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Plano comercial
       </a>
     </li>
   {%- endif -%}
+  {%- comment -%}
+    Bloque "Instrucciones de montaje" intencionalmente desactivado.
+    El masterfile CSV no aporta una columna PDF para IMC; la columna IMC del
+    feed (col 64) es solo el código del producto, mapeado a product.imc como
+    texto. Si en el futuro entra un feed de PDFs de instrucciones de montaje,
+    crear la definition correspondiente, ajustar la key del ns.* y eliminar
+    el wrapper "if false" para reactivar el link.
+  {%- endcomment -%}
+  {%- if false -%}
   {%- if ns.pdf_imc.value != blank -%}
     <li class="doc-link">
       <a href="{{ ns.pdf_imc.value }}" target="_blank" rel="noopener">
@@ -44,6 +53,7 @@
         Instrucciones de montaje
       </a>
     </li>
+  {%- endif -%}
   {%- endif -%}
   {%- if ns.pdf_modelo_3d.value != blank -%}
     <li class="doc-link">
