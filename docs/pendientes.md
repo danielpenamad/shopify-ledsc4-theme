@@ -134,75 +134,30 @@ se archiva en `docs/pendientes-archivo.md`.
   post-cutover.
 - Estimación: 30 min - 2h según opción.
 
-### [P3] Auditoría completa de Flow + Final_integration + customer zombi
-- Causa: el smoke test BO descubrió múltiples vestigios e
-  inconsistencias en la infra B2B existente que no son scope BO
-  pero requieren pasada dedicada.
-- Bloque infra (W1-W5):
-  - W2 tiene rama `Send internal email` legacy que pide al admin
-    crear Company a mano (cuando ya se crea automáticamente por
-    otra vía).
-  - W2 tiene rama `Send HTTP request → create-company-for-customer`
-    en estado `Detenido` desde fecha desconocida.
-  - W2 tiene nodo `Remove customer tags: pendiente` redundante
-    (no-op tras flip atómico de `approve-customer`).
-  - W2 y W3 tenían condición rota (`AND` en lugar de
-    `AND NOT contiene pendiente`) — corregidas manualmente
-    durante smoke test 2026-05-05, sin commitear cambios al repo.
-- Bloque misterio Company creator — **RESUELTO 2026-05-09**:
-  - Path correcto identificado: W2 → `Send HTTP request →
-    create-company-for-customer`. La edge function usa el access
-    token de la Custom App `Final_integration`, lo que explica la
-    atribución en Events API. No hay path oculto.
-  - Por qué pareció misterio: durante el smoke test 2026-05-05 la
-    condición de W2 estaba rota (`contiene pendiente AND contiene
-    aprobado`) — ver Bloque infra. Con el flip atómico de
-    `approve-customer` esa condición nunca se cumple, así que
-    asumimos que W2 no había fired y la Company venía de otro
-    lado. Tras corregir la condición manualmente durante el mismo
-    smoke test, W2 disparó y el path estándar produjo Company +
-    fecha para `ledsc4-test2`.
-  - Evidencia consistente: ledsc4-test2 (10589026910535) tiene
-    Company `ddd` y `b2b.fecha_aprobacion: 2026-05-05`. Víctor,
-    aprobado **antes** del fix W2, quedó sin Company ni fecha —
-    consistente con W2 no firing en su caso. Ver Bloque customer
-    zombi y la entrada Víctor (T3) que ahora hereda este path
-    oficial.
-  - Confirmación bytes-a-bytes pendiente (opcional): CLI v2.98.2
-    no expone `supabase functions logs`. Si se quiere cierre con
-    esa evidencia adicional, tirar logs desde Dashboard Supabase
-    (Functions → create-company-for-customer → Logs).
-  - Riesgo cutover original queda resuelto: la cadena
-    `approve-customer` → flip tag → W2 (condición correcta) →
-    `create-company-for-customer` es la oficial y funciona
-    end-to-end.
-- Bloque customer zombi:
-  - `daniel.pena+test-pending1@creacciones.es`
-    (gid://shopify/Customer/10510009467207) tiene tag `aprobado`
-    pero sin Company ni `b2b.fecha_aprobacion`. Aprobado durante
-    BO-7 antes del fix de W2 — quedó a medias.
-  - Limpieza: o crear Company manual, o re-pendientar y
-    re-aprobar.
-- Estimación: 2-4h para auditoría completa + cleanup.
-- Bloquea: cutover al cliente.
+### [P3] Auditoría completa de Flow + customer zombi
 
-### [P3] Customer rechazado mantiene metafields semánticamente residuales
-- Causa: tras rechazar un customer previamente aprobado, los
-  metafields `b2b.fecha_aprobacion` (y potencialmente otros) se
-  conservan con el valor antiguo. Lo mismo aplica a otras
-  transiciones de estado.
-- Detectado durante BO-8 (2026-05-05): customer 2 quedó con
-  `tag rechazado + fecha_rechazo + motivo_rechazo +
-  fecha_aprobacion previa intacta`.
-- Decisión pendiente: ¿qué semántica queremos para
-  `fecha_aprobacion`? ¿Última fecha en que estuvo aprobado, o
-  fecha de aprobación actualmente vigente?
-- Si optamos por "fecha vigente": en `reject-customer` limpiar
-  `b2b.fecha_aprobacion` antes del flip. En `approve-customer`,
-  limpiar `b2b.fecha_rechazo` y `b2b.motivo_rechazo` antes del
-  flip.
-- Si optamos por "histórico": dejar todo como está y documentar.
-- Estimación: 30 min.
+Sub-bloques cerrados (ver Cerradas):
+- T2 misterio Final_integration → CERRADO 2026-05-09 (commit `bd1fac5`).
+- T3 Víctor → CERRADO 2026-05-09 (descarte: Dani borró el customer).
+- T5 semántica transiciones → CERRADO 2026-05-09 (PR #41, redeploy v12).
+- T6 bug tab pais → CERRADO 2026-05-09 (PRs #34 + #40).
+- T7 smoke test → CERRADO 2026-05-09 (V1 sobre el zombi).
+- T1 commits walkthroughs en main → CERRADO en PR #34 (merge `2c2052d`).
+
+Sub-bloques vivos:
+- **T1 paso UI**: exportar W2 y W3 a
+  `flows/W2-aprobacion-manual.flow.json` y
+  `flows/W3-rechazo-manual.flow.json` desde Shopify Flow UI (Dani).
+- **T4**: eliminar vestigios W2 en Shopify Flow UI (Dani):
+  - Rama `Send internal email` legacy (creación manual de Company,
+    obsoleta porque `create-company-for-customer` lo hace).
+  - Rama `Send HTTP request → create-company-for-customer` en
+    estado `Detenido` (verificar si está apagada y si la creación
+    va por path principal; eliminar la duplicada si confirma).
+  - Nodo `Remove customer tags pendiente` redundante (la edge
+    function aprovecha flip atómico).
+
+Cuando ambos cerrados, mover [P3] entero a Cerradas.
 
 ### [P4] Limpiar emails de test en whitelist antes del cutover
 - Causa: durante BO-4/5/6 se añadieron 5 emails dummy a
@@ -227,6 +182,25 @@ se archiva en `docs/pendientes-archivo.md`.
 - Estimación: 30 min - 2h.
 
 ## Cerradas
+
+### [Cerrada] C.6 T7 — verificación funcional V1
+- Cerrada: 2026-05-09
+- Smoke test reducido sobre el zombi
+  `daniel.pena+test-pending1@creacciones.es`
+  (`gid://shopify/Customer/10510009467207`).
+- Llamada directa a `approve-customer` v12 con HMAC válido del
+  approver backoffice. Status 200, `semantics: "applied"`, flip
+  `["pendiente"] → ["aprobado"]` en 1.1 s.
+- Verificación post-llamada (Dani vía MCP):
+  - tags `["aprobado"]`, `b2b.fecha_aprobacion = "2026-05-09"`.
+  - Sin `b2b.fecha_rechazo` ni `b2b.motivo_rechazo`.
+  - Company nueva creada por W2 →
+    `create-company-for-customer` (reconfirma T2: el path oficial
+    de Company creation funciona end-to-end tras la corrección de
+    la condición W2).
+- Cubre simultáneamente: T7 (smoke T5), T2 (reproducción path
+  Company creation), T5 (set fecha_aprobacion + ausencia de
+  metafields contradictorios).
 
 ### [Cerrada] C.6 T5 — semántica de transiciones de estado
 - Cerrada: 2026-05-09
