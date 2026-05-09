@@ -144,7 +144,7 @@
     "name": "Catálogo",
     "description": "Catálogo LedsC4 al que pertenece el producto.",
     "type": "single_line_text_field",
-    "pin": false,
+    "pin": true,
     "access": { "storefront": "PUBLIC_READ" }
   },
   {

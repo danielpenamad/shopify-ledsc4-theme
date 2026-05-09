@@ -708,7 +708,8 @@
     "2026-05-10": [
       "PR-DEFS-EXTEND: activación de 5 columnas previamente destination=ignore + cambio de key en col 68. Razón: el snippet product-documents.liquid ya intentaba renderizarlas pero el importer no las escribía en producción. Cambios: col 66 Fotometría → fotometria_url (url), col 69 3D → modelo_3d_url (url), col 70 masterfile.ies → ies_url (url), col 71 masterfile.ldt → ldt_url (url), col 68 Accesorio: key 'accesorio' (single_line_text_field) → 'accesorio_url' (url).",
       "Definition vieja product.accesorio (single_line_text_field) NO se elimina en este PR. Shopify no permite cambiar type de una definition existente; la opción habría sido drop+recreate, pero eso orfana los valores actuales (~31% de SKUs) y rompe transitoriamente el snippet. Decisión: crear accesorio_url nueva y dejar product.accesorio + sus valores como deuda técnica para cleanup en PR separado.",
-      "Bump de version 1.0.0 → 1.1.0 (cambio backwards-incompatible para consumidores que asumieran cols 66/68/69/70/71 estables; el importer interno se actualiza en el mismo PR)."
+      "Bump de version 1.0.0 → 1.1.0 (cambio backwards-incompatible para consumidores que asumieran cols 66/68/69/70/71 estables; el importer interno se actualiza en el mismo PR).",
+      "Sync product.catalogo pin: false → true. El pin se cambió manualmente en admin previamente (única vía posible en Shopify); este commit alinea el JSON declarativo con la realidad del shop. Justificación operativa del pin: product.catalogo es condición de smart collection y staff lo edita con frecuencia."
     ]
   }
 }
