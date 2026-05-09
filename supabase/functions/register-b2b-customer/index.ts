@@ -192,7 +192,7 @@ function validateSpanishTaxId(raw: string): { ok: boolean; normalized?: string }
 
 // --- Helpers -----------------------------------------------------------
 
-function sanitizeText(raw: unknown, maxLen: number): string {
+export function sanitizeText(raw: unknown, maxLen: number): string {
   if (typeof raw !== "string") return "";
   // Strip basic HTML tags and trim. No full HTML escaping — Shopify Admin API
   // stores text as-is and renders escaped in admin; we just prevent obvious
@@ -209,7 +209,7 @@ function isValidEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) && s.length <= 254;
 }
 
-function normalizeCountry(raw: string): string | null {
+export function normalizeCountry(raw: string): string | null {
   if (!raw) return null;
   const v = raw.trim().toUpperCase();
   // ISO alpha-2 directly.
