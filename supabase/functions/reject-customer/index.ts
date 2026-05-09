@@ -14,11 +14,19 @@
 // a `assertBackofficeTag` de abajo: sin ella cualquiera podría rechazar
 // customers a voluntad y enviar emails de rechazo no autorizados.
 //
-// Reparto edge function ↔ Flow W3:
-//   - Esta edge function: setea (si hay) `b2b.motivo_rechazo`, después
-//     `b2b.fecha_rechazo` (date), después cambia tags atómicamente.
+// Reparto edge function ↔ Flow W3 (post C.6 T5):
+//   - Esta edge function: ANTES del flip de tag, setea
+//     `b2b.fecha_rechazo` (date) + `b2b.motivo_rechazo` (si hay) y
+//     borra `b2b.fecha_aprobacion` si existía (residuo de una
+//     aprobación previa). Después cambia tags atómicamente.
 //   - W3: detecta el cambio de tag y manda el email 5 (lee el motivo
-//     desde el metafield).
+//     desde el metafield, por eso seteamos antes).
+//
+// El order set-then-flip es crítico para el motivo: W3 dispara con
+// el cambio de tag y lee el metafield en ese momento. El delete de
+// fecha_aprobacion también va antes para cerrar la coherencia
+// estado-metafields antes de que cualquier suscriptor del evento
+// observe el customer.
 //
 // Auth: HMAC-SHA256 firmado en Liquid con settings.backoffice_hmac_secret.
 //
@@ -33,7 +41,9 @@
 //   }
 //
 // Output:
-//   { ok: true, customerId, taggedAt, previousTags, newTags, motivoSet }
+//   { ok: true, customerId, taggedAt, previousTags, newTags, motivoSet, semantics }
+//   semantics: "applied" si los metafields de estado se actualizaron
+//   coherentemente, "skipped" si dryRun.
 //
 // Errores:
 //   400 INVALID_INPUT
@@ -138,41 +148,78 @@ async function assertBackofficeTag(approverId: string): Promise<{ ok: true } | {
   return { ok: true };
 }
 
-async function setRejectionMetafields(targetId: string, motivo: string | null): Promise<void> {
-  const todayIso = new Date().toISOString().slice(0, 10); // date type espera YYYY-MM-DD
-  const metafields: Array<Record<string, string>> = [
-    {
-      ownerId: targetId,
-      namespace: "b2b",
-      key: "fecha_rechazo",
-      type: "date",
-      value: todayIso,
-    },
+// --- Semántica de transición a 'rechazado' (C.6 T5) ------------------
+//
+// Antes del flip atómico de tags a 'rechazado', estos metafields deben
+// quedar coherentes con el estado:
+//   - b2b.fecha_rechazo → setear con fecha actual UTC (date type).
+//   - b2b.motivo_rechazo → setear con el motivo recibido (omitir si vacío).
+//   - b2b.fecha_aprobacion → borrar si existía (residuo de aprobación previa).
+//
+// El builder es puro y exportado para tests aislados.
+
+export type SemanticsInput = {
+  sets: Array<{ ownerId: string; namespace: string; key: string; type: string; value: string }>;
+  deletes: Array<{ ownerId: string; namespace: string; key: string }>;
+};
+
+export function buildRejectionSemanticsInput(customerId: string, today: string, motivo: string): SemanticsInput {
+  const sets: SemanticsInput["sets"] = [
+    { ownerId: customerId, namespace: "b2b", key: "fecha_rechazo", type: "date", value: today },
   ];
   if (motivo && motivo.length > 0) {
-    metafields.push({
-      ownerId: targetId,
+    sets.push({
+      ownerId: customerId,
       namespace: "b2b",
       key: "motivo_rechazo",
       type: "single_line_text_field",
       value: motivo,
     });
   }
+  return {
+    sets,
+    deletes: [
+      { ownerId: customerId, namespace: "b2b", key: "fecha_aprobacion" },
+    ],
+  };
+}
 
-  const data = await gql<{
-    metafieldsSet: { userErrors: Array<{ field: string[]; message: string; code: string }> };
-  }>(
-    `
-    mutation($metafields: [MetafieldsSetInput!]!) {
-      metafieldsSet(metafields: $metafields) {
-        userErrors { field message code }
-      }
+const SEMANTICS_MUTATION = `
+  mutation ApplySemantics(
+    $sets: [MetafieldsSetInput!]!,
+    $deletes: [MetafieldIdentifierInput!]!
+  ) {
+    metafieldsSet(metafields: $sets) {
+      metafields { id namespace key value }
+      userErrors { field message code }
     }
-    `,
-    { metafields },
-  );
-  const errs = data.metafieldsSet.userErrors;
-  if (errs.length) throw new Error(`metafieldsSet userErrors: ${JSON.stringify(errs)}`);
+    metafieldsDelete(metafields: $deletes) {
+      deletedMetafields { ownerId namespace key }
+      userErrors { field message }
+    }
+  }
+`;
+
+type SemanticsResp = {
+  metafieldsSet: { userErrors: Array<{ field: string[] | null; message: string; code: string }> };
+  metafieldsDelete: { userErrors: Array<{ field: string[] | null; message: string }> };
+};
+
+async function applyRejectionSemantics(targetId: string, motivo: string): Promise<void> {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const input = buildRejectionSemanticsInput(targetId, todayIso, motivo);
+
+  const data = await gql<SemanticsResp>(SEMANTICS_MUTATION, input);
+  const setErrs = data.metafieldsSet.userErrors;
+  const delErrs = data.metafieldsDelete.userErrors;
+  if (setErrs.length) {
+    throw new Error(`metafieldsSet userErrors: ${JSON.stringify(setErrs)}`);
+  }
+  if (delErrs.length) {
+    // Borrar metafields que no existen NO es un error semántico
+    // (idempotencia esperada). Solo logeamos; el flujo continúa.
+    logJson("warn", "metafieldsDelete_warnings", { targetId, userErrors: delErrs });
+  }
 }
 
 Deno.serve(async (req) => {
@@ -242,12 +289,14 @@ Deno.serve(async (req) => {
         previousTags: target.tags,
         newTags,
         motivoSet: motivo.length > 0,
+        semantics: "skipped",
       });
     }
 
-    // 1. Setear motivo (si hay) + fecha_rechazo ANTES de cambiar el tag.
-    //    W3 dispara con el cambio de tag y lee el metafield en ese momento.
-    await setRejectionMetafields(targetCustomerId, motivo.length > 0 ? motivo : null);
+    // 1. Aplicar semántica de transición ANTES de cambiar el tag (C.6 T5):
+    //    set fecha_rechazo + motivo_rechazo (si hay), delete fecha_aprobacion.
+    //    W3 dispara con el cambio de tag y lee los metafields en ese momento.
+    await applyRejectionSemantics(targetCustomerId, motivo);
 
     // 2. Cambiar tags atómicamente.
     const updateData = await gql<{
@@ -294,6 +343,7 @@ Deno.serve(async (req) => {
       previousTags: target.tags,
       newTags: updateData.customerUpdate.customer?.tags ?? newTags,
       motivoSet: motivo.length > 0,
+      semantics: "applied",
     });
   } catch (e) {
     const msg = (e as Error).message;
