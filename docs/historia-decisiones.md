@@ -243,10 +243,14 @@ o promocionada después del cutoff tiene new accounts forzado.
 
 **Consecuencias.**
 - **Login deprecated en theme**: archivos
-  `templates/customers/login.json`, `register.json`,
-  `reset_password.json` y sus secciones `sections/main-login.liquid`,
-  `main-register.liquid`, `main-reset-password.liquid` no intervienen
-  en el flujo real. Se conservan pero no aportan funcionalidad.
+  `templates/customers/login.json`, `reset_password.json` y sus
+  secciones `sections/main-login.liquid`,
+  `main-reset-password.liquid` no intervienen en el flujo real.
+  Se conservan pero no aportan funcionalidad. La cadena de register
+  (`register.json`, `main-register.liquid`, `b2b-register-fields.liquid`,
+  `b2b-register.js`) fue eliminada en cleanup C.6 T6 (2026-05-09):
+  el registro B2B vive en `/pages/acceso-profesional` + edge function
+  `register-b2b-customer`.
 - **Branding limitado a la Checkout & Customer Accounts Branding API**.
   Logo, fuentes, colores, esquinas, imagen de cover, favicon —
   configurables. Strings del formulario y layout — fijos por Shopify.

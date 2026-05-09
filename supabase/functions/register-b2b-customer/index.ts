@@ -139,7 +139,7 @@ function constantTimeEq(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// --- NIF / NIE / CIF (port directo de assets/b2b-register.js) -----------
+// --- NIF / NIE / CIF (port del registro classic, eliminado en C.6 T6) ---
 
 const DNI_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE";
 const CIF_CONTROL_LETTERS = "JABCDEFGHI";

@@ -79,9 +79,16 @@ Al pasar a Grow y con el **formulario de registro del storefront** activo, ambos
 
 Alta pre-requisito para que los metafields `volumen_estimado` y `fecha_registro` lleguen bien sin necesidad de backfill.
 
-- Comprueba que `templates/customers/register.json` (o el liquid del register) incluye el snippet `snippets/b2b-register-fields.liquid`.
-- Asegúrate que los 5 inputs B2B + el checkbox de términos están visibles.
-- Asegúrate que el hidden `customer[note]` existe (fallback JSON).
+El registro B2B vive en la página `/pages/acceso-profesional`
+(`sections/main-acceso-profesional.liquid` + `assets/b2b-register-v2.js`)
+y postea a la edge function `register-b2b-customer`. **No hay path
+`/account/register` clásico** — fue eliminado en el cleanup C.6 T6
+(2026-05-09) junto con los archivos `templates/customers/register.json`,
+`sections/main-register.liquid`, `snippets/b2b-register-fields.liquid`
+y `assets/b2b-register.js`.
+
+- Asegúrate que los 5 inputs B2B + el checkbox de términos están visibles
+  en `/pages/acceso-profesional#registro`.
 - Publica el tema en la tienda Grow (Themes → Actions → Publish).
 
 ---
