@@ -21,32 +21,49 @@
   assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
   assign hmac_payload = customer_gid | append: ':' | append: now_ts
   assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
-  assign saludo = customer.metafields.b2b.empresa | default: customer.first_name | default: 'Bienvenido'
+  assign fallback_bienvenido = 'ledsc4.common.greeting.fallback_bienvenido' | t
+  assign saludo = customer.metafields.b2b.empresa | default: customer.first_name | default: fallback_bienvenido
+
+  assign iso = request.locale.iso_code
+  assign locale_bcp47 = iso
+  case iso
+    when 'es'
+      assign locale_bcp47 = 'es-ES'
+    when 'fr'
+      assign locale_bcp47 = 'fr-FR'
+    when 'en'
+      assign locale_bcp47 = 'en-GB'
+    when 'de'
+      assign locale_bcp47 = 'de-DE'
+    when 'it'
+      assign locale_bcp47 = 'it-IT'
+    when 'pt-PT'
+      assign locale_bcp47 = 'pt-PT'
+  endcase
 -%}
 
 <section class="b2b-lista" aria-labelledby="b2b-lista-heading">
 
   <header class="b2b-lista__header">
-    <p class="b2b-lista__eyebrow">Portal B2B</p>
+    <p class="b2b-lista__eyebrow">{{ 'ledsc4.common.eyebrow.portal_b2b' | t }}</p>
     <h1 id="b2b-lista-heading" class="b2b-lista__heading">
-      Hola, {{ saludo | escape }}
+      {{ 'ledsc4.common.greeting.hola_name' | t: name: saludo }}
     </h1>
   </header>
 
-  <div id="b2b-lista-loading" class="b2b-lista__loading">Cargando solicitudes…</div>
+  <div id="b2b-lista-loading" class="b2b-lista__loading">{{ 'ledsc4.solicitudes.lista.loading' | t }}</div>
 
   {%- comment -%} Dashboard de bienvenida — visible cuando NO hay solicitudes. {%- endcomment -%}
   <div id="b2b-lista-empty" class="b2b-lista__empty" hidden>
     <p class="b2b-lista__empty-lead">
-      Aún no has enviado ninguna solicitud. Explora el catálogo outlet de
-      LEDS C4 y prepara tu primer pedido — aparecerá aquí en cuanto la envíes.
+      {{ 'ledsc4.solicitudes.lista.empty_lead' | t }}
     </p>
     {%- render 'b2b-dashboard-cards' -%}
   </div>
 
   {%- comment -%} Tabla — visible cuando SÍ hay solicitudes. JS la rellena. {%- endcomment -%}
   <div id="b2b-lista-content" class="b2b-lista__content" hidden>
-    <h2 class="b2b-lista__subheading">Tus solicitudes</h2>
+    <h2 class="b2b-lista__subheading">{{ 'ledsc4.solicitudes.lista.subheading' | t }}</h2>
     <div id="b2b-lista-table-wrap"></div>
   </div>
 </section>
@@ -189,28 +206,38 @@
     const CUSTOMER_ID = {{ customer_gid | json }};
     const TIMESTAMP = {{ now_ts | json }};
     const SIGNATURE = {{ hmac_sig | json }};
+    const LOCALE = {{ locale_bcp47 | json }};
+
+    const T = {
+      th_fecha: {{ 'ledsc4.solicitudes.lista.th_fecha' | t | json }},
+      th_ref: {{ 'ledsc4.solicitudes.lista.th_ref' | t | json }},
+      th_uds: {{ 'ledsc4.solicitudes.table.th_uds' | t | json }},
+      th_importe_est: {{ 'ledsc4.solicitudes.lista.th_importe_est' | t | json }},
+      th_estado: {{ 'ledsc4.solicitudes.lista.th_estado' | t | json }},
+      load: {{ 'ledsc4.solicitudes.lista.js_errors.load' | t | json }},
+      api: {{ 'ledsc4.solicitudes.lista.js_errors.api' | t | json }},
+      status: {
+        'pendiente-revision': {{ 'ledsc4.solicitudes.status.pendiente_revision' | t | json }},
+        'en-tramite': {{ 'ledsc4.solicitudes.status.en_tramite' | t | json }},
+        'confirmada': {{ 'ledsc4.solicitudes.status.confirmada' | t | json }},
+        'cancelada': {{ 'ledsc4.solicitudes.status.cancelada' | t | json }},
+      },
+    };
 
     const loadingEl = document.getElementById('b2b-lista-loading');
     const emptyEl = document.getElementById('b2b-lista-empty');
     const contentEl = document.getElementById('b2b-lista-content');
     const tableWrapEl = document.getElementById('b2b-lista-table-wrap');
 
-    const STATUS_LABELS = {
-      'pendiente-revision': 'En revisión',
-      'en-tramite': 'En trámite',
-      'confirmada': 'Confirmada',
-      'cancelada': 'Cancelada',
-    };
-
     function fmtDate(iso) {
       const d = new Date(iso);
-      return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return d.toLocaleDateString(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' });
     }
 
     function fmtMoney(v) {
       const n = Number.parseFloat(v);
       if (!Number.isFinite(n)) return v;
-      return n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
+      return n.toLocaleString(LOCALE, { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
     }
 
     function showEmpty() {
@@ -239,12 +266,12 @@
       try {
         data = await fetch(url.toString()).then((r) => r.json());
       } catch (e) {
-        showError('Error cargando solicitudes: ' + e.message);
+        showError(T.load.replace('{message}', e.message));
         return;
       }
 
       if (data.error) {
-        showError('Error: ' + data.error);
+        showError(T.api.replace('{error}', data.error));
         return;
       }
 
@@ -257,7 +284,7 @@
 
       const rows = items.map((it) => {
         const statusClass = 'b2b-lista__status--' + it.status;
-        const statusLabel = STATUS_LABELS[it.status] || it.status;
+        const statusLabel = T.status[it.status] || it.status;
         const ref = encodeURIComponent(it.name);
         return `<tr onclick="window.location.href='/pages/solicitud-detalle?ref=${ref}'">
           <td>${fmtDate(it.createdAt)}</td>
@@ -272,11 +299,11 @@
         <table class="b2b-lista__table">
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Ref</th>
-              <th class="num">Uds.</th>
-              <th class="num">Importe est.</th>
-              <th>Estado</th>
+              <th>${T.th_fecha}</th>
+              <th>${T.th_ref}</th>
+              <th class="num">${T.th_uds}</th>
+              <th class="num">${T.th_importe_est}</th>
+              <th>${T.th_estado}</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
