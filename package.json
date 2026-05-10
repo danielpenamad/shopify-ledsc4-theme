@@ -8,7 +8,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "test": "node scripts/import-parse.test.mjs && node scripts/import-map.test.mjs && node scripts/import-write.test.mjs && node scripts/rate-limiter.test.mjs && node scripts/fingerprint.test.mjs",
+    "test": "node scripts/import-parse.test.mjs && node scripts/import-map.test.mjs && node scripts/import-write.test.mjs && node scripts/rate-limiter.test.mjs && node scripts/fingerprint.test.mjs && node scripts/lib/image-upload.test.mjs",
     "import:dry-run": "node scripts/import-write.mjs",
     "import:apply": "node --env-file=shopify-ledsc4-theme.env scripts/import-write.mjs --apply"
   },
