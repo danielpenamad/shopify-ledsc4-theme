@@ -569,9 +569,116 @@
       "form": {
         "banner": {
           "generic_fallback": "Something went wrong while sending the request. Please try again.",
-          "network_error": "We couldn't connect to the server. Please check your connection and try again."
+          "network_error": "We couldn't connect to the server. Please check your connection and try again.",
+          "config_missing": "Incomplete theme configuration. Notify the team and try again later.",
+          "email_exists_html": "An account with this email already exists. <a href=\"/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes\">Log in</a>.",
+          "signature_expired_html": "Your form session has expired. <a href=\"\" onclick=\"window.location.reload(); return false;\">Reload the page</a> and try again.",
+          "service_unavailable_html": "Service temporarily unavailable. Please try again in a few minutes. If the problem persists, write to <a href=\"mailto:soporte@ledsc4.com\">soporte@ledsc4.com</a>."
+        },
+        "heading": "Request Access",
+        "step1_html": "<strong>Fill in your details.</strong>",
+        "step2_html": "<strong>We sent you an email</strong> with a link to activate your account.",
+        "step3_html": "<strong>We'll validate your professional profile</strong> (24-48 business hours) and notify you by email when it's ready.",
+        "legend_personales": "Personal data",
+        "legend_empresa": "Company details",
+        "label_nombre": "Name",
+        "label_apellidos": "Last Name",
+        "label_telefono": "Phone",
+        "label_razon_social": "Company name",
+        "label_nif": "Tax ID / Company ID / Foreigner ID",
+        "label_pais": "Country",
+        "label_volumen": "Estimated annual volume",
+        "sector": {
+          "instalador": "Electrical installer",
+          "arquitecto": "Architecture / Interior Design",
+          "retail": "Retail / Store",
+          "distribuidor": "Distributor",
+          "empresa_final": "End-user company",
+          "otro": "Another industry professional"
+        },
+        "volumen": {
+          "no_decir": "I'd rather not say",
+          "lt_5k": "Less than 5,000 €",
+          "5k_25k": "€5,000 - €25,000",
+          "25k_100k": "€25,000 - €100,000",
+          "gt_100k": "More than €100,000",
+          "no_se": "I don't know"
+        },
+        "terms_html": "I have read and accept the <a href=\"/pages/condiciones-de-uso\" target=\"_blank\" rel=\"noopener\">terms of use</a> and the <a href=\"/pages/politica-de-privacidad\" target=\"_blank\" rel=\"noopener\">privacy policy</a>.",
+        "submit": "Send request",
+        "submit_loading": "Sending…",
+        "err": {
+          "required": "This field is required.",
+          "email": "Invalid email.",
+          "nif": "Invalid NIF / CIF / NIE (check format and control digit).",
+          "terms": "You must accept the terms to continue."
         }
-      }
+      },
+      "hero": {
+        "eyebrow": "Professional access",
+        "heading_html": "<p>The LEDS C4 B2B Outlet, <em>for professionals only</em></p>",
+        "lead": "Here we explain what the portal is, who can access it, and how the approval process works. If after reading this you think you're a good fit, we'll take you to the application form."
+      },
+      "keep_reading": "Still not clear? Keep reading ↓",
+      "que_es": {
+        "heading": "What is this portal",
+        "body_html": "LEDS C4 Outlet B2B is a private wholesale portal for lighting professionals to liquidate surplus and discontinued LEDS C4 stock. It is independent from the public website <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, aimed at the end consumer): neither the catalog, nor the prices, nor the user account are shared."
+      },
+      "quien": {
+        "heading": "Who can access",
+        "lead": "The portal is intended for the following professional profiles:",
+        "list": {
+          "instaladores": "Electrical and lighting installers",
+          "arquitectos": "Architects and interior designers",
+          "retail": "Retail and specialty stores",
+          "distribuidores": "Distributors",
+          "empresas": "End-user companies in the lighting sector",
+          "otros": "Other professionals in the sector"
+        },
+        "note_html": "To validate your activity, we need an <strong>active company name</strong> and a <strong>valid NIF/CIF/NIE</strong>. The registration also asks for the sector, country, and, optionally, estimated annual volume to help us dimension the service."
+      },
+      "como": {
+        "heading": "How access works",
+        "intro_html": "There are <strong>two ways</strong> depending on whether LEDS C4 already knows you:",
+        "fast_tag": "Express lane",
+        "fast_title": "Pre-approved",
+        "fast_desc": "If your email is on the LEDS C4 pre-approved professionals list, your account will be activated automatically upon registration. You'll gain access to the catalog in minutes, without any waiting.",
+        "std_tag": "Standard track",
+        "std_title": "Manual approval",
+        "std_desc_html": "If your email is not pre-approved, the LEDS C4 team will manually review your request. Estimated response time: <strong>24–48 business hours</strong>. You will receive an email once it has been resolved, whether approved or denied.",
+        "steps_aria": "Access process steps",
+        "step1_title": "You register",
+        "step1_desc": "You fill out the form with your company details, NIF, and sector.",
+        "step2_title": "We validate your data",
+        "step2_desc": "Auto-approved in minutes or manual review in 24–48 business hours.",
+        "step3_title": "Catalog access",
+        "step3_desc": "You will receive a welcome email with a link to the Outlet catalog."
+      },
+      "dentro": {
+        "heading": "What you'll find inside",
+        "f1_title": "Outlet Catalog",
+        "f1_desc_html": "More than <strong>745 references</strong> of surplus, end-of-line, and discontinued stock, updated weekly.",
+        "f2_title": "Requests reviewed",
+        "f2_desc": "At this stage, it's not a direct purchase: each request is validated by a salesperson, who confirms lead times, minimums, and possible adjustments before closing the order.",
+        "f3_title": "History and status",
+        "f3_desc": "Every request is recorded in your private area with its current status: under review, in process, confirmed, or canceled."
+      },
+      "faq": {
+        "heading": "Frequently asked questions",
+        "q1_summary": "Do I have to pay anything to use the portal?",
+        "q1_body": "No. Access to the portal is free for approved professionals. You only pay for the products you order.",
+        "q2_summary": "How long does approval take?",
+        "q2_body_html": "If your email is on the pre-approved list, it will take minutes. If it requires manual review, it will take between <strong>24 and 48 business hours</strong>. In both cases, you will receive an email with the result.",
+        "q3_summary": "Can I buy directly?",
+        "q3_body_html": "<p>Not at this stage. The portal handles <strong>purchase requests</strong> that a sales representative reviews and confirms via email—they can adjust deadlines, minimums, or apply discounts before closing the order. Direct purchase with instant checkout is planned for later stages.</p>",
+        "q4_summary": "Does my account also work on ledsc4.com?",
+        "q4_body_html": "No. This account is exclusive to the B2B Outlet. The <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, open to the public) account is independent and managed from that website.",
+        "q5_summary": "What if I'm rejected?",
+        "q5_body": "You will receive an email indicating the reason (incomplete data, profile outside of criteria, etc.). If you believe there has been an error, you can contact the sales team by replying to that same email to review it.",
+        "q6_summary": "How do I change my company details?",
+        "q6_body": "Once approved, you can view your data in the private area of the portal. For sensitive changes (company name, tax ID), write to the sales team and we will update them manually."
+      },
+      "ctas_lead": "Does this work for you? Start by requesting access. If you already have an account, return to your private area."
     },
     "portal": {
       "eyebrow": "B2B Portal · exclusive access",
@@ -743,7 +850,20 @@
         "angulo_haz": "Beam angle",
         "regulacion": "Regulation",
         "dimensiones": "Dimensions"
-      }
+      },
+      "documents": {
+        "ficha": "Datasheet",
+        "fotometria": "Photometry",
+        "etiqueta_energetica": "Energy label",
+        "plano_comercial": "Commercial plan",
+        "accesorio": "Technical information accessories",
+        "ies": "IES File",
+        "ldt": "LDT file",
+        "modelo_3d": "3D Model"
+      },
+      "pdf_ficha_link": "Datasheet",
+      "tab_specs": "Specifications",
+      "tab_docs": "Documents"
     }
   },
   "shopify": {
