@@ -73,7 +73,7 @@
     </ul>
   {%- else -%}
     {%- assign fallback_count = collections['coleccion-2026'].products_count | default: 0 -%}
-    <a href="/collections/coleccion-2026" class="b2b-dash-cards__fallback">
+    <a href="{{ routes.root_url }}collections/coleccion-2026" class="b2b-dash-cards__fallback">
       <div>
         <h3 class="b2b-dash-cards__fallback-title">{{ 'ledsc4.solicitudes.dashboard_cards.fallback_title' | t }}</h3>
         <p class="b2b-dash-cards__fallback-meta">

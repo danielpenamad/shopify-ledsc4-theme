@@ -10,7 +10,7 @@
 
 <header class="b2b-header-simple" role="banner">
   <div class="b2b-header-simple__inner">
-    <a href="/" class="b2b-header-simple__brand" aria-label="Inicio">
+    <a href="{{ routes.root_url }}" class="b2b-header-simple__brand" aria-label="Inicio">
       {%- if shop.brand.logo != blank -%}
         <img
           src="{{ shop.brand.logo | image_url: width: 320 }}"
@@ -43,7 +43,7 @@
         <span class="b2b-header-simple__email" title="{{ customer.email }}">
           {{ customer.first_name | default: customer.email | truncate: 24 }}
         </span>
-        <a href="/account/logout" class="b2b-header-simple__link">
+        <a href="{{ routes.account_logout_url }}" class="b2b-header-simple__link">
           Cerrar sesión
         </a>
       {%- else -%}

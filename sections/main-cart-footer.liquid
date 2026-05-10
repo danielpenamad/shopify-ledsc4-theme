@@ -112,7 +112,7 @@
               {%- endcomment -%}
               <div class="cart__ctas" {{ block.shopify_attributes }}>
                 <a
-                  href="/pages/solicitud"
+                  href="{{ routes.root_url }}pages/solicitud"
                   id="checkout"
                   class="cart__checkout-button button"
                   {% if cart == empty %}aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:0.5;"{% endif %}
