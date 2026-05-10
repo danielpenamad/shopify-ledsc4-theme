@@ -20,21 +20,26 @@
 
 {%- if customer.tags contains 'aprobado' -%}
 
+  {%- comment -%}
+    Cascade fallback con clave i18n al final: si empresa y first_name son blank,
+    cae al string literal 'ledsc4.common.greeting.fallback_bienvenido' que el filtro `| t`
+    final traduce a "Bienvenido". Cuando empresa o first_name tienen valor, `| t`
+    devuelve la propia string (Shopify behavior: si la key no existe, retorna input).
+  {%- endcomment -%}
   {%- assign saludo = customer.metafields.b2b.empresa
     | default: customer.first_name
-    | default: 'Bienvenido'
+    | default: 'ledsc4.common.greeting.fallback_bienvenido' | t
   -%}
 
   <section class="b2b-aprobado-home" aria-labelledby="b2b-aprobado-heading">
 
     <div class="b2b-aprobado-home__hero">
-      <p class="b2b-aprobado-home__eyebrow">Portal B2B</p>
+      <p class="b2b-aprobado-home__eyebrow">{{ 'ledsc4.common.eyebrow.portal_b2b' | t }}</p>
       <h1 id="b2b-aprobado-heading" class="b2b-aprobado-home__heading">
-        Hola, {{ saludo | escape }}
+        {{ 'ledsc4.common.greeting.hola_name' | t: name: saludo }}
       </h1>
       <p class="b2b-aprobado-home__lead">
-        Explora el catálogo outlet de LEDS C4, prepara tu solicitud de pedido
-        y consulta el estado de tus envíos.
+        {{ 'ledsc4.aprobado_home.lead' | t }}
       </p>
     </div>
 
@@ -45,11 +50,10 @@
     <div class="b2b-aprobado-home__solicitudes">
       <a href="/pages/mis-solicitudes" class="b2b-aprobado-home__solicitudes-card">
         <div class="b2b-aprobado-home__solicitudes-text">
-          <p class="b2b-aprobado-home__solicitudes-eyebrow">Tu actividad</p>
-          <h3 class="b2b-aprobado-home__solicitudes-title">Mis solicitudes de pedido</h3>
+          <p class="b2b-aprobado-home__solicitudes-eyebrow">{{ 'ledsc4.aprobado_home.solicitudes.eyebrow' | t }}</p>
+          <h3 class="b2b-aprobado-home__solicitudes-title">{{ 'ledsc4.aprobado_home.solicitudes.title' | t }}</h3>
           <p class="b2b-aprobado-home__solicitudes-desc">
-            Consulta el estado de tus solicitudes enviadas, descarga
-            confirmaciones y revisa el histórico de pedidos.
+            {{ 'ledsc4.aprobado_home.solicitudes.desc' | t }}
           </p>
         </div>
         <span class="b2b-aprobado-home__solicitudes-arrow" aria-hidden="true">→</span>
@@ -216,14 +220,12 @@
       </header>
 
       <div class="b2b-portal__hero-body">
-        <p class="b2b-portal__eyebrow">Portal B2B · acceso exclusivo</p>
+        <p class="b2b-portal__eyebrow">{{ 'ledsc4.portal.eyebrow' | t }}</p>
         <h1 id="b2b-portal-heading" class="b2b-portal__heading">
-          Catálogo outlet
-          <em>para profesionales</em>
+          {{ 'ledsc4.portal.heading_html' | t }}
         </h1>
         <p class="b2b-portal__lead">
-          Stocks excedentes y descatalogados de LEDS C4 a precios reducidos.
-          Acceso limitado a instaladores, arquitectos, distribuidores y retail del sector de la iluminación.
+          {{ 'ledsc4.portal.lead' | t }}
         </p>
         <div class="b2b-portal__ctas">
           {%- comment -%}
@@ -232,19 +234,19 @@
             login, en vez de a shopify.com/<shop>/account.
           {%- endcomment -%}
           <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-portal__btn b2b-portal__btn--primary">
-            Iniciar sesión
+            {{ 'ledsc4.common.cta.login' | t }}
           </a>
           <a href="/pages/acceso-profesional#registro" class="b2b-portal__btn b2b-portal__btn--secondary">
-            Solicitar acceso
+            {{ 'ledsc4.common.cta.solicitar_acceso' | t }}
           </a>
         </div>
         <a href="/pages/acceso-profesional" class="b2b-portal__help-link">
-          ¿Tienes dudas sobre el acceso? Mira cómo funciona →
+          {{ 'ledsc4.portal.help_link' | t }}
         </a>
       </div>
 
       <div class="b2b-portal__scroll-hint" aria-hidden="true">
-        <span>Más info</span>
+        <span>{{ 'ledsc4.portal.scroll_hint' | t }}</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
       </div>
     </div>
@@ -253,36 +255,37 @@
       <div class="b2b-portal__features-grid">
         <article class="b2b-portal__feature">
           <svg class="b2b-portal__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          <h3>Stock outlet</h3>
-          <p>Excedentes, fin de serie y descatalogados de LEDS C4 a precios reducidos. Actualizado cada semana.</p>
+          <h3>{{ 'ledsc4.portal.f1_title' | t }}</h3>
+          <p>{{ 'ledsc4.portal.f1_desc' | t }}</p>
         </article>
 
         <article class="b2b-portal__feature">
           <svg class="b2b-portal__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <h3>Alta en 24-48h</h3>
-          <p>Rellenas el formulario de solicitud y validamos tus datos profesionales. Sin mínimos en el primer pedido.</p>
+          <h3>{{ 'ledsc4.portal.f2_title' | t }}</h3>
+          <p>{{ 'ledsc4.portal.f2_desc' | t }}</p>
         </article>
 
         <article class="b2b-portal__feature">
           <svg class="b2b-portal__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          <h3>Envío península 24-48h</h3>
-          <p>Almacén ibérico con stock disponible. Envío directo y sin intermediarios para pedidos profesionales.</p>
+          <h3>{{ 'ledsc4.portal.f3_title' | t }}</h3>
+          <p>{{ 'ledsc4.portal.f3_desc' | t }}</p>
         </article>
       </div>
     </div>
 
     <footer class="b2b-portal__footer">
-      <nav class="b2b-portal__footer-nav" aria-label="Enlaces legales">
-        <a href="/pages/aviso-legal">Aviso legal</a>
+      <nav class="b2b-portal__footer-nav" aria-label="{{ 'ledsc4.common.footer.aria_legal' | t }}">
+        <a href="/pages/aviso-legal">{{ 'ledsc4.common.footer.aviso_legal' | t }}</a>
         <span aria-hidden="true">·</span>
-        <a href="/pages/politica-de-privacidad">Privacidad</a>
+        <a href="/pages/politica-de-privacidad">{{ 'ledsc4.common.footer.privacidad' | t }}</a>
         <span aria-hidden="true">·</span>
-        <a href="/pages/condiciones-de-uso">Condiciones</a>
+        <a href="/pages/condiciones-de-uso">{{ 'ledsc4.common.footer.condiciones' | t }}</a>
         <span aria-hidden="true">·</span>
-        <a href="/pages/canal-de-denuncias">Canal ético</a>
+        <a href="/pages/canal-de-denuncias">{{ 'ledsc4.common.footer.canal_etico' | t }}</a>
       </nav>
       <p class="b2b-portal__footer-note">
-        © {{ 'now' | date: '%Y' }} LEDS C4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés
+        {%- assign current_year = 'now' | date: '%Y' -%}
+        {{ 'ledsc4.common.footer.copyright_html' | t: year: current_year }}
       </p>
     </footer>
 

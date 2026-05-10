@@ -22,6 +22,13 @@
   var submitBtn = document.getElementById('b2b-registro-submit');
   var banner = document.getElementById('b2b-registro-banner');
 
+  // i18n: el bloque <script> de Liquid en main-acceso-profesional.liquid
+  // pobla window.LEDSC4_I18N.acceso_form antes de este IIFE (defer garantiza
+  // orden). Fallback ES literal por defensa si la inyección fallara.
+  var I18N = (window.LEDSC4_I18N && window.LEDSC4_I18N.acceso_form) || {};
+  var I18N_ERR = I18N.err || {};
+  var I18N_BANNER = I18N.banner || {};
+
   // --- NIF / NIE / CIF (port del registro classic, eliminado en C.6 T6) ---
 
   var DNI_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
@@ -68,10 +75,10 @@
   // --- Field error UI ---
 
   var ERRORS = {
-    required: 'Este campo es obligatorio.',
-    email: 'Email no válido.',
-    nif: 'NIF / CIF / NIE no válido (revisa formato y dígito de control).',
-    terms: 'Debes aceptar las condiciones para continuar.',
+    required: I18N_ERR.required || 'Este campo es obligatorio.',
+    email:    I18N_ERR.email    || 'Email no válido.',
+    nif:      I18N_ERR.nif      || 'NIF / CIF / NIE no válido (revisa formato y dígito de control).',
+    terms:    I18N_ERR.terms    || 'Debes aceptar las condiciones para continuar.',
   };
 
   function findErrorNode(fieldName) {
@@ -188,7 +195,7 @@
     var spinner = submitBtn.querySelector('.b2b-acceso__btn-spinner');
     var label = submitBtn.querySelector('.b2b-acceso__btn-label');
     if (spinner) spinner.hidden = !isLoading;
-    if (label) label.textContent = isLoading ? 'Enviando…' : 'Enviar solicitud';
+    if (label) label.textContent = isLoading ? (I18N.submit_loading || 'Enviando…') : (I18N.submit || 'Enviar solicitud');
     Array.prototype.forEach.call(
       form.querySelectorAll('input, select, button'),
       function (el) {
@@ -237,6 +244,7 @@
     var endpoint = form.getAttribute('data-endpoint');
     if (!endpoint) {
       setBanner(
+        I18N_BANNER.config_missing ||
         'Configuración incompleta del tema. Avisa al equipo y vuelve a intentarlo más tarde.'
       );
       return;
@@ -283,6 +291,7 @@
 
         if (s === 409 && b.code === 'EMAIL_ALREADY_EXISTS') {
           setBanner(
+            I18N_BANNER.email_exists_html ||
             'Ya existe una cuenta con este email. ' +
             '<a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes">Iniciar sesión</a>.'
           );
@@ -303,6 +312,7 @@
 
         if (s === 401 && (b.code === 'SIGNATURE_EXPIRED' || b.code === 'INVALID_SIGNATURE')) {
           setBanner(
+            I18N_BANNER.signature_expired_html ||
             'Tu sesión en el formulario ha caducado. ' +
             '<a href="" onclick="window.location.reload(); return false;">Recarga la página</a> ' +
             'y vuelve a intentarlo.'
@@ -311,21 +321,26 @@
         }
 
         if (s === 502) {
+          // Email de soporte vive en la traducción i18n (ledsc4.acceso.form.banner.service_unavailable_html).
+          // Cuando se confirme email definitivo de soporte, edición del valor en es.default.json.
           setBanner(
+            I18N_BANNER.service_unavailable_html ||
             'Servicio temporalmente no disponible. Vuelve a intentarlo en unos minutos. ' +
             'Si persiste, escribe a <a href="mailto:soporte@ledsc4.com">soporte@ledsc4.com</a>.'
-            // TODO: confirmar email de soporte con Dani / docs/hardcoded-emails.md
           );
           return;
         }
 
-        // Fallback genérico.
+        // Fallback genérico. b.message viene del backend (en español) cuando existe;
+        // si no, cae a la clave i18n.
         setBanner(
-          (b.message || 'Algo ha ido mal al enviar la solicitud. Vuelve a intentarlo.')
+          b.message || I18N_BANNER.generic_fallback ||
+          'Algo ha ido mal al enviar la solicitud. Vuelve a intentarlo.'
         );
       })
       .catch(function (err) {
         setBanner(
+          I18N_BANNER.network_error ||
           'No hemos podido conectar con el servidor. Comprueba tu conexión y vuelve a intentarlo.'
         );
         // Log a consola para debugging — el banner es lo que ve el usuario.

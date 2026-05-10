@@ -32,24 +32,24 @@
       </svg>
     </span>
 
-    <p class="b2b-recibido__eyebrow">Solicitud enviada</p>
+    <p class="b2b-recibido__eyebrow">{{ 'ledsc4.registro_recibido.eyebrow' | t }}</p>
     <h1 id="b2b-recibido-heading" class="b2b-recibido__heading">
-      Revisa tu email
+      {{ 'ledsc4.registro_recibido.heading' | t }}
     </h1>
 
     <p class="b2b-recibido__lead" id="b2b-recibido-email-line">
-      Te hemos enviado un email con un enlace para activar tu cuenta.
+      {{ 'ledsc4.registro_recibido.lead_generic' | t }}
     </p>
 
     <ul class="b2b-recibido__notes">
-      <li>Si no lo recibes en <strong>5 minutos</strong>, revisa la carpeta de spam o promociones.</li>
-      <li>Tras activar tu cuenta, validaremos tu perfil profesional en <strong>24-48 horas hábiles</strong>.</li>
-      <li>Te avisaremos por email cuando esté listo, tanto si se aprueba como si se deniega.</li>
+      <li>{{ 'ledsc4.registro_recibido.note1_html' | t }}</li>
+      <li>{{ 'ledsc4.registro_recibido.note2_html' | t }}</li>
+      <li>{{ 'ledsc4.registro_recibido.note3' | t }}</li>
     </ul>
 
     <div class="b2b-recibido__ctas">
       <a href="/pages/acceso-profesional" class="b2b-recibido__btn b2b-recibido__btn--secondary">
-        Volver al inicio
+        {{ 'ledsc4.registro_recibido.btn_back' | t }}
       </a>
     </div>
   </div>
@@ -61,7 +61,17 @@
   filtrar el valor por SSR (no hay manera trivial de leer querystring en
   Liquid storefront sin templates de búsqueda). Si llega vacío, el lead
   queda con el texto genérico.
+
+  Patrón i18n: la traducción viene desde es.default.json como template
+  con placeholder `{email}` que ya incluye <strong> dentro. JS solo
+  hace replace('{email}', safeEmail). T&A respeta el placeholder.
 {%- endcomment -%}
+<script>
+  window.LEDSC4_I18N = window.LEDSC4_I18N || {};
+  window.LEDSC4_I18N.registro_recibido = {
+    lead_with_email_html: {{ 'ledsc4.registro_recibido.lead_with_email_html' | t | json }}
+  };
+</script>
 <script>
 (function () {
   try {
@@ -75,12 +85,12 @@
     if (!/[^\s@]+@[^\s@]+/.test(email)) return;
     var line = document.getElementById('b2b-recibido-email-line');
     if (!line) return;
-    line.innerHTML =
-      'Te hemos enviado un email a <strong>' +
-      email.replace(/[<>&"']/g, function (c) {
-        return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' })[c];
-      }) +
-      '</strong> con un enlace para activar tu cuenta.';
+    var safe = email.replace(/[<>&"']/g, function (c) {
+      return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+    var tpl = (window.LEDSC4_I18N.registro_recibido || {}).lead_with_email_html;
+    if (!tpl) return; // fallback al texto genérico ya renderizado
+    line.innerHTML = tpl.replace('{email}', safe);
   } catch (_) { /* fallback al texto genérico */ }
 })();
 </script>
