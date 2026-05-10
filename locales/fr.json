@@ -650,7 +650,7 @@
         },
         "banner": {
           "config_missing": "Configuration du thème incomplète. Contactez l'équipe et réessayez plus tard.",
-          "email_exists_html": "Il existe déjà un compte avec cette adresse e-mail. <a href=\"/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes\">Se connecter</a>.",
+          "email_exists_html": "Il existe déjà un compte avec cette adresse e-mail. <a href=\"{{ login_url }}\">Se connecter</a>.",
           "signature_expired_html": "Votre session de formulaire a expiré. <a href=\"\" onclick=\"window.location.reload(); return false;\">Rechargez la page</a> et réessayez.",
           "service_unavailable_html": "Service temporairement indisponible. Veuillez réessayer dans quelques minutes. Si le problème persiste, veuillez écrire à <a href=\"mailto:soporte@ledsc4.com\">soporte@ledsc4.com</a>.",
           "generic_fallback": "Une erreur est survenue lors de l'envoi de la requête. Veuillez réessayer.",

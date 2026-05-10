@@ -112,15 +112,15 @@
               {%- endcomment -%}
               <div class="cart__ctas" {{ block.shopify_attributes }}>
                 <a
-                  href="/pages/solicitud"
+                  href="{{ routes.root_url }}pages/solicitud"
                   id="checkout"
                   class="cart__checkout-button button"
                   {% if cart == empty %}aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:0.5;"{% endif %}
                 >
-                  Enviar solicitud de pedido
+                  {{ 'ledsc4.cart.cta_solicitud' | t }}
                 </a>
                 <p style="font-size:12px;color:#666;text-align:center;margin:0.75rem 0 0 0;line-height:1.4;">
-                  Los precios mostrados son orientativos · no incluyen IVA ni portes · sujeto a confirmacion del equipo comercial
+                  {{ 'ledsc4.cart.disclaimer' | t }}
                 </p>
               </div>
           {%- endcase -%}

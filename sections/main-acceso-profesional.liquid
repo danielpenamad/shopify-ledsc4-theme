@@ -26,6 +26,13 @@
 {% endcomment %}
 
 {%- assign scheme = section.settings.color_scheme | default: 'dark' -%}
+{%- comment -%}
+  Login URL outcome (b)+ (Sprint 3.5): ruta base sin prefijo locale,
+  return_to con prefijo locale, &locale=<iso> para localizar el form
+  de login. Si en QA real falla el `?locale=`, eliminar SOLO el
+  `&locale=...` de los hrefs — el return_to con prefijo se mantiene.
+{%- endcomment -%}
+{%- assign login_return_to = routes.root_url | append: 'pages/mis-solicitudes' | url_encode -%}
 
 <section
   class="b2b-acceso b2b-acceso--{{ scheme }}"
@@ -71,7 +78,7 @@
       <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
         {{ 'ledsc4.common.cta.solicitar_acceso' | t }}
       </a>
-      <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-acceso__btn b2b-acceso__btn--secondary">
+      <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-acceso__btn b2b-acceso__btn--secondary">
         {{ 'ledsc4.common.cta.login_existente' | t }}
       </a>
     </div>
@@ -206,7 +213,7 @@
       <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
         {{ 'ledsc4.common.cta.solicitar_acceso' | t }}
       </a>
-      <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-acceso__btn b2b-acceso__btn--secondary">
+      <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-acceso__btn b2b-acceso__btn--secondary">
         {{ 'ledsc4.common.cta.login_existente' | t }}
       </a>
     </div>
@@ -361,13 +368,13 @@
 
   <footer class="b2b-acceso__footer">
     <nav class="b2b-acceso__footer-nav" aria-label="{{ 'ledsc4.common.footer.aria_legal' | t }}">
-      <a href="/pages/aviso-legal">{{ 'ledsc4.common.footer.aviso_legal' | t }}</a>
+      <a href="{{ routes.root_url }}pages/aviso-legal">{{ 'ledsc4.common.footer.aviso_legal' | t }}</a>
       <span aria-hidden="true">·</span>
-      <a href="/pages/politica-de-privacidad">{{ 'ledsc4.common.footer.privacidad' | t }}</a>
+      <a href="{{ routes.root_url }}pages/politica-de-privacidad">{{ 'ledsc4.common.footer.privacidad' | t }}</a>
       <span aria-hidden="true">·</span>
-      <a href="/pages/condiciones-de-uso">{{ 'ledsc4.common.footer.condiciones' | t }}</a>
+      <a href="{{ routes.root_url }}pages/condiciones-de-uso">{{ 'ledsc4.common.footer.condiciones' | t }}</a>
       <span aria-hidden="true">·</span>
-      <a href="/pages/canal-de-denuncias">{{ 'ledsc4.common.footer.canal_etico' | t }}</a>
+      <a href="{{ routes.root_url }}pages/canal-de-denuncias">{{ 'ledsc4.common.footer.canal_etico' | t }}</a>
     </nav>
     <p class="b2b-acceso__footer-note">
       {%- assign current_year = 'now' | date: '%Y' -%}
@@ -1166,6 +1173,14 @@
   // (incluye </script> injection). Convención compartida: namespace por feature
   // bajo window.LEDSC4_I18N.<feature>.
   window.LEDSC4_I18N = window.LEDSC4_I18N || {};
+  window.LEDSC4_I18N.locale_prefix = {{ routes.root_url | json }};
+  {%- comment -%}
+    login_url_full (Sprint 3.5): construye el URL de login outcome (b)+
+    para inyectarlo en email_exists_html via t: login_url:. Si en QA
+    real falla `?locale=`, eliminar SOLO el sufijo `&locale=...` de la
+    línea de abajo — return_to con prefijo se mantiene.
+  {%- endcomment -%}
+  {%- assign login_url_full = '/customer_authentication/login?return_to=' | append: login_return_to | append: '&locale=' | append: request.locale.iso_code -%}
   window.LEDSC4_I18N.acceso_form = {
     err: {
       required: {{ 'ledsc4.acceso.form.err.required' | t | json }},
@@ -1177,7 +1192,7 @@
     submit_loading: {{ 'ledsc4.acceso.form.submit_loading' | t | json }},
     banner: {
       config_missing:           {{ 'ledsc4.acceso.form.banner.config_missing' | t | json }},
-      email_exists_html:        {{ 'ledsc4.acceso.form.banner.email_exists_html' | t | json }},
+      email_exists_html:        {{ 'ledsc4.acceso.form.banner.email_exists_html' | t: login_url: login_url_full | json }},
       signature_expired_html:   {{ 'ledsc4.acceso.form.banner.signature_expired_html' | t | json }},
       service_unavailable_html: {{ 'ledsc4.acceso.form.banner.service_unavailable_html' | t | json }},
       generic_fallback:         {{ 'ledsc4.acceso.form.banner.generic_fallback' | t | json }},

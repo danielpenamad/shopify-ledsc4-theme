@@ -16,7 +16,7 @@
 
 <header class="b2b-header-aprobado" role="banner">
   <div class="b2b-header-aprobado__inner">
-    <a href="/" class="b2b-header-aprobado__brand" aria-label="LedsC4 Outlet — Inicio">
+    <a href="{{ routes.root_url }}" class="b2b-header-aprobado__brand" aria-label="LedsC4 Outlet — Inicio">
       <img
         src="{{ 'logo-ledsc4.svg' | asset_url }}"
         alt="LedsC4"
@@ -27,9 +27,9 @@
     </a>
 
     <nav class="b2b-header-aprobado__nav" aria-label="Cuenta">
-      <a href="/pages/mis-solicitudes" class="b2b-header-aprobado__link">Mis solicitudes</a>
-      <a href="/account/logout" class="b2b-header-aprobado__link b2b-header-aprobado__link--ghost">
-        Cerrar sesión
+      <a href="{{ routes.root_url }}pages/mis-solicitudes" class="b2b-header-aprobado__link">{{ 'ledsc4.common.cta.mis_solicitudes' | t }}</a>
+      <a href="{{ routes.account_logout_url }}" class="b2b-header-aprobado__link b2b-header-aprobado__link--ghost">
+        {{ 'customer.log_out' | t }}
       </a>
     </nav>
   </div>

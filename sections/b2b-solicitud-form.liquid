@@ -108,7 +108,7 @@
 
       <div class="b2b-solicitud__actions">
         <button type="submit" id="b2b-submit" class="b2b-solicitud__submit">{{ 'ledsc4.solicitudes.form.submit' | t }}</button>
-        <a href="/cart" class="b2b-solicitud__cancel">{{ 'ledsc4.solicitudes.form.cancel' | t }}</a>
+        <a href="{{ routes.cart_url }}" class="b2b-solicitud__cancel">{{ 'ledsc4.solicitudes.form.cancel' | t }}</a>
       </div>
     </form>
 
@@ -118,6 +118,7 @@
         const CUSTOMER_ID = {{ customer_gid | json }};
         const TIMESTAMP = {{ now_ts | json }};
         const SIGNATURE = {{ hmac_sig | json }};
+        const LOCALE_PREFIX = {{ routes.root_url | json }};
 
         const T = {
           submit: {{ 'ledsc4.solicitudes.form.submit' | t | json }},
@@ -223,7 +224,7 @@
             /* no bloqueante */
           }
           const ref = encodeURIComponent(res.draftOrderName || '');
-          window.location.href = '/pages/solicitud-enviada?ref=' + ref;
+          window.location.href = LOCALE_PREFIX + 'pages/solicitud-enviada?ref=' + ref;
         }
 
         form.addEventListener('submit', function (ev) {

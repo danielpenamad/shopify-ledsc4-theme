@@ -360,9 +360,9 @@
             gate_exempt_paths arriba, por lo que la redirección no genera
             bucle.
           {%- endcomment -%}
-          <script>window.location.replace('/pages/acceso-profesional');</script>
+          <script>window.location.replace({{ routes.root_url | append: 'pages/acceso-profesional' | json }});</script>
         {%- elsif customer.tags contains 'rechazado' -%}
-          <script>window.location.replace('/pages/cuenta-rechazada');</script>
+          <script>window.location.replace({{ routes.root_url | append: 'pages/cuenta-rechazada' | json }});</script>
         {%- elsif customer.tags contains 'aprobado' -%}
           {%- comment -%}
             Aprobado. Fase D: checkout nativo deshabilitado. Cualquier
@@ -370,7 +370,7 @@
             donde encontrara el boton "Enviar solicitud de pedido".
           {%- endcomment -%}
           {%- if gate_path contains '/checkout' -%}
-            <script>window.location.replace('/cart');</script>
+            <script>window.location.replace({{ routes.cart_url | json }});</script>
           {%- endif -%}
         {%- else -%}
           {%- comment -%}
@@ -379,7 +379,7 @@
             Safety net adicional a Locksmith Rule 2 por si no enforza.
           {%- endcomment -%}
           {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' or gate_path contains '/search' or gate_path contains '/pages/solicitud' or gate_path contains '/pages/mis-solicitudes' or gate_path contains '/checkout' -%}
-            <script>window.location.replace('/pages/cuenta-en-revision');</script>
+            <script>window.location.replace({{ routes.root_url | append: 'pages/cuenta-en-revision' | json }});</script>
           {%- endif -%}
         {%- endif -%}
       {%- endunless -%}

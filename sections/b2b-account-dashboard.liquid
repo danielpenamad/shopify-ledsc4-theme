@@ -46,25 +46,25 @@
 
   {%- if customer.tags contains 'aprobado' -%}
     <div class="b2b-account__grid">
-      <a href="/collections/coleccion-2026" class="b2b-account__card b2b-account__card--primary">
+      <a href="{{ routes.root_url }}collections/coleccion-2026" class="b2b-account__card b2b-account__card--primary">
         <h2>Ver catálogo</h2>
         <p>Explora la colección outlet 2026 con tus precios B2B.</p>
       </a>
-      <a href="/pages/mis-solicitudes" class="b2b-account__card">
-        <h2>Mis solicitudes</h2>
+      <a href="{{ routes.root_url }}pages/mis-solicitudes" class="b2b-account__card">
+        <h2>{{ 'ledsc4.common.cta.mis_solicitudes' | t }}</h2>
         <p>Consulta el estado de tus solicitudes de pedido.</p>
       </a>
     </div>
   {%- elsif customer.tags contains 'rechazado' -%}
-    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud de acceso B2B no ha podido activarse. <a href="/pages/cuenta-rechazada" style="color:#1a1f27;">Más información →</a></p>
+    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud de acceso B2B no ha podido activarse. <a href="{{ routes.root_url }}pages/cuenta-rechazada" style="color:#1a1f27;">{{ 'ledsc4.common.cta.mas_informacion_arrow' | t }}</a></p>
   {%- else -%}
-    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud está siendo revisada por nuestro equipo. <a href="/pages/cuenta-en-revision" style="color:#1a1f27;">Ver estado →</a></p>
+    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud está siendo revisada por nuestro equipo. <a href="{{ routes.root_url }}pages/cuenta-en-revision" style="color:#1a1f27;">{{ 'ledsc4.common.cta.ver_estado_arrow' | t }}</a></p>
   {%- endif -%}
 
   <div class="b2b-account__footer">
     <span>Sesión iniciada como <strong>{{ customer.email }}</strong></span>
-    <a href="/account/logout">Cerrar sesión</a>
-    <a href="/">Volver al portal</a>
+    <a href="{{ routes.account_logout_url }}">{{ 'customer.log_out' | t }}</a>
+    <a href="{{ routes.root_url }}">Volver al portal</a>
   </div>
 </div>
 

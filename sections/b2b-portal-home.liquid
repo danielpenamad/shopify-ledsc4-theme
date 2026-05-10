@@ -48,7 +48,7 @@
     </div>
 
     <div class="b2b-aprobado-home__solicitudes">
-      <a href="/pages/mis-solicitudes" class="b2b-aprobado-home__solicitudes-card">
+      <a href="{{ routes.root_url }}pages/mis-solicitudes" class="b2b-aprobado-home__solicitudes-card">
         <div class="b2b-aprobado-home__solicitudes-text">
           <p class="b2b-aprobado-home__solicitudes-eyebrow">{{ 'ledsc4.aprobado_home.solicitudes.eyebrow' | t }}</p>
           <h3 class="b2b-aprobado-home__solicitudes-title">{{ 'ledsc4.aprobado_home.solicitudes.title' | t }}</h3>
@@ -232,15 +232,20 @@
             Opción C (Fase D post-launch): pasamos checkout_url para que
             Shopify new customer accounts redirija a nuestra page tras
             login, en vez de a shopify.com/<shop>/account.
+            URL base sin prefijo locale (decisión D5 + Shopify market-aware
+            auth docs); locale se pasa como query param para localizar el
+            form de login. return_to lleva prefijo locale para que el
+            redirect post-login mantenga el contexto.
           {%- endcomment -%}
-          <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-portal__btn b2b-portal__btn--primary">
+          {%- assign login_return_to = routes.root_url | append: 'pages/mis-solicitudes' | url_encode -%}
+          <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-portal__btn b2b-portal__btn--primary">
             {{ 'ledsc4.common.cta.login' | t }}
           </a>
-          <a href="/pages/acceso-profesional#registro" class="b2b-portal__btn b2b-portal__btn--secondary">
+          <a href="{{ routes.root_url }}pages/acceso-profesional#registro" class="b2b-portal__btn b2b-portal__btn--secondary">
             {{ 'ledsc4.common.cta.solicitar_acceso' | t }}
           </a>
         </div>
-        <a href="/pages/acceso-profesional" class="b2b-portal__help-link">
+        <a href="{{ routes.root_url }}pages/acceso-profesional" class="b2b-portal__help-link">
           {{ 'ledsc4.portal.help_link' | t }}
         </a>
       </div>
@@ -275,13 +280,13 @@
 
     <footer class="b2b-portal__footer">
       <nav class="b2b-portal__footer-nav" aria-label="{{ 'ledsc4.common.footer.aria_legal' | t }}">
-        <a href="/pages/aviso-legal">{{ 'ledsc4.common.footer.aviso_legal' | t }}</a>
+        <a href="{{ routes.root_url }}pages/aviso-legal">{{ 'ledsc4.common.footer.aviso_legal' | t }}</a>
         <span aria-hidden="true">·</span>
-        <a href="/pages/politica-de-privacidad">{{ 'ledsc4.common.footer.privacidad' | t }}</a>
+        <a href="{{ routes.root_url }}pages/politica-de-privacidad">{{ 'ledsc4.common.footer.privacidad' | t }}</a>
         <span aria-hidden="true">·</span>
-        <a href="/pages/condiciones-de-uso">{{ 'ledsc4.common.footer.condiciones' | t }}</a>
+        <a href="{{ routes.root_url }}pages/condiciones-de-uso">{{ 'ledsc4.common.footer.condiciones' | t }}</a>
         <span aria-hidden="true">·</span>
-        <a href="/pages/canal-de-denuncias">{{ 'ledsc4.common.footer.canal_etico' | t }}</a>
+        <a href="{{ routes.root_url }}pages/canal-de-denuncias">{{ 'ledsc4.common.footer.canal_etico' | t }}</a>
       </nav>
       <p class="b2b-portal__footer-note">
         {%- assign current_year = 'now' | date: '%Y' -%}
