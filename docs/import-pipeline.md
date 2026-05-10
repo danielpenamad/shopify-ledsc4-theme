@@ -170,34 +170,92 @@ Reglas especiales del mapper:
 
 ### 3.4 writer
 
-Aplica cambios contra Shopify Admin GraphQL en este orden:
+Aplica cambios contra Shopify Admin GraphQL en este orden por cada SKU:
 
+0. **Pre-upload de imágenes a Shopify Files** (PR-IMG-2). Por cada URL
+   de la CDN del cliente (`files.ledsc4.com`):
+   1. `cdnBucket.acquire(1)` — bucket compartido del run que serializa
+      las descargas a 1 req cada 1.5 s. Es el SLA de cortesía probado
+      en el diagnóstico (337 HEADs sin un solo 429). Tunable vía
+      `options.cdnRateLimit`; tirar para abajo cuando la telemetría
+      confirme que la CDN aguanta más.
+   2. Fetch del binario a memoria (timeout 15 s) + `sha256` + sniff
+      MIME (header → fallback magic-byte).
+   3. Cache lookup en `private.image_cache (sha256 → shopify_file_id)`.
+      Hit → reusar el File existente, salir sin tocar Shopify.
+   4. Miss → `stagedUploadsCreate(resource:IMAGE)` → POST multipart al
+      target → `fileCreate(originalSource: resourceUrl)` → polling de
+      `MediaImage.status` hasta `READY` o `FAILED` (techo 15 s).
+   5. `INSERT … ON CONFLICT (sha256) DO UPDATE last_used_at=now()`.
+   El helper vive en [`scripts/lib/image-upload.mjs`](../scripts/lib/image-upload.mjs).
+   Nunca lanza: cada modo de fallo (`fetch_failed`, `fetch_timeout`,
+   `unsupported_mime`, `staged_upload_failed`, `file_create_failed`,
+   `file_status_failed`) devuelve `{ ok:false, kind, message }` y el
+   slot pasa a `null` en `productSet.input.files[]`.
 1. **`productSet`** (mutation 2025-01) — upsert de producto + variants
    + metafields + media en una llamada. Idempotente por `handle` o
-   por `sku` de la variante.
+   por `sku` de la variante. Las imágenes se referencian vía
+   `FileSetInput.id` apuntando a Files pre-subidos en el paso 0; los
+   slots cuyo resolve falló se omiten para no tocar el media existente.
 2. **`translationsRegister`** — registra traducciones EN/IT/DE/FR/PT
    para `product.title`, `product.body_html`, y los metafields
    marcados `translatable=true`.
 3. **`publishablePublish`** / **`publishableUnpublish`** sobre el
    publication del catalog "Outlet general", según las reglas de §1.
+4. **Polling de `product.media[*].status`** (PR-IMG-2). Cada 500 ms
+   hasta techo 15 s o salir de `PROCESSING` para todas las MediaImage
+   del producto. Defensa en profundidad — con Files pre-subidos en
+   `READY` la clonación al producto es casi instantánea, pero captura
+   los fallos post-asociación de Shopify (p.ej. `pixel limit exceeded`
+   sobre ciertas imágenes >20 MP). Devuelve `{ready, failed, processing,
+   firstError}` que se vuelcan al `changes.csv`. Tunable vía
+   `options.mediaPollMs` y `options.mediaPollMaxMs`.
+
+Estados a nivel de SKU en el reporte:
+
+- `OK` — productSet + translations + publish OK **y** todas las
+  imágenes que se intentaron subir terminaron `READY`.
+- `WARN` — productSet/translations/publish OK pero al menos una imagen
+  falló (resolve previo o `MediaImage.status: FAILED/PROCESSING` al
+  cierre del polling). El producto está en Shopify, sólo le faltan
+  imágenes — el siguiente cron las recupera (la caché evita re-bajar
+  las que ya quedaron READY; sólo se reintenta el slot fallido).
+- `FAILED` — userErrors síncronos en productSet, translations o
+  publish. El producto puede no existir o estar incompleto a nivel
+  estructural.
+- `HIDDEN` / `DRY_RUN` — sin tocar Shopify.
 
 Modo `--dry-run`: simula todas las llamadas, escribe el reporte, no
-ejecuta mutaciones.
+ejecuta mutaciones (incluido el pre-upload — el dry-run no pega contra
+la CDN ni contra Shopify Files).
+
+Caché de imágenes: tabla [`private.image_cache`](../supabase/migrations/20260510120000_image_cache.sql)
+keyed por `sha256` del binario. Sobrevive a la descatalogación de SKUs
+y permite que dos SKUs distintos con la misma foto compartan el mismo
+File en Shopify. No hay política de eviction — al volumen actual
+(~455 productos × hasta 6 imgs) la tabla cabe holgada.
 
 ### 3.5 reporter
 
 Genera 3 outputs en cada ejecución, archivados en `reports/`:
 
 - **`import-YYYY-MM-DD-summary.txt`** — totales: nuevos, modificados,
-  ocultados, errores.
+  ocultados, errores. PR-IMG-2 añade dos líneas:
+  `image pre-upload (CDN): resolved=N (cache_hit=H fresh=F) failed_slots=K`
+  y `product media (post-poll): ready=R failed=F processing=P`.
 - **`import-YYYY-MM-DD-changes.csv`** — detalle por SKU: estado
-  anterior, estado nuevo, motivo.
+  anterior, estado nuevo, motivo. PR-IMG-2 añade 4 columnas justo
+  antes de `overall`: `media_ready_count`, `media_failed_count`,
+  `media_processing_count`, `media_first_error` (truncado a 200 chars
+  — preferentemente el `mediaErrors[0].details` de Shopify; si no hay
+  pero sí hubo fallo de resolve, el primer warning del helper).
 - **`import-YYYY-MM-DD-hidden.csv`** — SKUs ocultos en esta ejecución
   con la causa (sin stock / sin precio / no en surtido). Este es el
   fichero que el cliente revisa.
 
 Si hay errores duros, exit code != 0 — el cron dispara alerta a
-backoffice.
+backoffice. `WARN` (imágenes no recuperadas) NO cuenta como error
+duro: el producto está bien, sólo necesita un retry de cron.
 
 ---
 

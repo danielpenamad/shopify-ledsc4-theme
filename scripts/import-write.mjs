@@ -60,6 +60,7 @@ import { parseSurtido, parseStock, parsePrecios } from './import-parse.mjs';
 import { buildShopifyModel } from './import-map.mjs';
 import { createTokenBucket, runWithConcurrency } from './rate-limiter.mjs';
 import { buildSkuFingerprint, sortPayloadForFingerprint, buildStockFingerprint } from './fingerprint.mjs';
+import { resolveImageToShopifyFileId } from './lib/image-upload.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
@@ -120,7 +121,16 @@ export function makeStableFilename(sku, position, url) {
 // Pure function: no I/O, no API calls.
 //
 // model: as returned by buildShopifyModel().products.get(sku) — must have publish=true.
-// opts: { locationId } where locationId is a gid://shopify/Location/* string.
+// opts:
+//   - locationId: gid://shopify/Location/* string (required).
+//   - resolvedImages?: array aligned with model.product.images. Each entry is
+//     either { fileId } (the helper successfully pre-uploaded the binary —
+//     productSet should reuse the existing Shopify File via FileSetInput.id)
+//     or null/undefined (the resolve failed — the slot is skipped to keep
+//     productSet's userErrors clean; the writer logs a warning separately).
+//     If absent, falls back to the legacy URL-based path (passes the CDN
+//     URL straight to Shopify via originalSource — this only happens in
+//     dry-run / tests now that PR-IMG-2 is in).
 export function buildProductSetInput(model, opts) {
   if (!opts?.locationId) throw new Error('buildProductSetInput: opts.locationId is required');
   const { sku, product } = model;
@@ -143,16 +153,41 @@ export function buildProductSetInput(model, opts) {
   }
   variant.inventoryItem = { tracked: true };
 
-  // Files (images) — REPLACE on filename collision so re-runs don't duplicate
-  // the media. REPLACE mode requires an explicit filename for matching.
-  // We namespace each file by SKU + position to keep filenames stable across
-  // runs and unique per (product, image slot): "{sku}-{position}-{originalName}".
-  const files = product.images.map((img, idx) => ({
-    contentType: 'IMAGE',
-    originalSource: img.src,
-    filename: makeStableFilename(sku, img.position ?? idx, img.src),
-    duplicateResolutionMode: 'REPLACE',
-  }));
+  // Files (images). Two construction modes, decided per slot:
+  //   - resolvedImages[idx].fileId set → use FileSetInput.id to reference an
+  //     existing Shopify File (uploaded by lib/image-upload.mjs). productSet
+  //     re-uses the file across products; idempotent on re-run because
+  //     duplicateResolutionMode + the stable filename match the prior run.
+  //   - resolvedImages[idx] missing or null → skip the slot. The pre-upload
+  //     failed and we'd rather publish the product without that image than
+  //     fall back to the CDN URL (which is what triggered the FAILED-by-429
+  //     mess in the first place).
+  //   - resolvedImages absent entirely (legacy / dry-run / unit tests) →
+  //     pass the CDN URL via originalSource. This path is preserved so the
+  //     existing buildProductSetInput tests stay valid without mocking the
+  //     pre-upload helper.
+  const resolvedImages = opts.resolvedImages;
+  const files = [];
+  for (let idx = 0; idx < product.images.length; idx++) {
+    const img = product.images[idx];
+    const filename = makeStableFilename(sku, img.position ?? idx, img.src);
+    if (resolvedImages !== undefined) {
+      const r = resolvedImages[idx];
+      if (!r || !r.fileId) continue; // skip failed slot
+      files.push({
+        id: r.fileId,
+        filename,
+        duplicateResolutionMode: 'REPLACE',
+      });
+    } else {
+      files.push({
+        contentType: 'IMAGE',
+        originalSource: img.src,
+        filename,
+        duplicateResolutionMode: 'REPLACE',
+      });
+    }
+  }
 
   // Metafields — passed through as-is from the mapper, which already
   // serialized values to GraphQL-friendly strings.
@@ -629,15 +664,173 @@ async function buildModelFromSamples({ samplesDir, mappingPath }) {
   return buildShopifyModel({ surtidoByLocale, stock: stockResult, precios: preciosResult, mapping });
 }
 
+// ----- pre-upload + media polling (PR-IMG-2) ----------------------------
+
+// Resolve every image of a SKU to a Shopify File GID via the pre-upload
+// helper, in parallel. The CDN bucket inside resolveImageToShopifyFileId
+// serializes ALL fetches against files.ledsc4.com globally (across all
+// SKUs and all workers in this run) — Promise.all here just lets the
+// helper exploit the bucket between waiters without artificial fanout.
+//
+// Returns { resolved, warnings }:
+//   - resolved[i]: { fileId, fromCache, sha256, mimeType } | null
+//   - warnings: array of { kind, message, position, url } for each failure.
+//
+// Never throws; failures are downgraded to null entries + warnings.
+export async function resolveImagesForSku({ model, ctx, cdnBucket, dbConnection, fetchImpl, pollMs, pollMaxMs }) {
+  const images = model.product.images ?? [];
+  if (images.length === 0) return { resolved: [], warnings: [] };
+
+  const results = await Promise.all(images.map((img) =>
+    resolveImageToShopifyFileId({
+      url: img.src,
+      ctx,
+      cdnBucket,
+      dbConnection,
+      fetchImpl,
+      pollMs,
+      pollMaxMs,
+    })
+  ));
+
+  const resolved = [];
+  const warnings = [];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const img = images[i];
+    if (r.ok) {
+      resolved.push({
+        fileId: r.fileId,
+        fromCache: r.fromCache,
+        sha256: r.sha256,
+        mimeType: r.mimeType,
+      });
+    } else {
+      resolved.push(null);
+      warnings.push({
+        kind: 'image_resolve_failed',
+        position: img.position ?? i,
+        url: img.src,
+        resolveKind: r.kind,
+        message: r.message,
+      });
+    }
+  }
+  return { resolved, warnings };
+}
+
+// Truncate to 200 chars (per PR-IMG-2 contract for media_first_error).
+function truncate200(s) {
+  if (!s) return '';
+  const str = String(s);
+  return str.length > 200 ? str.slice(0, 200) : str;
+}
+
+const PRODUCT_MEDIA_QUERY = `
+  query ProductMedia($id: ID!) {
+    product(id: $id) {
+      media(first: 50) {
+        nodes {
+          ... on MediaImage { status mediaErrors { code details message } }
+          ... on Video { status: mediaContentType }
+          ... on Model3d { status: mediaContentType }
+        }
+      }
+    }
+  }
+`;
+
+// We only ever attach IMAGE media in this writer, but query non-image
+// types defensively so the polling never crashes if a stray Video/Model3d
+// shows up (manual upload by staff, future content types, …). Treat
+// non-image media as READY for our purposes — they are not the failure
+// mode we're tracking.
+const PRODUCT_MEDIA_QUERY_SAFE = `
+  query ProductMediaSafe($id: ID!) {
+    product(id: $id) {
+      media(first: 50) {
+        nodes {
+          __typename
+          ... on MediaImage { status mediaErrors { code details message } }
+        }
+      }
+    }
+  }
+`;
+
+// Poll product.media[*].status after productSet returns OK. PR-IMG-2:
+// because image binaries are pre-uploaded as READY Shopify Files BEFORE
+// productSet runs, the cloned MediaImage on the product should also be
+// READY almost immediately — the polling exists as defense-in-depth and
+// to surface the rare Shopify-side failures we already saw in diagnosis
+// (e.g. pixel-limit exceeded on PX-0504-ANT). 15s ceiling matches
+// pollMaxMs default; pollMs=500 gives a fast-enough first reading without
+// hammering the API. Both tunable per call.
+//
+// Returns { ready, failed, processing, firstError } where firstError is
+// the first FAILED node's mediaErrors[0].details (truncated to 200 chars).
+// firstError is '' when failed=0.
+export async function pollProductMediaStatus(ctx, productId, { pollMs, pollMaxMs }) {
+  const deadline = Date.now() + pollMaxMs;
+  let lastSnapshot = { ready: 0, failed: 0, processing: 0, firstError: '' };
+  while (true) {
+    const data = await gql(ctx, PRODUCT_MEDIA_QUERY_SAFE, { id: productId });
+    const nodes = data.product?.media?.nodes ?? [];
+    let ready = 0, failed = 0, processing = 0;
+    let firstError = '';
+    for (const n of nodes) {
+      if (n.__typename !== 'MediaImage') {
+        // Non-image: count as ready (out of scope for this metric).
+        ready++;
+        continue;
+      }
+      if (n.status === 'READY') ready++;
+      else if (n.status === 'FAILED') {
+        failed++;
+        if (!firstError) {
+          const e = n.mediaErrors?.[0];
+          firstError = truncate200(e?.details ?? e?.message ?? 'unknown');
+        }
+      } else processing++; // UPLOADED / PROCESSING
+    }
+    lastSnapshot = { ready, failed, processing, firstError };
+    if (processing === 0) return lastSnapshot;
+    if (Date.now() >= deadline) return lastSnapshot;
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+}
+
 // ----- per-SKU processor -------------------------------------------------
 
-// The full 3-mutation flow + fingerprint computation for one SKU. Designed to
-// run inside runWithConcurrency. Returns a shape that the orchestrator
-// converts to a CSV row + accumulates into counts.
-async function processSku({ ctx, model, locationId, publicationId }) {
+// The full flow for one SKU:
+//   0. resolveImagesForSku — pre-upload images to Shopify Files (PR-IMG-2).
+//   1. productSet — create/update product + link the pre-uploaded Files.
+//   2. translationsRegister at PRODUCT and at METAFIELD level.
+//   3. publishablePublish.
+//   4. pollProductMediaStatus — defense-in-depth (PR-IMG-2).
+//
+// Designed to run inside runWithConcurrency. Returns a shape that the
+// orchestrator converts to a CSV row + accumulates into counts.
+async function processSku({ ctx, model, locationId, publicationId, cdnBucket, dbConnection, fetchImpl, mediaPollMs, mediaPollMaxMs, imageFetchTimeoutMs, imageFilePollMs, imageFilePollMaxMs }) {
   const sku = model.sku;
   const handle = skuToHandle(sku);
-  const productSetInput = buildProductSetInput(model, { locationId });
+
+  // 0. Pre-upload images. Resolve failures are non-fatal — we still create
+  //    the product without the failed slots and surface the warning.
+  const imageResolution = await resolveImagesForSku({
+    model,
+    ctx,
+    cdnBucket,
+    dbConnection,
+    fetchImpl,
+    pollMs: imageFilePollMs,
+    pollMaxMs: imageFilePollMaxMs,
+  });
+
+  const productSetInput = buildProductSetInput(model, {
+    locationId,
+    resolvedImages: imageResolution.resolved,
+  });
 
   // 1. productSet
   let productId = null;
@@ -655,6 +848,8 @@ async function processSku({ ctx, model, locationId, publicationId }) {
         productTranslations: { registered: 0, errors: [] },
         metafieldTranslations: { entries: 0, batches_ok: 0, batches_failed: 0, errors: [] },
         publish: { ok: false, skipped: true, errors: [] },
+        media: { ready: 0, failed: 0, processing: 0, firstError: '' },
+        imageResolution,
         fingerprint: null,
       };
     }
@@ -665,6 +860,8 @@ async function processSku({ ctx, model, locationId, publicationId }) {
       productTranslations: { registered: 0, errors: [] },
       metafieldTranslations: { entries: 0, batches_ok: 0, batches_failed: 0, errors: [] },
       publish: { ok: false, skipped: true, errors: [] },
+      media: { ready: 0, failed: 0, processing: 0, firstError: '' },
+      imageResolution,
       fingerprint: null,
     };
   }
@@ -731,9 +928,41 @@ async function processSku({ ctx, model, locationId, publicationId }) {
     pubErrors = [{ message: err.message }];
   }
 
-  // 4. Fingerprint — only computed if all 3 stages succeeded (a partial run
-  // produced a partial state; we don't want to record it as the canonical
-  // fingerprint until the next successful run).
+  // 4. Poll product.media[*].status (PR-IMG-2). Defense-in-depth: with
+  //    pre-uploaded Files this should be near-instant READY for every
+  //    image. We still poll because Shopify can FAIL the cloned media
+  //    post-association (e.g. pixel-limit, format edge cases) and we
+  //    want that visible in changes.csv. Errors here are downgraded to
+  //    a snapshot of zeros — a polling glitch shouldn't block the run.
+  //
+  //    Skip when we didn't successfully send any image to productSet:
+  //    productSet with an empty files[] does NOT touch existing media
+  //    (declarative semantics omit the field), so polling would just
+  //    surface stale state from previous runs that this run didn't act
+  //    on. Resolve-side warnings still feed WARN status via the
+  //    imageResolution check below.
+  let mediaSnapshot = { ready: 0, failed: 0, processing: 0, firstError: '' };
+  const sentAnyImage = imageResolution.resolved.some((r) => r && r.fileId);
+  if (sentAnyImage) {
+    try {
+      mediaSnapshot = await pollProductMediaStatus(ctx, productId, {
+        pollMs: mediaPollMs,
+        pollMaxMs: mediaPollMaxMs,
+      });
+    } catch (err) {
+      mediaSnapshot = { ready: 0, failed: 0, processing: 0, firstError: truncate200(`poll error: ${err?.message ?? err}`) };
+    }
+  }
+
+  // 5. Fingerprint — only computed if all 3 stages succeeded (a partial
+  //    run produced a partial state; we don't want to record it as the
+  //    canonical fingerprint until the next successful run). Note: we
+  //    do NOT include mediaSnapshot in this gate. WARN states (READY
+  //    + FAILED mix or stuck PROCESSING) still produce a fingerprint
+  //    because the product itself is correctly created/translated/
+  //    published; the next cron will retry the FAILED slots via the
+  //    normal pre-upload path (cache hits for the OK ones, fresh attempt
+  //    for the failures).
   let fingerprint = null;
   const fullSuccess =
     psErrors.length === 0 &&
@@ -757,6 +986,8 @@ async function processSku({ ctx, model, locationId, publicationId }) {
     productTranslations: { registered: productTranslationsRegistered, errors: trErrors },
     metafieldTranslations: { entries: mfRegistered, batches_ok: mfBatchesOk, batches_failed: mfBatchesFailed, errors: mfErrors },
     publish: { ok: pubOk, skipped: false, errors: pubErrors },
+    media: mediaSnapshot,
+    imageResolution,
     fingerprint,
   };
 }
@@ -777,6 +1008,9 @@ async function processSku({ ctx, model, locationId, publicationId }) {
  * @param {object} [options.dbConnection]      Optional open pg.Client (or any { query(sql, params) → Promise } shape). If set, fingerprints are upserted into private.sku_state. Caller manages connect/end.
  * @param {string|null} [options.runId]        Optional uuid stored as last_run_id in sku_state.
  * @param {{capacity:number, refillPerSec:number}} [options.rateLimit]   Rate limiter config. Default {capacity:50, refillPerSec:10} — matches Shopify Admin GraphQL Basic cost-point restore (100/s, ~10 ops/s for typical mutations). The 10/s default is safe because gql() retries 429/THROTTLED with backoff.
+ * @param {{capacity:number, refillPerSec:number}} [options.cdnRateLimit]   Rate limiter config for fetches against the supplier CDN (files.ledsc4.com). Default {capacity:1, refillPerSec: 1/1.5} — i.e. 1 request per 1.5s, which the diagnostic on 2026-05-10 proved keeps the CDN's anti-flood from triggering (336 sequential HEADs at this pace = 0 × 429). Tunable down to make backfills faster once the CDN stops biting.
+ * @param {number} [options.mediaPollMs]       Poll interval for product.media[*].status after productSet (PR-IMG-2). Default 500ms.
+ * @param {number} [options.mediaPollMaxMs]    Ceiling for product-media polling. Default 15_000ms (per PR-IMG-2 contract). With pre-uploaded Files this is overkill — the cloned MediaImage is usually READY on the first poll — but it absorbs Shopify-side post-association failures (pixel limit, format edge cases) without making us wait on stuck PROCESSING.
  * @param {number} [options.concurrency]       Worker pool size. Default 4.
  * @param {string} [options.shopifyDomain]     Override SHOPIFY_STORE_DOMAIN.
  * @param {string} [options.shopifyToken]      Override SHOPIFY_ADMIN_TOKEN.
@@ -804,6 +1038,12 @@ export async function runFullImport(options = {}) {
   const onProgress = options.onProgress ?? ((msg) => console.log(msg));
   const concurrency = Number.isFinite(options.concurrency) ? options.concurrency : 4;
   const rateLimit = options.rateLimit ?? { capacity: 50, refillPerSec: 10 };
+  // PR-IMG-2: 1 request every 1.5s is the politeness SLA proven safe by
+  // the diagnostic. Override via options.cdnRateLimit to speed up once
+  // we have telemetry confirming the CDN tolerates more.
+  const cdnRateLimit = options.cdnRateLimit ?? { capacity: 1, refillPerSec: 1 / 1.5 };
+  const mediaPollMs = Number.isFinite(options.mediaPollMs) ? options.mediaPollMs : 500;
+  const mediaPollMaxMs = Number.isFinite(options.mediaPollMaxMs) ? options.mediaPollMaxMs : 15_000;
 
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const shopifyDomain = options.shopifyDomain ?? process.env.SHOPIFY_STORE_DOMAIN;
@@ -831,6 +1071,10 @@ export async function runFullImport(options = {}) {
   let publicationId = null;
   let locationId = null;
   let ctx = null;
+  // CDN bucket is shared across all SKUs/workers in this run. Created
+  // outside the applyMode branch only because it's safe to construct
+  // unconditionally (cheap, no I/O); only used in applyMode.
+  const cdnBucket = createTokenBucket(cdnRateLimit);
   if (applyMode) {
     const bucket = createTokenBucket(rateLimit);
     ctx = {
@@ -844,6 +1088,8 @@ export async function runFullImport(options = {}) {
     locationId = shopCtx.locationId;
     onProgress(`Publication: ${publicationId}; Location: ${locationId}`);
     onProgress(`Rate limit: capacity=${rateLimit.capacity}, refill=${rateLimit.refillPerSec}/sec, concurrency=${concurrency}`);
+    onProgress(`CDN limit: capacity=${cdnRateLimit.capacity}, refill=${cdnRateLimit.refillPerSec.toFixed(3)}/sec (files.ledsc4.com)`);
+    onProgress(`Media polling: every ${mediaPollMs}ms up to ${mediaPollMaxMs}ms per SKU`);
   } else {
     locationId = 'gid://shopify/Location/PLACEHOLDER';
     publicationId = 'gid://shopify/Publication/PLACEHOLDER';
@@ -855,11 +1101,17 @@ export async function runFullImport(options = {}) {
   await mkdir(reportDir, { recursive: true });
 
   // Build CSV header + hidden rows up-front (those don't need work).
+  // PR-IMG-2: 4 new columns sit between publish_errors and overall, with
+  // counts of MediaImage nodes by status after polling and the first
+  // failure detail (truncated to 200 chars). HIDDEN/SKIPPED rows leave
+  // them blank — those SKUs were never sent to Shopify so there's no
+  // media to count.
   let changesCsv = csvRow([
     'sku', 'handle', 'product_id', 'product_set_status', 'product_set_errors',
     'product_translations_registered', 'metafield_translations_registered',
     'translation_errors',
     'publish_status', 'publish_errors',
+    'media_ready_count', 'media_failed_count', 'media_processing_count', 'media_first_error',
     'overall',
   ]);
   for (const [sku, m] of products) {
@@ -867,7 +1119,9 @@ export async function runFullImport(options = {}) {
     if (skuFilter && sku !== skuFilter) continue;
     changesCsv += csvRow([
       sku, skuToHandle(sku), '', `SKIPPED:${m.publish_reason ?? 'unknown'}`, '',
-      '', '', '', 'SKIPPED', '', 'HIDDEN',
+      '', '', '', 'SKIPPED', '',
+      '', '', '', '',
+      'HIDDEN',
     ]);
   }
 
@@ -876,7 +1130,14 @@ export async function runFullImport(options = {}) {
     translations: { ok: 0, failed: 0, skipped: 0 },
     metafield_translations: { entries_written: 0, batches_ok: 0, batches_failed: 0 },
     publish: { ok: 0, failed: 0, skipped: 0 },
-    skus: { ok: 0, failed: 0 },
+    skus: { ok: 0, warn: 0, failed: 0 },
+    // PR-IMG-2: aggregate media-status counts across the run, plus pre-
+    // upload resolution stats. media.warn = SKUs whose all-other-stages
+    // are OK but at least one MediaImage ended FAILED or stuck PROCESSING
+    // — surfaced separately because that's exactly the recoverable state
+    // the next cron heals via cache-driven re-tries.
+    media: { ready: 0, failed: 0, processing: 0, warn_skus: 0 },
+    image_resolution: { resolved_ok: 0, from_cache: 0, freshly_uploaded: 0, failed_slots: 0 },
     // Tracks DB upserts (PR-Y fix). Only meaningful when options.dbConnection
     // is set; otherwise both stay 0.
     sku_state: { upserted_ok: 0, upsert_failed: 0 },
@@ -903,6 +1164,7 @@ export async function runFullImport(options = {}) {
         `would_register_${wouldMfEntries}_mf_entries_pre_dedup`,
         '',
         'WOULD_PUBLISH_TIENDA_ONLINE', '',
+        '', '', '', '',
         'DRY_RUN',
       ]);
       counts.skus.ok++;
@@ -918,7 +1180,21 @@ export async function runFullImport(options = {}) {
       items,
       concurrency,
       work: async (it) => {
-        const r = await processSku({ ctx: it.ctx, model: it.model, locationId: it.locationId, publicationId: it.publicationId });
+        const r = await processSku({
+          ctx: it.ctx,
+          model: it.model,
+          locationId: it.locationId,
+          publicationId: it.publicationId,
+          // PR-IMG-2: pre-upload + media polling dependencies threaded
+          // from runFullImport's closure. cdnBucket is shared across
+          // workers (singleton-per-run); dbConnection is the pg.Client
+          // already used for sku_state upserts.
+          cdnBucket,
+          dbConnection: options.dbConnection ?? null,
+          fetchImpl,
+          mediaPollMs,
+          mediaPollMaxMs,
+        });
         progressCounter++;
         if (progressCounter % 25 === 0 || progressCounter === items.length) {
           onProgress(`[${progressCounter}/${items.length}] ${r.sku}`);
@@ -937,7 +1213,12 @@ export async function runFullImport(options = {}) {
         const sku = items[i].sku;
         counts.productSet.failed++;
         counts.skus.failed++;
-        changesCsv += csvRow([sku, skuToHandle(sku), '', 'FAILED', `worker error: ${r.error?.message ?? r.error}`, '', '', '', 'SKIPPED', '', 'FAILED']);
+        changesCsv += csvRow([
+          sku, skuToHandle(sku), '', 'FAILED', `worker error: ${r.error?.message ?? r.error}`,
+          '', '', '', 'SKIPPED', '',
+          '', '', '', '',
+          'FAILED',
+        ]);
         continue;
       }
       const v = r.value;
@@ -949,7 +1230,9 @@ export async function runFullImport(options = {}) {
         changesCsv += csvRow([
           v.sku, v.handle, v.productId ?? '', 'FAILED',
           v.productSet.errors.map((e) => `[${e.code ?? ''}] ${e.field?.join?.('.') ?? ''}: ${e.message}`).join('; '),
-          '', '', '', 'SKIPPED', '', 'FAILED',
+          '', '', '', 'SKIPPED', '',
+          '', '', '', '',
+          'FAILED',
         ]);
         continue;
       }
@@ -970,9 +1253,40 @@ export async function runFullImport(options = {}) {
       if (pub.ok) counts.publish.ok++;
       else counts.publish.failed++;
 
+      // PR-IMG-2: media + image-resolution counts.
+      const media = v.media ?? { ready: 0, failed: 0, processing: 0, firstError: '' };
+      counts.media.ready += media.ready;
+      counts.media.failed += media.failed;
+      counts.media.processing += media.processing;
+      const ir = v.imageResolution ?? { resolved: [], warnings: [] };
+      for (const slot of ir.resolved) {
+        if (slot && slot.fileId) {
+          counts.image_resolution.resolved_ok++;
+          if (slot.fromCache) counts.image_resolution.from_cache++;
+          else counts.image_resolution.freshly_uploaded++;
+        }
+      }
+      counts.image_resolution.failed_slots += ir.warnings.length;
+
+      // PR-IMG-2: WARN reserved for "product is fine, but at least one
+      // image isn't" — image-resolve failure (CDN unreachable etc.) OR
+      // a Shopify-side MediaImage in FAILED/PROCESSING after the polling
+      // ceiling. FAIL stays scoped to synchronous productSet/translations/
+      // publish userErrors as before. Both states still count toward
+      // counts.skus.ok (the product is in Shopify and discoverable).
+      const allOtherStagesOk = pub.ok && trs.errors.length === 0 && mfs.batches_failed === 0;
+      const hasResolveFailures = ir.warnings.length > 0;
+      const hasMediaIssues = media.failed > 0 || media.processing > 0;
+      const isWarn = allOtherStagesOk && (hasResolveFailures || hasMediaIssues);
+      if (isWarn) counts.media.warn_skus++;
       counts.skus.ok++;
 
       const allTrErrors = [...trs.errors, ...mfs.errors];
+      // First error reported in the CSV: prefer the Shopify-side mediaError
+      // (more diagnostic), fall back to the first resolve warning.
+      const csvFirstError = media.firstError || (ir.warnings[0]
+        ? truncate200(`[${ir.warnings[0].resolveKind}] pos=${ir.warnings[0].position} ${ir.warnings[0].message}`)
+        : '');
       changesCsv += csvRow([
         v.sku, v.handle, v.productId, 'OK', '',
         String(trs.registered),
@@ -980,7 +1294,8 @@ export async function runFullImport(options = {}) {
         allTrErrors.map((e) => `[${e.code ?? ''}] ${e.message}`).join('; '),
         pub.ok ? 'OK' : 'FAILED',
         pub.errors.map((e) => `[${e.code ?? ''}] ${e.message}`).join('; '),
-        'OK',
+        String(media.ready), String(media.failed), String(media.processing), csvFirstError,
+        isWarn ? 'WARN' : 'OK',
       ]);
 
       // Fingerprint accumulation + optional DB upsert.
@@ -1146,8 +1461,10 @@ export async function runFullImport(options = {}) {
     `- translations (product):       ok=${counts.translations.ok} skipped=${counts.translations.skipped} failed=${counts.translations.failed}\n` +
     `- translations (metafields):    batches_ok=${counts.metafield_translations.batches_ok} batches_failed=${counts.metafield_translations.batches_failed} entries_written=${counts.metafield_translations.entries_written}\n` +
     `- publishablePublish:           ok=${counts.publish.ok} failed=${counts.publish.failed} skipped=${counts.publish.skipped}\n` +
+    `- image pre-upload (CDN):       resolved=${counts.image_resolution.resolved_ok} (cache_hit=${counts.image_resolution.from_cache} fresh=${counts.image_resolution.freshly_uploaded}) failed_slots=${counts.image_resolution.failed_slots}\n` +
+    `- product media (post-poll):    ready=${counts.media.ready} failed=${counts.media.failed} processing=${counts.media.processing}\n` +
     `- Unpublished orphans:          ok=${counts.unpublished_orphans.ok} failed=${counts.unpublished_orphans.failed} not_found=${counts.unpublished_orphans.not_found}\n` +
-    `- SKUs overall:                 ok=${counts.skus.ok} failed=${counts.skus.failed}\n` +
+    `- SKUs overall:                 ok=${counts.skus.ok} (warn=${counts.media.warn_skus}) failed=${counts.skus.failed}\n` +
     `- Fingerprints computed:        ${Object.keys(fingerprints).length}` +
     (options.dbConnection
       ? ` (sku_state: upserted=${counts.sku_state.upserted_ok}/${Object.keys(fingerprints).length}, failed=${counts.sku_state.upsert_failed})`

@@ -10,8 +10,9 @@
 // Run:
 //   node scripts/import-write.test.mjs
 
-import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches, buildOrphansToUnpublish, runFullImport, runStockOnly } from './import-write.mjs';
+import { buildProductSetInput, buildTranslations, buildMetafieldTranslationBatches, buildOrphansToUnpublish, runFullImport, runStockOnly, resolveImagesForSku, pollProductMediaStatus } from './import-write.mjs';
 import { buildStockFingerprint } from './fingerprint.mjs';
+import { createTokenBucket } from './rate-limiter.mjs';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -974,6 +975,387 @@ function testOrphans_acceptsIterables() {
   assert(JSON.stringify(r) === JSON.stringify(['B']), `expected [B], got ${JSON.stringify(r)}`);
 }
 
+// ---- PR-IMG-2: pre-upload + media polling -----------------------------
+
+function testBuildProductSetInput_resolvedImages_idMode() {
+  console.log('Test: buildProductSetInput — resolvedImages → files[] uses id, no originalSource');
+  const model = makeModel();
+  // Two images in model; supply pre-resolved fileIds for both.
+  const input = buildProductSetInput(model, {
+    locationId: LOC,
+    resolvedImages: [
+      { fileId: 'gid://shopify/MediaImage/F1' },
+      { fileId: 'gid://shopify/MediaImage/F2' },
+    ],
+  });
+  assert(input.files.length === 2, `expected 2 files, got ${input.files.length}`);
+  for (const f of input.files) {
+    assert(typeof f.id === 'string' && f.id.startsWith('gid://shopify/MediaImage/'), `id is a MediaImage GID, got ${JSON.stringify(f)}`);
+    assert(!('originalSource' in f), `originalSource must be absent in id-mode, got ${JSON.stringify(f)}`);
+    assert(!('contentType' in f), `contentType must be absent in id-mode (Shopify ignores it for refs), got ${JSON.stringify(f)}`);
+    assert(typeof f.filename === 'string' && f.filename.length > 0, `filename still set for dup-resolution match`);
+    assert(f.duplicateResolutionMode === 'REPLACE', `REPLACE preserved for idempotent re-runs`);
+  }
+}
+
+function testBuildProductSetInput_resolvedImages_skipsNullSlots() {
+  console.log('Test: buildProductSetInput — null slots are skipped (resolve failed → no fallback to URL)');
+  const model = makeModel();
+  // 1st image resolved OK, 2nd failed (null) → only 1 file in input.
+  const input = buildProductSetInput(model, {
+    locationId: LOC,
+    resolvedImages: [
+      { fileId: 'gid://shopify/MediaImage/F1' },
+      null,
+    ],
+  });
+  assert(input.files.length === 1, `expected 1 file (failed slot skipped), got ${input.files.length}`);
+  assert(input.files[0].id === 'gid://shopify/MediaImage/F1', 'first slot preserved');
+}
+
+function testBuildProductSetInput_resolvedImages_allNull_omitsFiles() {
+  console.log('Test: buildProductSetInput — all slots null → files[] is empty so productSet does not touch media');
+  const model = makeModel();
+  const input = buildProductSetInput(model, {
+    locationId: LOC,
+    resolvedImages: [null, null],
+  });
+  // When files becomes empty, the legacy code path omits the key entirely
+  // so productSet is declarative-no-op on media. Verify that contract.
+  assert(!('files' in input), `expected files key absent when all slots failed, got ${JSON.stringify(input.files)}`);
+}
+
+function testBuildProductSetInput_legacyPathPreservedWhenNoResolvedOpt() {
+  console.log('Test: buildProductSetInput — without resolvedImages opt → legacy URL path');
+  const model = makeModel();
+  const input = buildProductSetInput(model, { locationId: LOC });
+  for (const f of input.files) {
+    assert(!('id' in f), 'id absent on legacy path');
+    assert(typeof f.originalSource === 'string' && f.originalSource.startsWith('https://'), 'originalSource is the URL');
+    assert(f.contentType === 'IMAGE', 'contentType=IMAGE on legacy path');
+  }
+}
+
+async function testResolveImagesForSku_happyPath() {
+  console.log('Test: resolveImagesForSku — calls helper for each image, accumulates fileIds');
+  const model = makeModel(); // 2 images
+  // Mock fetch that returns a JPEG binary on CDN GET, and a Shopify
+  // GraphQL flow that produces a fresh fileId on each upload.
+  const jpeg = Buffer.alloc(64);
+  jpeg[0] = 0xff; jpeg[1] = 0xd8; jpeg[2] = 0xff;
+  // We make each image return a different binary so sha256 differs and
+  // both go through full upload (no cache).
+  let cdnHits = 0;
+  const fetchImpl = async (url, init = {}) => {
+    if (typeof url === 'string' && url.startsWith('https://example.com/')) {
+      const body = Buffer.from(jpeg);
+      body[10] = cdnHits++; // mutate to vary sha256
+      return new Response(body, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+    }
+    if (typeof url === 'string' && url.includes('mock-staged.s3.')) {
+      return new Response('', { status: 200 });
+    }
+    if (typeof url === 'string' && url.includes('/admin/api/')) {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      if (op === 'StagedUploadsCreate') {
+        return new Response(JSON.stringify({ data: { stagedUploadsCreate: {
+          stagedTargets: [{ url: 'https://mock-staged.s3.amazonaws.com/u', resourceUrl: 'https://mock-staged.s3.amazonaws.com/r', parameters: [] }],
+          userErrors: [],
+        } } }), { status: 200 });
+      }
+      if (op === 'FileCreate') {
+        return new Response(JSON.stringify({ data: { fileCreate: {
+          files: [{ id: `gid://shopify/MediaImage/F${cdnHits}`, status: 'READY', mediaErrors: [] }],
+          userErrors: [],
+        } } }), { status: 200 });
+      }
+      throw new Error(`unexpected gql op: ${op}`);
+    }
+    throw new Error(`mock fetch: no handler for ${url}`);
+  };
+  const ctx = { endpoint: 'https://mock/admin/api/2025-10/graphql.json', token: 't', fetch: fetchImpl };
+  const cdnBucket = createTokenBucket({ capacity: 10, refillPerSec: 100 });
+  const r = await resolveImagesForSku({ model, ctx, cdnBucket, dbConnection: null, fetchImpl });
+  assert(r.resolved.length === 2, `2 entries`);
+  assert(r.resolved.every((slot) => slot && slot.fileId), `both slots resolved, got ${JSON.stringify(r.resolved)}`);
+  assert(r.warnings.length === 0, `no warnings`);
+  assert(cdnHits === 2, `2 CDN fetches, got ${cdnHits}`);
+}
+
+async function testResolveImagesForSku_partialFailure() {
+  console.log('Test: resolveImagesForSku — partial failure: one slot null + one warning');
+  const model = makeModel(); // 2 images
+  const jpeg = Buffer.alloc(64);
+  jpeg[0] = 0xff; jpeg[1] = 0xd8; jpeg[2] = 0xff;
+  let cdnCalls = 0;
+  const fetchImpl = async (url, init = {}) => {
+    if (typeof url === 'string' && url.startsWith('https://example.com/')) {
+      cdnCalls++;
+      // First image: OK. Second: 404.
+      if (cdnCalls === 1) return new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+      return new Response('not found', { status: 404 });
+    }
+    if (typeof url === 'string' && url.includes('mock-staged.s3.')) return new Response('', { status: 200 });
+    if (typeof url === 'string' && url.includes('/admin/api/')) {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      if (op === 'StagedUploadsCreate') return new Response(JSON.stringify({ data: { stagedUploadsCreate: { stagedTargets: [{ url: 'https://mock-staged.s3.amazonaws.com/u', resourceUrl: 'https://mock-staged.s3.amazonaws.com/r', parameters: [] }], userErrors: [] } } }), { status: 200 });
+      if (op === 'FileCreate') return new Response(JSON.stringify({ data: { fileCreate: { files: [{ id: 'gid://shopify/MediaImage/PARTIAL', status: 'READY', mediaErrors: [] }], userErrors: [] } } }), { status: 200 });
+      throw new Error(`unexpected gql op: ${op}`);
+    }
+    throw new Error(`mock fetch: no handler for ${url}`);
+  };
+  const ctx = { endpoint: 'https://mock/admin/api/2025-10/graphql.json', token: 't', fetch: fetchImpl };
+  const cdnBucket = createTokenBucket({ capacity: 10, refillPerSec: 100 });
+  const r = await resolveImagesForSku({ model, ctx, cdnBucket, dbConnection: null, fetchImpl });
+  assert(r.resolved.length === 2, `2 entries even when one fails`);
+  assert(r.resolved[0]?.fileId === 'gid://shopify/MediaImage/PARTIAL', 'first slot resolved');
+  assert(r.resolved[1] === null, 'second slot null on failure');
+  assert(r.warnings.length === 1, `1 warning, got ${r.warnings.length}`);
+  assert(r.warnings[0].kind === 'image_resolve_failed', 'warning kind=image_resolve_failed');
+  assert(r.warnings[0].resolveKind === 'fetch_failed', `resolveKind preserved, got ${r.warnings[0].resolveKind}`);
+}
+
+async function testResolveImagesForSku_emptyModel() {
+  console.log('Test: resolveImagesForSku — model with 0 images returns empty arrays without calling anything');
+  const model = makeModel();
+  model.product.images = [];
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return new Response('', { status: 500 }); };
+  const ctx = { endpoint: 'https://mock', token: 't', fetch: fetchImpl };
+  const cdnBucket = createTokenBucket({ capacity: 10, refillPerSec: 100 });
+  const r = await resolveImagesForSku({ model, ctx, cdnBucket, dbConnection: null, fetchImpl });
+  assert(r.resolved.length === 0, 'no slots');
+  assert(r.warnings.length === 0, 'no warnings');
+  assert(calls === 0, 'no fetches made');
+}
+
+async function testPollProductMediaStatus_allReady() {
+  console.log('Test: pollProductMediaStatus — all READY on first poll → returns ready=N immediately');
+  let polls = 0;
+  const fetchImpl = async () => {
+    polls++;
+    return new Response(JSON.stringify({ data: { product: { media: { nodes: [
+      { __typename: 'MediaImage', status: 'READY', mediaErrors: [] },
+      { __typename: 'MediaImage', status: 'READY', mediaErrors: [] },
+    ] } } } }), { status: 200 });
+  };
+  const ctx = { endpoint: 'https://mock', token: 't', fetch: fetchImpl };
+  const r = await pollProductMediaStatus(ctx, 'gid://shopify/Product/X', { pollMs: 5, pollMaxMs: 200 });
+  assert(r.ready === 2 && r.failed === 0 && r.processing === 0, `ready=2 failed=0 processing=0, got ${JSON.stringify(r)}`);
+  assert(r.firstError === '', 'no firstError');
+  assert(polls === 1, `1 poll, got ${polls}`);
+}
+
+async function testPollProductMediaStatus_failedSurfacesError() {
+  console.log('Test: pollProductMediaStatus — FAILED node surfaces firstError truncated to 200 chars');
+  const longDetail = 'pixel limit exceeded — '.repeat(20); // ~440 chars
+  const fetchImpl = async () => new Response(JSON.stringify({ data: { product: { media: { nodes: [
+    { __typename: 'MediaImage', status: 'READY', mediaErrors: [] },
+    { __typename: 'MediaImage', status: 'FAILED', mediaErrors: [{ code: 'INVALID', details: longDetail, message: 'pixel' }] },
+  ] } } } }), { status: 200 });
+  const ctx = { endpoint: 'https://mock', token: 't', fetch: fetchImpl };
+  const r = await pollProductMediaStatus(ctx, 'gid://shopify/Product/X', { pollMs: 5, pollMaxMs: 200 });
+  assert(r.ready === 1 && r.failed === 1 && r.processing === 0, `1/1/0, got ${JSON.stringify(r)}`);
+  assert(r.firstError.length === 200, `truncated to 200 chars, got len=${r.firstError.length}`);
+  assert(r.firstError.startsWith('pixel limit exceeded'), 'preserves leading content');
+}
+
+async function testPollProductMediaStatus_processingThenReady() {
+  console.log('Test: pollProductMediaStatus — PROCESSING then READY across polls');
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls++;
+    if (calls < 3) {
+      return new Response(JSON.stringify({ data: { product: { media: { nodes: [
+        { __typename: 'MediaImage', status: 'PROCESSING', mediaErrors: [] },
+      ] } } } }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ data: { product: { media: { nodes: [
+      { __typename: 'MediaImage', status: 'READY', mediaErrors: [] },
+    ] } } } }), { status: 200 });
+  };
+  const ctx = { endpoint: 'https://mock', token: 't', fetch: fetchImpl };
+  const r = await pollProductMediaStatus(ctx, 'gid://shopify/Product/X', { pollMs: 5, pollMaxMs: 500 });
+  assert(r.ready === 1 && r.processing === 0, `terminal: ready=1 processing=0, got ${JSON.stringify(r)}`);
+  assert(calls >= 3, `polled at least 3 times, got ${calls}`);
+}
+
+async function testPollProductMediaStatus_timeoutReportsProcessing() {
+  console.log('Test: pollProductMediaStatus — timeout returns processing>0 with ready/failed snapshot');
+  const fetchImpl = async () => new Response(JSON.stringify({ data: { product: { media: { nodes: [
+    { __typename: 'MediaImage', status: 'READY', mediaErrors: [] },
+    { __typename: 'MediaImage', status: 'PROCESSING', mediaErrors: [] },
+  ] } } } }), { status: 200 });
+  const ctx = { endpoint: 'https://mock', token: 't', fetch: fetchImpl };
+  const t0 = Date.now();
+  const r = await pollProductMediaStatus(ctx, 'gid://shopify/Product/X', { pollMs: 10, pollMaxMs: 50 });
+  const dt = Date.now() - t0;
+  assert(r.processing === 1, `processing=1 at timeout, got ${JSON.stringify(r)}`);
+  assert(r.ready === 1, 'ready snapshot preserved');
+  assert(dt < 500, `did not hang, took ${dt}ms`);
+}
+
+async function testPollProductMediaStatus_videoCountedAsReady() {
+  console.log('Test: pollProductMediaStatus — non-image media (Video) counted as ready, never blocks');
+  const fetchImpl = async () => new Response(JSON.stringify({ data: { product: { media: { nodes: [
+    { __typename: 'Video' }, // no status field — out of scope
+    { __typename: 'MediaImage', status: 'READY', mediaErrors: [] },
+  ] } } } }), { status: 200 });
+  const ctx = { endpoint: 'https://mock', token: 't', fetch: fetchImpl };
+  const r = await pollProductMediaStatus(ctx, 'gid://shopify/Product/X', { pollMs: 5, pollMaxMs: 200 });
+  assert(r.ready === 2, `2 ready (1 video + 1 image), got ${JSON.stringify(r)}`);
+  assert(r.processing === 0, 'video not blocking');
+}
+
+async function testRunFullImport_writesNewCsvColumnsAndWarn() {
+  console.log('Test: runFullImport — changes.csv has 4 new media cols + WARN status when post-poll has FAILED media');
+  const tmp = await mkdtemp(join(tmpdir(), 'runfullimport-warn-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    const fields = Array.from({ length: 79 }, () => '');
+    fields[0] = 'WARN-001'; fields[3] = 'X'; fields[5] = 'F';
+    fields[58] = 'https://example.com/main-photo/WARN-001'; // 1 image so polling runs
+    const surtidoRow = fields.join(',');
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`), surtidoHeader + surtidoRow + '\n', 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\nWARN-001,1\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\nWARN-001,1.00\n', 'utf8');
+
+    const jpeg = Buffer.alloc(64); jpeg[0] = 0xff; jpeg[1] = 0xd8; jpeg[2] = 0xff;
+    const mockFetch = async (url, init = {}) => {
+      if (typeof url === 'string' && url.startsWith('https://example.com/')) {
+        return new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+      }
+      if (typeof url === 'string' && url.includes('mock-staged.s3.')) return new Response('', { status: 200 });
+      if (typeof url === 'string' && url.includes('/admin/api/')) {
+        const body = JSON.parse(init.body);
+        const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+        if (op === 'ShopContext') return new Response(JSON.stringify({ data: { publications: { nodes: [{ id: 'P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'L' }] } } }), { status: 200 });
+        if (op === 'StagedUploadsCreate') return new Response(JSON.stringify({ data: { stagedUploadsCreate: { stagedTargets: [{ url: 'https://mock-staged.s3.amazonaws.com/u', resourceUrl: 'https://mock-staged.s3.amazonaws.com/r', parameters: [] }], userErrors: [] } } }), { status: 200 });
+        if (op === 'FileCreate') return new Response(JSON.stringify({ data: { fileCreate: { files: [{ id: 'gid://shopify/MediaImage/F-WARN', status: 'READY', mediaErrors: [] }], userErrors: [] } } }), { status: 200 });
+        if (op === 'productSet') return new Response(JSON.stringify({ data: { productSet: { product: { id: 'gid://shopify/Product/WARN', handle: 'warn-001', variants: { nodes: [] }, metafields: { nodes: [] } }, userErrors: [] } } }), { status: 200 });
+        if (op === 'TranslatableContent') return new Response(JSON.stringify({ data: { translatableResource: { translatableContent: [] } } }), { status: 200 });
+        if (op === 'TranslatableByIds') return new Response(JSON.stringify({ data: { translatableResourcesByIds: { nodes: [] } } }), { status: 200 });
+        if (op === 'translationsRegister') return new Response(JSON.stringify({ data: { translationsRegister: { translations: [], userErrors: [] } } }), { status: 200 });
+        if (op === 'publishablePublish') return new Response(JSON.stringify({ data: { publishablePublish: { userErrors: [] } } }), { status: 200 });
+        // Polling: simulate a FAILED media on the product.
+        if (op === 'ProductMediaSafe') return new Response(JSON.stringify({ data: { product: { media: { nodes: [
+          { __typename: 'MediaImage', status: 'FAILED', mediaErrors: [{ code: 'INVALID', details: 'pixel limit exceeded', message: 'pixel' }] },
+        ] } } } }), { status: 200 });
+        throw new Error(`unexpected gql op: ${op}`);
+      }
+      throw new Error(`mock fetch: no handler for ${url}`);
+    };
+
+    const result = await runFullImport({
+      samplesDir: join(tmp, 'samples'),
+      reportDir: join(tmp, 'reports'),
+      applyMode: true,
+      onProgress: () => {},
+      fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      cdnRateLimit: { capacity: 100, refillPerSec: 1000 }, // fast for tests
+      mediaPollMs: 1, mediaPollMaxMs: 50,
+      concurrency: 1,
+    });
+
+    assert(result.counts.productSet.ok === 1, `productSet ok`);
+    assert(result.counts.publish.ok === 1, `publish ok`);
+    assert(result.counts.skus.ok === 1, `1 SKU ok`);
+    assert(result.counts.media.warn_skus === 1, `1 SKU in WARN, got ${result.counts.media.warn_skus}`);
+    assert(result.counts.media.failed === 1, `1 failed media node, got ${result.counts.media.failed}`);
+    assert(result.counts.media.ready === 0, `0 ready, got ${result.counts.media.ready}`);
+    assert(result.counts.image_resolution.resolved_ok === 1, '1 resolved');
+    assert(result.counts.image_resolution.freshly_uploaded === 1, '1 fresh upload');
+
+    const csv = await readFile(result.reportPaths.changes, 'utf8');
+    assert(csv.includes('media_ready_count'), 'header has media_ready_count');
+    assert(csv.includes('media_failed_count'), 'header has media_failed_count');
+    assert(csv.includes('media_processing_count'), 'header has media_processing_count');
+    assert(csv.includes('media_first_error'), 'header has media_first_error');
+    const dataLines = csv.trim().split('\n').slice(1).filter(Boolean);
+    const warnRow = dataLines.find((l) => l.includes('WARN-001'));
+    assert(warnRow != null, `data row present`);
+    assert(warnRow.endsWith(',WARN'), `overall=WARN, row tail: ${warnRow.slice(-40)}`);
+    assert(/(?:^|,)0,1,0,/.test(warnRow), `media counts 0,1,0 (ready,failed,processing) in row: ${warnRow}`);
+    assert(warnRow.includes('pixel limit'), 'first error preserved');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+async function testRunFullImport_happyPathReportsAllReady() {
+  console.log('Test: runFullImport — happy path: pre-upload + READY media → overall=OK, no WARN');
+  const tmp = await mkdtemp(join(tmpdir(), 'runfullimport-ok-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    const fields = Array.from({ length: 79 }, () => '');
+    fields[0] = 'OK-001'; fields[3] = 'X'; fields[5] = 'F';
+    fields[58] = 'https://example.com/main-photo/OK-001';
+    const surtidoRow = fields.join(',');
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`), surtidoHeader + surtidoRow + '\n', 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\nOK-001,1\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\nOK-001,1.00\n', 'utf8');
+
+    const jpeg = Buffer.alloc(64); jpeg[0] = 0xff; jpeg[1] = 0xd8; jpeg[2] = 0xff;
+    const mockFetch = async (url, init = {}) => {
+      if (typeof url === 'string' && url.startsWith('https://example.com/')) return new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+      if (typeof url === 'string' && url.includes('mock-staged.s3.')) return new Response('', { status: 200 });
+      if (typeof url === 'string' && url.includes('/admin/api/')) {
+        const body = JSON.parse(init.body);
+        const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+        if (op === 'ShopContext') return new Response(JSON.stringify({ data: { publications: { nodes: [{ id: 'P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'L' }] } } }), { status: 200 });
+        if (op === 'StagedUploadsCreate') return new Response(JSON.stringify({ data: { stagedUploadsCreate: { stagedTargets: [{ url: 'https://mock-staged.s3.amazonaws.com/u', resourceUrl: 'https://mock-staged.s3.amazonaws.com/r', parameters: [] }], userErrors: [] } } }), { status: 200 });
+        if (op === 'FileCreate') return new Response(JSON.stringify({ data: { fileCreate: { files: [{ id: 'gid://shopify/MediaImage/F-OK', status: 'READY', mediaErrors: [] }], userErrors: [] } } }), { status: 200 });
+        if (op === 'productSet') return new Response(JSON.stringify({ data: { productSet: { product: { id: 'gid://shopify/Product/OK', handle: 'ok-001', variants: { nodes: [] }, metafields: { nodes: [] } }, userErrors: [] } } }), { status: 200 });
+        if (op === 'TranslatableContent') return new Response(JSON.stringify({ data: { translatableResource: { translatableContent: [] } } }), { status: 200 });
+        if (op === 'TranslatableByIds') return new Response(JSON.stringify({ data: { translatableResourcesByIds: { nodes: [] } } }), { status: 200 });
+        if (op === 'translationsRegister') return new Response(JSON.stringify({ data: { translationsRegister: { translations: [], userErrors: [] } } }), { status: 200 });
+        if (op === 'publishablePublish') return new Response(JSON.stringify({ data: { publishablePublish: { userErrors: [] } } }), { status: 200 });
+        if (op === 'ProductMediaSafe') return new Response(JSON.stringify({ data: { product: { media: { nodes: [
+          { __typename: 'MediaImage', status: 'READY', mediaErrors: [] },
+        ] } } } }), { status: 200 });
+        throw new Error(`unexpected gql op: ${op}`);
+      }
+      throw new Error(`mock fetch: no handler for ${url}`);
+    };
+
+    const result = await runFullImport({
+      samplesDir: join(tmp, 'samples'), reportDir: join(tmp, 'reports'),
+      applyMode: true, onProgress: () => {}, fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      cdnRateLimit: { capacity: 100, refillPerSec: 1000 },
+      mediaPollMs: 1, mediaPollMaxMs: 50, concurrency: 1,
+    });
+
+    assert(result.counts.media.ready === 1, '1 ready');
+    assert(result.counts.media.failed === 0, '0 failed');
+    assert(result.counts.media.warn_skus === 0, 'no WARN');
+    assert(result.counts.image_resolution.resolved_ok === 1, '1 resolved');
+
+    const csv = await readFile(result.reportPaths.changes, 'utf8');
+    const dataLines = csv.trim().split('\n').slice(1).filter(Boolean);
+    const okRow = dataLines.find((l) => l.includes('OK-001'));
+    assert(okRow.endsWith(',OK'), `overall=OK, tail: ${okRow.slice(-30)}`);
+    assert(/(?:^|,)1,0,0,/.test(okRow), `media counts 1,0,0 in row: ${okRow}`);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   testBuildProductSetInput_basic();
   testBuildProductSetInput_handleLowercase();
@@ -1009,6 +1391,22 @@ async function main() {
   testOrphans_priorEmpty();
   testOrphans_priorIsAlreadyFilteredByCaller();
   testOrphans_acceptsIterables();
+
+  // PR-IMG-2: pre-upload + media polling
+  testBuildProductSetInput_resolvedImages_idMode();
+  testBuildProductSetInput_resolvedImages_skipsNullSlots();
+  testBuildProductSetInput_resolvedImages_allNull_omitsFiles();
+  testBuildProductSetInput_legacyPathPreservedWhenNoResolvedOpt();
+  await testResolveImagesForSku_happyPath();
+  await testResolveImagesForSku_partialFailure();
+  await testResolveImagesForSku_emptyModel();
+  await testPollProductMediaStatus_allReady();
+  await testPollProductMediaStatus_failedSurfacesError();
+  await testPollProductMediaStatus_processingThenReady();
+  await testPollProductMediaStatus_timeoutReportsProcessing();
+  await testPollProductMediaStatus_videoCountedAsReady();
+  await testRunFullImport_writesNewCsvColumnsAndWarn();
+  await testRunFullImport_happyPathReportsAllReady();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
