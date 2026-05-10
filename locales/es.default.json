@@ -793,6 +793,90 @@
       "note2_html": "Tras activar tu cuenta, validaremos tu perfil profesional en <strong>24-48 horas hábiles</strong>.",
       "note3": "Te avisaremos por email cuando esté listo, tanto si se aprueba como si se deniega.",
       "btn_back": "Volver al inicio"
+    },
+    "solicitudes": {
+      "status": {
+        "pendiente_revision": "En revisión",
+        "en_tramite": "En trámite",
+        "confirmada": "Confirmada",
+        "cancelada": "Cancelada"
+      },
+      "table": {
+        "th_producto": "Producto",
+        "th_uds": "Uds.",
+        "th_precio_unit": "Precio unit.",
+        "th_subtotal": "Subtotal",
+        "importe_estimado": "Importe estimado (sin IVA ni portes)"
+      },
+      "form": {
+        "heading": "Solicitud de pedido",
+        "lead": "Revisa tu pedido, añade un comentario opcional y envía la solicitud. Nuestro equipo comercial revisará tu petición y confirmará disponibilidad, precios finales (IVA y portes) y fechas en las próximas 48h laborables.",
+        "empty_html": "Tu carrito está vacío. <a href=\"/collections/coleccion-2026\">Ver catálogo</a>.",
+        "warn": "* Los precios definitivos los confirmará el equipo comercial tras revisar disponibilidad y ajustes de volumen.",
+        "comentario_label": "Comentario o propuesta (opcional)",
+        "comentario_placeholder": "Ej: Necesito recibir el pedido antes del 15 de mayo. Pregúntame por descuento por volumen si llego a X unidades.",
+        "aviso": "He leído que el importe mostrado es orientativo y no incluye IVA ni costes de envío, que se confirmarán por el equipo comercial antes de procesar el pedido.",
+        "submit": "Confirmar y enviar solicitud",
+        "submit_loading": "Enviando…",
+        "cancel": "Volver al carrito",
+        "js_errors": {
+          "aviso_required": "Debes marcar la casilla del aviso antes de enviar.",
+          "cart_read_failed": "No se pudo leer el carrito. Refresca la página e intenta de nuevo.",
+          "cart_empty": "Tu carrito está vacío.",
+          "network": "Error de red al enviar la solicitud: {message}",
+          "recent_request_suffix": "(Tu última solicitud {name} sigue en revisión.)",
+          "create_failed": "No se pudo crear la solicitud: {error}. Si persiste, contacta con el equipo comercial.",
+          "create_failed_unknown": "error desconocido"
+        }
+      },
+      "lista": {
+        "loading": "Cargando solicitudes…",
+        "empty_lead": "Aún no has enviado ninguna solicitud. Explora el catálogo outlet de LEDS C4 y prepara tu primer pedido — aparecerá aquí en cuanto la envíes.",
+        "subheading": "Tus solicitudes",
+        "th_fecha": "Fecha",
+        "th_ref": "Ref",
+        "th_importe_est": "Importe est.",
+        "th_estado": "Estado",
+        "js_errors": {
+          "load": "Error cargando solicitudes: {message}",
+          "api": "Error: {error}"
+        }
+      },
+      "detalle": {
+        "back": "← Mis solicitudes",
+        "loading": "Cargando solicitud…",
+        "heading": "Solicitud {name}",
+        "note_label": "Tu comentario",
+        "cbm_total_label": "CBM total",
+        "footer_note": "Las solicitudes no se pueden editar ni cancelar desde aquí. Si necesitas hacer cambios, escribe al equipo comercial citando la referencia.",
+        "js_errors": {
+          "missing_ref": "Falta el parámetro ref en la URL.",
+          "load": "Error cargando la solicitud: {message}",
+          "not_found": "Solicitud no encontrada o no es tuya.",
+          "api": "Error: {error}"
+        }
+      },
+      "enviada": {
+        "heading": "Solicitud enviada",
+        "thanks": "Gracias, {{ name }}. Hemos recibido tu solicitud de pedido.",
+        "thanks_fallback_name": "cliente",
+        "ref_label": "Referencia",
+        "next": "Recibirás una confirmación por email en breve. Nuestro equipo comercial revisará tu solicitud en las próximas 48h laborables y se pondrá en contacto contigo para confirmar disponibilidad, precios finales y fechas de entrega.",
+        "cta_lista": "Ver mis solicitudes",
+        "cta_catalogo": "Volver al catálogo"
+      },
+      "dashboard_cards": {
+        "producto": {
+          "one": "1 producto",
+          "other": "{{ count }} productos"
+        },
+        "fallback_title": "Ver catálogo completo",
+        "fallback_meta_count": {
+          "one": "1 producto disponible",
+          "other": "{{ count }} productos disponibles"
+        },
+        "fallback_meta_default": "Stocks excedentes y descatalogados de LEDS C4"
+      }
     }
   }
 }

@@ -63,8 +63,7 @@
               <h3 class="b2b-dash-cards__title">{{ link.title }}</h3>
               {%- if link_collection -%}
                 <p class="b2b-dash-cards__meta">
-                  {{ link_collection.products_count }}
-                  {%- if link_collection.products_count == 1 %} producto{% else %} productos{% endif -%}
+                  {{ 'ledsc4.solicitudes.dashboard_cards.producto' | t: count: link_collection.products_count }}
                 </p>
               {%- endif -%}
             </div>
@@ -76,12 +75,12 @@
     {%- assign fallback_count = collections['coleccion-2026'].products_count | default: 0 -%}
     <a href="/collections/coleccion-2026" class="b2b-dash-cards__fallback">
       <div>
-        <h3 class="b2b-dash-cards__fallback-title">Ver catálogo completo</h3>
+        <h3 class="b2b-dash-cards__fallback-title">{{ 'ledsc4.solicitudes.dashboard_cards.fallback_title' | t }}</h3>
         <p class="b2b-dash-cards__fallback-meta">
           {%- if fallback_count > 0 -%}
-            {{ fallback_count }} productos disponibles
+            {{ 'ledsc4.solicitudes.dashboard_cards.fallback_meta_count' | t: count: fallback_count }}
           {%- else -%}
-            Stocks excedentes y descatalogados de LEDS C4
+            {{ 'ledsc4.solicitudes.dashboard_cards.fallback_meta_default' | t }}
           {%- endif -%}
         </p>
       </div>

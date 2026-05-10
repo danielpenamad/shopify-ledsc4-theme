@@ -45,12 +45,12 @@
 </style>
 
 <div class="b2b-solicitud">
-  <h1>Solicitud de pedido</h1>
-  <p class="b2b-solicitud__lead">Revisa tu pedido, añade un comentario opcional y envía la solicitud. Nuestro equipo comercial revisará tu petición y confirmará disponibilidad, precios finales (IVA y portes) y fechas en las próximas 48h laborables.</p>
+  <h1>{{ 'ledsc4.solicitudes.form.heading' | t }}</h1>
+  <p class="b2b-solicitud__lead">{{ 'ledsc4.solicitudes.form.lead' | t }}</p>
 
   {%- if cart.item_count == 0 -%}
     <div class="b2b-solicitud__empty">
-      <p>Tu carrito está vacío. <a href="/collections/coleccion-2026">Ver catálogo</a>.</p>
+      <p>{{ 'ledsc4.solicitudes.form.empty_html' | t }}</p>
     </div>
   {%- else -%}
 
@@ -59,10 +59,10 @@
     <table class="b2b-solicitud__table">
       <thead>
         <tr>
-          <th>Producto</th>
-          <th class="num">Uds.</th>
-          <th class="num">Precio unit.</th>
-          <th class="num">Subtotal</th>
+          <th>{{ 'ledsc4.solicitudes.table.th_producto' | t }}</th>
+          <th class="num">{{ 'ledsc4.solicitudes.table.th_uds' | t }}</th>
+          <th class="num">{{ 'ledsc4.solicitudes.table.th_precio_unit' | t }}</th>
+          <th class="num">{{ 'ledsc4.solicitudes.table.th_subtotal' | t }}</th>
         </tr>
       </thead>
       <tbody>
@@ -87,28 +87,28 @@
 
     <div class="b2b-solicitud__totals">
       <div class="row">
-        <span>Importe estimado (sin IVA ni portes)</span>
+        <span>{{ 'ledsc4.solicitudes.table.importe_estimado' | t }}</span>
         <span>{{ cart.total_price | money }}</span>
       </div>
-      <p class="b2b-solicitud__warn">* Los precios definitivos los confirmará el equipo comercial tras revisar disponibilidad y ajustes de volumen.</p>
+      <p class="b2b-solicitud__warn">{{ 'ledsc4.solicitudes.form.warn' | t }}</p>
     </div>
 
     <form id="b2b-solicitud-form" onsubmit="return false;">
       <div class="b2b-solicitud__field">
-        <label for="b2b-comentario">Comentario o propuesta (opcional)</label>
-        <textarea id="b2b-comentario" name="comentario" maxlength="1000" placeholder="Ej: Necesito recibir el pedido antes del 15 de mayo. Pregúntame por descuento por volumen si llego a X unidades."></textarea>
+        <label for="b2b-comentario">{{ 'ledsc4.solicitudes.form.comentario_label' | t }}</label>
+        <textarea id="b2b-comentario" name="comentario" maxlength="1000" placeholder="{{ 'ledsc4.solicitudes.form.comentario_placeholder' | t }}"></textarea>
       </div>
 
       <div class="b2b-solicitud__checkbox">
         <input type="checkbox" id="b2b-aviso" name="aviso" required>
         <label for="b2b-aviso">
-          He leído que el importe mostrado es orientativo y no incluye IVA ni costes de envío, que se confirmarán por el equipo comercial antes de procesar el pedido.
+          {{ 'ledsc4.solicitudes.form.aviso' | t }}
         </label>
       </div>
 
       <div class="b2b-solicitud__actions">
-        <button type="submit" id="b2b-submit" class="b2b-solicitud__submit">Confirmar y enviar solicitud</button>
-        <a href="/cart" class="b2b-solicitud__cancel">Volver al carrito</a>
+        <button type="submit" id="b2b-submit" class="b2b-solicitud__submit">{{ 'ledsc4.solicitudes.form.submit' | t }}</button>
+        <a href="/cart" class="b2b-solicitud__cancel">{{ 'ledsc4.solicitudes.form.cancel' | t }}</a>
       </div>
     </form>
 
@@ -118,6 +118,18 @@
         const CUSTOMER_ID = {{ customer_gid | json }};
         const TIMESTAMP = {{ now_ts | json }};
         const SIGNATURE = {{ hmac_sig | json }};
+
+        const T = {
+          submit: {{ 'ledsc4.solicitudes.form.submit' | t | json }},
+          submit_loading: {{ 'ledsc4.solicitudes.form.submit_loading' | t | json }},
+          aviso_required: {{ 'ledsc4.solicitudes.form.js_errors.aviso_required' | t | json }},
+          cart_read_failed: {{ 'ledsc4.solicitudes.form.js_errors.cart_read_failed' | t | json }},
+          cart_empty: {{ 'ledsc4.solicitudes.form.js_errors.cart_empty' | t | json }},
+          network: {{ 'ledsc4.solicitudes.form.js_errors.network' | t | json }},
+          recent_request_suffix: {{ 'ledsc4.solicitudes.form.js_errors.recent_request_suffix' | t | json }},
+          create_failed: {{ 'ledsc4.solicitudes.form.js_errors.create_failed' | t | json }},
+          create_failed_unknown: {{ 'ledsc4.solicitudes.form.js_errors.create_failed_unknown' | t | json }},
+        };
 
         const form = document.getElementById('b2b-solicitud-form');
         const submitBtn = document.getElementById('b2b-submit');
@@ -129,7 +141,7 @@
           errorEl.textContent = msg;
           errorEl.classList.add('visible');
           submitBtn.disabled = false;
-          submitBtn.textContent = 'Confirmar y enviar solicitud';
+          submitBtn.textContent = T.submit;
         }
 
         function hideError() {
@@ -138,24 +150,24 @@
 
         async function submit(force) {
           if (!avisoEl.checked) {
-            showError('Debes marcar la casilla del aviso antes de enviar.');
+            showError(T.aviso_required);
             return;
           }
           hideError();
           submitBtn.disabled = true;
-          submitBtn.textContent = 'Enviando…';
+          submitBtn.textContent = T.submit_loading;
 
           // Lee el carrito en tiempo real (por si cambio entre render y submit)
           let cartData;
           try {
             cartData = await fetch('/cart.js').then((r) => r.json());
           } catch (e) {
-            showError('No se pudo leer el carrito. Refresca la página e intenta de nuevo.');
+            showError(T.cart_read_failed);
             return;
           }
 
           if (!cartData.items || !cartData.items.length) {
-            showError('Tu carrito está vacío.');
+            showError(T.cart_empty);
             return;
           }
 
@@ -181,25 +193,26 @@
               body: JSON.stringify(payload),
             }).then((r) => r.json());
           } catch (e) {
-            showError('Error de red al enviar la solicitud: ' + e.message);
+            showError(T.network.replace('{message}', e.message));
             return;
           }
 
           if (res.warning === 'recent_request') {
+            const recentName = (res.recentDraft && res.recentDraft.name) || '';
             const ok = confirm(
-              res.message + '\n\n(Tu última solicitud ' + (res.recentDraft && res.recentDraft.name) + ' sigue en revisión.)'
+              res.message + '\n\n' + T.recent_request_suffix.replace('{name}', recentName)
             );
             if (ok) {
               return submit(true);
             } else {
               submitBtn.disabled = false;
-              submitBtn.textContent = 'Confirmar y enviar solicitud';
+              submitBtn.textContent = T.submit;
               return;
             }
           }
 
           if (!res.ok) {
-            showError('No se pudo crear la solicitud: ' + (res.error || 'error desconocido') + '. Si persiste, contacta con el equipo comercial.');
+            showError(T.create_failed.replace('{error}', res.error || T.create_failed_unknown));
             return;
           }
 

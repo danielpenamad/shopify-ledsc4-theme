@@ -19,6 +19,11 @@
   .b2b-enviada__btn--secondary { background: #fff; color: #1a1f27; border: 1px solid #1a1f27; }
 </style>
 
+{%- liquid
+  assign fallback_cliente = 'ledsc4.solicitudes.enviada.thanks_fallback_name' | t
+  assign thanks_name = customer.first_name | default: fallback_cliente
+-%}
+
 <div class="b2b-enviada">
   <div class="b2b-enviada__icon">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -26,24 +31,24 @@
     </svg>
   </div>
 
-  <h1>Solicitud enviada</h1>
-  <p class="b2b-enviada__lead">Gracias, {{ customer.first_name | default: 'cliente' }}. Hemos recibido tu solicitud de pedido.</p>
+  <h1>{{ 'ledsc4.solicitudes.enviada.heading' | t }}</h1>
+  <p class="b2b-enviada__lead">{{ 'ledsc4.solicitudes.enviada.thanks' | t: name: thanks_name }}</p>
 
   {%- assign ref_raw = request.query_string | split: 'ref=' | last | split: '&' | first -%}
   {%- if ref_raw != blank and ref_raw != request.query_string -%}
     <div class="b2b-enviada__ref">
-      <p class="b2b-enviada__ref-label">Referencia</p>
+      <p class="b2b-enviada__ref-label">{{ 'ledsc4.solicitudes.enviada.ref_label' | t }}</p>
       <p class="b2b-enviada__ref-value">{{ ref_raw | url_decode }}</p>
     </div>
   {%- endif -%}
 
   <p class="b2b-enviada__next">
-    Recibirás una confirmación por email en breve. Nuestro equipo comercial revisará tu solicitud en las próximas 48h laborables y se pondrá en contacto contigo para confirmar disponibilidad, precios finales y fechas de entrega.
+    {{ 'ledsc4.solicitudes.enviada.next' | t }}
   </p>
 
   <div class="b2b-enviada__ctas">
-    <a href="/pages/mis-solicitudes" class="b2b-enviada__btn b2b-enviada__btn--primary">Ver mis solicitudes</a>
-    <a href="/collections/coleccion-2026" class="b2b-enviada__btn b2b-enviada__btn--secondary">Volver al catálogo</a>
+    <a href="/pages/mis-solicitudes" class="b2b-enviada__btn b2b-enviada__btn--primary">{{ 'ledsc4.solicitudes.enviada.cta_lista' | t }}</a>
+    <a href="/collections/coleccion-2026" class="b2b-enviada__btn b2b-enviada__btn--secondary">{{ 'ledsc4.solicitudes.enviada.cta_catalogo' | t }}</a>
   </div>
 </div>
 
