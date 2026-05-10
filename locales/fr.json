@@ -716,7 +716,8 @@
       "cta": {
         "login": "Connexion",
         "login_existente": "J'ai déjà un compte · Se connecter",
-        "solicitar_acceso": "Demander l'accès"
+        "solicitar_acceso": "Demander l'accès",
+        "mis_solicitudes": "Mes demandes"
       },
       "country": {
         "es": "Espagne",
@@ -788,6 +789,15 @@
       "pdf_ficha_link": "Fiche technique",
       "tab_specs": "Spécifications",
       "tab_docs": "Documents"
+    },
+    "solicitudes": {
+      "form": {
+        "heading": "Demande de commande",
+        "submit_loading": "Envoi en cours…"
+      },
+      "enviada": {
+        "heading": "Demande envoyée"
+      }
     }
   }
 }
