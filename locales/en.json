@@ -283,7 +283,6 @@
       "announcement": "Announcement",
       "announcement_bar": "Announcement bar"
     },
-
     "header": {
       "announcement": "Announcement",
       "menu": "Menu",
@@ -548,6 +547,126 @@
       "max_characters": "{{ max_chars }} characters max",
       "send_on": "YYYY-MM-DD",
       "send_on_label": "Send on (optional)"
+    }
+  },
+  "ledsc4": {
+    "acceso": {
+      "form": {
+        "banner": {
+          "generic_fallback": "Something went wrong while sending the request. Please try again.",
+          "network_error": "We couldn't connect to the server. Please check your connection and try again."
+        }
+      }
+    },
+    "portal": {
+      "eyebrow": "B2B Portal · exclusive access",
+      "heading_html": "Outlet catalog <em>for professionals</em>",
+      "lead": "Surplus and discontinued LEDS C4 stock at reduced prices. Limited access for installers, architects, distributors, and lighting sector retailers.",
+      "help_link": "Got questions about access? See how it works →",
+      "scroll_hint": "More info",
+      "f1_desc": "Surplus, end-of-series, and discontinued LEDS C4 products at reduced prices. Updated weekly.",
+      "f2_title": "Sign-up in 24-48h",
+      "f2_desc": "You fill out the application form and we validate your professional data. No minimums on the first order.",
+      "f3_title": "Peninsula shipping 24-48h",
+      "f3_desc": "Iberian warehouse with stock available. Direct shipping without intermediaries for professional orders."
+    },
+    "aprobado_home": {
+      "lead": "Explore the LEDS C4 outlet catalog, prepare your order request, and check the status of your shipments.",
+      "solicitudes": {
+        "eyebrow": "Your activity",
+        "title": "My order requests",
+        "desc": "View the status of your submitted applications, download confirmations, and review your order history."
+      }
+    },
+    "registro_recibido": {
+      "eyebrow": "Request submitted",
+      "heading": "Check your email",
+      "lead_generic": "We have sent you an email with a link to activate your account.",
+      "lead_with_email_html": "We have sent an email to <strong>{email}</strong> with a link to activate your account.",
+      "note1_html": "If you don't receive it in <strong>5 minutes</strong>, check your spam or promotions folder.",
+      "note2_html": "After activating your account, we will validate your professional profile within <strong>24-48 business hours</strong>.",
+      "note3": "We will notify you by email when it's ready, whether approved or denied.",
+      "btn_back": "Back to top"
+    },
+    "solicitudes": {
+      "status": {
+        "pendiente_revision": "Under review",
+        "en_tramite": "In progress",
+        "confirmada": "Confirmed",
+        "cancelada": "Canceled"
+      },
+      "table": {
+        "th_producto": "Product",
+        "th_uds": "You (formal, plural)",
+        "th_precio_unit": "Unit price",
+        "importe_estimado": "Estimated amount (excluding VAT and shipping)"
+      },
+      "form": {
+        "heading": "Purchase order",
+        "lead": "Review your order, add an optional comment, and send the request. Our sales team will review your request and confirm availability, final prices (VAT and shipping), and dates within the next 48 business hours.",
+        "empty_html": "Your cart is empty. <a href=\"/collections/coleccion-2026\">View catalog</a>.",
+        "warn": "* The sales team will confirm final pricing after reviewing availability and volume adjustments.",
+        "comentario_label": "Comment or proposal (optional)",
+        "comentario_placeholder": "I need to receive the order before May 15th. Ask me about a volume discount if I reach X units.",
+        "aviso": "I have read that the amount shown is indicative and does not include VAT or shipping costs, which will be confirmed by the sales team before processing the order.",
+        "submit": "Confirm and submit application",
+        "submit_loading": "Sending…",
+        "cancel": "Return to cart",
+        "js_errors": {
+          "aviso_required": "You must check the notice box before submitting.",
+          "cart_read_failed": "Could not read cart. Please refresh the page and try again.",
+          "cart_empty": "Your cart is empty.",
+          "network": "Network error while sending request: {message}",
+          "recent_request_suffix": "(Your last request, {name}, is still under review.)",
+          "create_failed": "Could not create request: {error}. If this persists, please contact the sales team.",
+          "create_failed_unknown": "unknown error"
+        }
+      },
+      "lista": {
+        "loading": "Loading requests…",
+        "empty_lead": "You haven't submitted any requests yet. Explore the LEDS C4 outlet catalog and prepare your first order — it will appear here as soon as you submit it.",
+        "subheading": "Your Requests",
+        "th_fecha": "Date",
+        "th_importe_est": "Estimated amount",
+        "th_estado": "State",
+        "js_errors": {
+          "load": "Error loading requests: {message}"
+        }
+      },
+      "detalle": {
+        "back": "← My requests",
+        "loading": "Loading request...",
+        "heading": "Request {name}",
+        "note_label": "Your comment",
+        "cbm_total_label": "Total CBM",
+        "footer_note": "Applications cannot be edited or canceled from here. If you need to make changes, please write to the sales team quoting the reference.",
+        "js_errors": {
+          "missing_ref": "The ref parameter is missing from the URL.",
+          "load": "Error loading request: {message}",
+          "not_found": "Request not found or not yours."
+        }
+      },
+      "enviada": {
+        "heading": "Request submitted",
+        "thanks": "Thank you, {{ name }}. We have received your order request.",
+        "thanks_fallback_name": "client",
+        "ref_label": "Reference",
+        "next": "You will receive an email confirmation shortly. Our sales team will review your request within the next 48 business hours and will contact you to confirm availability, final prices, and delivery dates.",
+        "cta_lista": "View my requests",
+        "cta_catalogo": "Back to catalog"
+      },
+      "dashboard_cards": {
+        "producto": {
+          "one": "1 product",
+          "other": "{{ count }} products"
+        },
+        "fallback_title": "View full catalog",
+        "fallback_meta_count": {
+          "one": "1 product available",
+          "other": "{{ count }} products available"
+        },
+        "fallback_meta_default": "Excess and discontinued stock from LEDS C4"
+      }
     }
   }
 }
