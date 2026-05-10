@@ -871,6 +871,32 @@
     "cart": {
       "cta_solicitud": "Send purchase order request",
       "disclaimer": "The prices shown are approximate · do not include VAT or shipping · subject to confirmation by our sales team"
+    },
+    "account": {
+      "dashboard": {
+        "subheading": "Your B2B LedsC4 Outlet portal.",
+        "card_catalogo_title": "View catalog",
+        "card_catalogo_desc": "Explore the 2026 outlet collection with your B2B prices.",
+        "card_solicitudes_desc": "Check the status of your purchase orders.",
+        "estado_rechazado_lead": "Your B2B access request could not be activated.",
+        "estado_revision_lead": "Your request is being reviewed by our team.",
+        "session_email_html": "Logged in as <strong>{{ email }}</strong>",
+        "volver_portal": "Return to portal"
+      },
+      "revision": {
+        "heading": "We are validating your request",
+        "datos_heading": "Data you gave us",
+        "correct_html": "See an error? Email us at <a href=\"mailto:{{ email }}\">{{ email }}</a> before we approve it."
+      },
+      "rechazada": {
+        "badge": "Not activated",
+        "heading": "Your account could not be activated",
+        "motivo_heading": "Reason",
+        "correct_html": "If you believe this is an error or would like more information, please write to us at <a href=\"mailto:{{ email }}\">{{ email }}</a>."
+      }
+    },
+    "header": {
+      "brand_aria_inicio": "Home"
     }
   },
   "shopify": {
