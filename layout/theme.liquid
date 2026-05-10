@@ -330,6 +330,13 @@
         - /policies/*
     {%- endcomment -%}
     {%- unless request.design_mode or request.host contains '.shopifypreview.com' or request.page_type == 'password' -%}
+      {%- comment -%}
+        locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc. Necesario
+        para que los window.location.replace de los gate redirects abajo
+        construyan URLs locale-aware correctas.
+      {%- endcomment -%}
+      {%- assign locale_prefix = routes.root_url -%}
+      {%- if locale_prefix == '/' -%}{%- assign locale_prefix = '' -%}{%- endif -%}
       {%- assign gate_path = request.path -%}
       {%- assign gate_exempt = false -%}
       {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional,/pages/registro-recibido' | split: ',' -%}
@@ -360,9 +367,9 @@
             gate_exempt_paths arriba, por lo que la redirección no genera
             bucle.
           {%- endcomment -%}
-          <script>window.location.replace({{ routes.root_url | append: 'pages/acceso-profesional' | json }});</script>
+          <script>window.location.replace({{ locale_prefix | append: '/pages/acceso-profesional' | json }});</script>
         {%- elsif customer.tags contains 'rechazado' -%}
-          <script>window.location.replace({{ routes.root_url | append: 'pages/cuenta-rechazada' | json }});</script>
+          <script>window.location.replace({{ locale_prefix | append: '/pages/cuenta-rechazada' | json }});</script>
         {%- elsif customer.tags contains 'aprobado' -%}
           {%- comment -%}
             Aprobado. Fase D: checkout nativo deshabilitado. Cualquier
@@ -379,7 +386,7 @@
             Safety net adicional a Locksmith Rule 2 por si no enforza.
           {%- endcomment -%}
           {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' or gate_path contains '/search' or gate_path contains '/pages/solicitud' or gate_path contains '/pages/mis-solicitudes' or gate_path contains '/checkout' -%}
-            <script>window.location.replace({{ routes.root_url | append: 'pages/cuenta-en-revision' | json }});</script>
+            <script>window.location.replace({{ locale_prefix | append: '/pages/cuenta-en-revision' | json }});</script>
           {%- endif -%}
         {%- endif -%}
       {%- endunless -%}

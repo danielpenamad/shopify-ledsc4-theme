@@ -28,10 +28,11 @@
   var I18N = (window.LEDSC4_I18N && window.LEDSC4_I18N.acceso_form) || {};
   var I18N_ERR = I18N.err || {};
   var I18N_BANNER = I18N.banner || {};
-  // LOCALE_PREFIX (Sprint 3.5): viene de window.LEDSC4_I18N.locale_prefix
-  // inyectado desde Liquid. Default '/' si falta. Se usa para construir
-  // URLs locale-aware en redirects y en el fallback del banner i18n.
-  var LOCALE_PREFIX = (window.LEDSC4_I18N && window.LEDSC4_I18N.locale_prefix) || '/';
+  // LOCALE_PREFIX (Sprint 3.5 + hotfix concat): viene de
+  // window.LEDSC4_I18N.locale_prefix inyectado desde Liquid. Valor:
+  // '' en home, '/fr' en /fr (sin trailing slash). Default '' si falta.
+  // Usos: LOCALE_PREFIX + '/path/X' (con slash inicial al path).
+  var LOCALE_PREFIX = (window.LEDSC4_I18N && window.LEDSC4_I18N.locale_prefix) || '';
   var LOCALE_ISO = (document.documentElement && document.documentElement.lang) || 'es';
 
   // --- NIF / NIE / CIF (port del registro classic, eliminado en C.6 T6) ---
@@ -288,7 +289,7 @@
         var b = result.body || {};
 
         if (s === 200 && b.ok) {
-          var redirectTo = LOCALE_PREFIX + 'pages/registro-recibido?email=' +
+          var redirectTo = LOCALE_PREFIX + '/pages/registro-recibido?email=' +
             encodeURIComponent(truncateEmail(values.email));
           window.location.assign(redirectTo);
           return;
@@ -300,7 +301,7 @@
           // &locale para localizar form. Eliminar `&locale=...` para revert
           // selectivo si Locksmith no respeta el query param.
           var fallbackLoginUrl = '/customer_authentication/login?return_to=' +
-            encodeURIComponent(LOCALE_PREFIX + 'pages/mis-solicitudes') +
+            encodeURIComponent(LOCALE_PREFIX + '/pages/mis-solicitudes') +
             '&locale=' + LOCALE_ISO;
           setBanner(
             I18N_BANNER.email_exists_html ||

@@ -3,6 +3,14 @@
 {{ 'component-price.css' | asset_url | stylesheet_tag }}
 {{ 'component-discounts.css' | asset_url | stylesheet_tag }}
 
+{%- liquid
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+-%}
+
 {%- style -%}
   .section-{{ section.id }}-padding {
     padding-top: {{ section.settings.padding_top | times: 0.75 | round: 0 }}px;
@@ -112,7 +120,7 @@
               {%- endcomment -%}
               <div class="cart__ctas" {{ block.shopify_attributes }}>
                 <a
-                  href="{{ routes.root_url }}pages/solicitud"
+                  href="{{ locale_prefix }}/pages/solicitud"
                   id="checkout"
                   class="cart__checkout-button button"
                   {% if cart == empty %}aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:0.5;"{% endif %}

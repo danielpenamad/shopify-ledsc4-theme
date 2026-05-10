@@ -22,6 +22,15 @@
 {%- liquid
   assign fallback_cliente = 'ledsc4.solicitudes.enviada.thanks_fallback_name' | t
   assign thanks_name = customer.first_name | default: fallback_cliente
+
+  # locale_prefix: '' en home, '/fr' en /fr, etc.
+  # routes.root_url devuelve '/' en home (con slash) y '/fr' en /fr (sin slash);
+  # normalizamos a string vacío en home para que la concat con paths que
+  # empiezan por '/' sea correcta en ambos contextos.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
 -%}
 
 <div class="b2b-enviada">
@@ -47,8 +56,8 @@
   </p>
 
   <div class="b2b-enviada__ctas">
-    <a href="{{ routes.root_url }}pages/mis-solicitudes" class="b2b-enviada__btn b2b-enviada__btn--primary">{{ 'ledsc4.solicitudes.enviada.cta_lista' | t }}</a>
-    <a href="{{ routes.root_url }}collections/coleccion-2026" class="b2b-enviada__btn b2b-enviada__btn--secondary">{{ 'ledsc4.solicitudes.enviada.cta_catalogo' | t }}</a>
+    <a href="{{ locale_prefix }}/pages/mis-solicitudes" class="b2b-enviada__btn b2b-enviada__btn--primary">{{ 'ledsc4.solicitudes.enviada.cta_lista' | t }}</a>
+    <a href="{{ locale_prefix }}/collections/coleccion-2026" class="b2b-enviada__btn b2b-enviada__btn--secondary">{{ 'ledsc4.solicitudes.enviada.cta_catalogo' | t }}</a>
   </div>
 </div>
 

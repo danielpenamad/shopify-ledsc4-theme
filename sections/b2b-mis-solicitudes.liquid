@@ -40,6 +40,12 @@
     when 'pt-PT'
       assign locale_bcp47 = 'pt-PT'
   endcase
+
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
 -%}
 
 <section class="b2b-lista" aria-labelledby="b2b-lista-heading">
@@ -207,7 +213,9 @@
     const TIMESTAMP = {{ now_ts | json }};
     const SIGNATURE = {{ hmac_sig | json }};
     const LOCALE = {{ locale_bcp47 | json }};
-    const LOCALE_PREFIX = {{ routes.root_url | json }};
+    // LOCALE_PREFIX: '' en home, '/fr' en /fr (ver hotfix doc).
+    // Usos: LOCALE_PREFIX + '/path/X' (con slash inicial).
+    const LOCALE_PREFIX = {{ locale_prefix | json }};
 
     const T = {
       th_fecha: {{ 'ledsc4.solicitudes.lista.th_fecha' | t | json }},
@@ -287,7 +295,7 @@
         const statusClass = 'b2b-lista__status--' + it.status;
         const statusLabel = T.status[it.status] || it.status;
         const ref = encodeURIComponent(it.name);
-        return `<tr onclick="window.location.href='${LOCALE_PREFIX}pages/solicitud-detalle?ref=${ref}'">
+        return `<tr onclick="window.location.href='${LOCALE_PREFIX}/pages/solicitud-detalle?ref=${ref}'">
           <td>${fmtDate(it.createdAt)}</td>
           <td class="ref">${it.name}</td>
           <td class="num">${it.totalItems}</td>
