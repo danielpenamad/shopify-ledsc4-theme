@@ -64,6 +64,10 @@
       "next_slide": "Slide right",
       "previous_slide": "Slide left",
       "name": "Slider"
+    },
+    "meta": {
+      "tags": "tagged \"{{ tags }}\"",
+      "page_number": "Page {{ page }}"
     }
   },
   "newsletter": {
@@ -95,7 +99,8 @@
       "read_more_title": "Read more: {{ title }}",
       "comments": {
         "one": "{{ count }} comment",
-        "other": "{{ count }} comments"
+        "other": "{{ count }} comments",
+        "many": "{{ count }} comments"
       },
       "moderated": "Please note, comments need to be approved before they are published.",
       "comment_form_title": "Leave a comment",
@@ -204,7 +209,8 @@
       "filter_button": "Filter",
       "filters_selected": {
         "one": "{{ count }} selected",
-        "other": "{{ count }} selected"
+        "other": "{{ count }} selected",
+        "many": "{{ count }} selected"
       },
       "filter_selected_accessibility": "{{ type }} ({{ count }} filters selected)",
       "show_more": "Show more",
@@ -216,7 +222,8 @@
       },
       "product_count_simple": {
         "one": "{{ count }} product",
-        "other": "{{ count }} products"
+        "other": "{{ count }} products",
+        "many": "{{ count }} products"
       },
       "reset": "Reset",
       "sort_button": "Sort",
@@ -232,23 +239,28 @@
       "products": "Products",
       "results_pages_with_count": {
         "one": "{{ count }} page",
-        "other": "{{ count }} pages"
+        "other": "{{ count }} pages",
+        "many": "{{ count }} pages"
       },
       "results_suggestions_with_count": {
         "one": "{{ count }} suggestion",
-        "other": "{{ count }} suggestions"
+        "other": "{{ count }} suggestions",
+        "many": "{{ count }} suggestions"
       },
       "results_products_with_count": {
         "one": "{{ count }} product",
-        "other": "{{ count }} products"
+        "other": "{{ count }} products",
+        "many": "{{ count }} products"
       },
       "results_with_count": {
         "one": "{{ count }} result",
-        "other": "{{ count }} results"
+        "other": "{{ count }} results",
+        "many": "{{ count }} results"
       },
       "results_with_count_and_term": {
         "one": "{{ count }} result found for “{{ terms }}”",
-        "other": "{{ count }} results found for “{{ terms }}”"
+        "other": "{{ count }} results found for “{{ terms }}”",
+        "many": "Found {{ count }} results for \"{{ terms }}\""
       },
       "title": "Search results",
       "search_for": "Search for “{{ terms }}”",
@@ -288,7 +300,8 @@
       "menu": "Menu",
       "cart_count": {
         "one": "{{ count }} item",
-        "other": "{{ count }} items"
+        "other": "{{ count }} items",
+        "many": "{{ count }} items"
       }
     },
     "cart": {
@@ -367,11 +380,13 @@
       "variant_total": "Variant total",
       "items_added": {
         "one": "{{ quantity }} item added",
-        "other": "{{ quantity }} items added"
+        "other": "{{ quantity }} items added",
+        "many": "{{ quantity }} items added"
       },
       "items_removed": {
         "one": "{{ quantity }} item removed",
-        "other": "{{ quantity }} items removed"
+        "other": "{{ quantity }} items removed",
+        "many": "{{ quantity }} items deleted"
       },
       "product_variants": "Product variants",
       "total_items": "Total items",
@@ -666,6 +681,68 @@
           "other": "{{ count }} products available"
         },
         "fallback_meta_default": "Excess and discontinued stock from LEDS C4"
+      }
+    },
+    "common": {
+      "cta": {
+        "login": "Log in",
+        "login_existente": "Already have an account · Log in",
+        "solicitar_acceso": "Request Access"
+      },
+      "country": {
+        "es": "Spain",
+        "fr": "France",
+        "it": "Italy",
+        "de": "Germany",
+        "gb": "United Kingdom",
+        "nl": "Netherlands",
+        "be": "Belgium",
+        "ma": "Morocco"
+      },
+      "footer": {
+        "aria_legal": "Legal links",
+        "aviso_legal": "Legal notice",
+        "privacidad": "Privacy",
+        "condiciones": "Terms and Conditions",
+        "canal_etico": "Ethics channel",
+        "copyright_html": "© {{ year }} LEDS C4, SA · Tax ID A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
+      },
+      "form": {
+        "option_select": "Select…",
+        "optional": "(optional)"
+      },
+      "greeting": {
+        "fallback_bienvenido": "Welcome",
+        "hola_name": "Hello, {{ name }}"
+      },
+      "eyebrow": {
+        "portal_b2b": "B2B Portal"
+      }
+    },
+    "product": {
+      "specs": {
+        "familia": "Family",
+        "catalogo": "Catalog",
+        "garantia": "Warranty",
+        "garantia_value": "{{ value }} years",
+        "acabado": "Finish",
+        "voltaje": "Voltage",
+        "ancho": "Width (mm)",
+        "alto": "Height (mm)",
+        "largo": "Length (mm)",
+        "proyeccion": "Projection (mm)",
+        "fuente_luz": "Light source",
+        "incluye_bombilla": "Includes lightbulb",
+        "eficiencia_energetica": "Energy efficiency",
+        "peso_neto": "Net weight (kg)",
+        "potencia": "Power (W)",
+        "lumenes": "Lumens (lm)",
+        "lumenes_reales": "Actual Lumens (lm)",
+        "temperatura_color": "Color temperature",
+        "cri": "ICC",
+        "angulo_haz": "Beam angle",
+        "regulacion": "Regulation",
+        "dimensiones": "Dimensions"
       }
     }
   },
@@ -1047,6 +1124,176 @@
         },
         "pickup_unavailable_banner_title_with_country": {
           "many": "There are no branches in %{country} with your items available"
+        }
+      },
+      "split_delivery": {
+        "inventory_issue_banner": {
+          "heading": {
+            "cannot_be_picked_up": {
+              "many": "%{count} items cannot be removed"
+            },
+            "cannot_be_shipped": {
+              "many": "%{count} items can't be shipped"
+            }
+          },
+          "remove_item": {
+            "many": "delete articles"
+          },
+          "ship_separately": {
+            "many": "Send them separately"
+          },
+          "pick_them_up_in_store": {
+            "many": "Pick up in store"
+          },
+          "remove_item_only": {
+            "many": "Delete items"
+          }
+        },
+        "pickup_items_count": {
+          "many": "Remove %{count} items"
+        },
+        "ship_items_count": {
+          "many": "Send %{count} items"
+        }
+      },
+      "merchandise_unavailable_in_buyer_location": {
+        "remove_items_action": {
+          "many": "remove unavailable items"
+        }
+      },
+      "remote_merchandise_only": {
+        "detail_item_label": {
+          "many": "{{count}} items"
+        }
+      }
+    },
+    "notices": {
+      "order": {
+        "cancel_reason": {
+          "many": "Other"
+        }
+      }
+    },
+    "page_titles": {
+      "search_results": {
+        "many": "Search: %{count} results found for \"%{terms}\""
+      }
+    }
+  },
+  "customer_accounts": {
+    "orders": {
+      "order_list": {
+        "items": {
+          "many": "{{count}} items"
+        }
+      },
+      "order_status": {
+        "delivered_description_gift_card": {
+          "many": "The gift cards were sent by email."
+        },
+        "gift_card_label": {
+          "many": "Gift cards"
+        },
+        "confirmed_gift_card_additional_description": {
+          "many": "Each gift card will be sent in a separate email."
+        },
+        "delivered_description_gift_card_text": {
+          "many": "The gift cards were sent by text message."
+        },
+        "confirmed_gift_card_additional_description_text": {
+          "many": "Each gift card will be sent in a separate text message."
+        },
+        "gift_resend_success": {
+          "many": "Gift cards forwarded"
+        },
+        "gift_resend_failure": {
+          "many": "There was a problem resending your gift cards. Please try again or contact us."
+        },
+        "tracking_number": {
+          "many": "Tracking Numbers"
+        },
+        "gift_card_resend_button": {
+          "many": "Resend gift cards"
+        }
+      }
+    },
+    "order_details": {
+      "image_gallery": {
+        "load_more_items": {
+          "many": "Load {{count}} more items"
+        }
+      },
+      "subtotal_label_with_quantity": {
+        "many": "Subtotal · {{count}} items"
+      },
+      "discount_order_stacking": {
+        "many": "Order Discounts"
+      }
+    },
+    "B2B": {
+      "orders": {
+        "draft_order_list": {
+          "pending_tab_accessibility_label": {
+            "pending_orders": {
+              "many": "You have {{count}} pending orders"
+            }
+          }
+        }
+      },
+      "draft_order_details": {
+        "payment_status": {
+          "pending": {
+            "banner_overdue": {
+              "many": "Payment was due {{count}} days ago."
+            },
+            "banner_due": {
+              "many": "Payment is due in {{count}} days."
+            },
+            "banner_overdue_for_single_fulfillment": {
+              "many": "Payment of {{amount}} was due {{count}} days ago. {{link}}"
+            }
+          }
+        }
+      }
+    },
+    "errors": {
+      "banner_title": {
+        "many": "There are {{count}} errors."
+      }
+    },
+    "payment_methods": {
+      "add_payment_method": {
+        "subscription_contracts": {
+          "more_items": {
+            "many": "{{count}} more products"
+          },
+          "product_count": {
+            "many": "{{count}} products"
+          }
+        },
+        "updating_contracts": {
+          "many": "Updating {{count}} subscription contracts..."
+        },
+        "contracts_updated": {
+          "many": "Successfully updated {{count}} subscription contracts"
+        }
+      }
+    },
+    "ui_components": {
+      "autocompleteOptionsAvailable": {
+        "many": "{{count}} items available"
+      },
+      "month": {
+        "many": "months"
+      },
+      "mapClusterTitle": {
+        "many": "Group of {{number}} markers"
+      }
+    },
+    "date": {
+      "humanize": {
+        "lessThanOneHourAgo": {
+          "many": "{{count}} minutes ago"
         }
       }
     }
