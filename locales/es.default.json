@@ -884,6 +884,32 @@
     "cart": {
       "cta_solicitud": "Enviar solicitud de pedido",
       "disclaimer": "Los precios mostrados son orientativos · no incluyen IVA ni portes · sujeto a confirmación por nuestro equipo comercial"
+    },
+    "account": {
+      "dashboard": {
+        "subheading": "Tu portal B2B LedsC4 Outlet.",
+        "card_catalogo_title": "Ver catálogo",
+        "card_catalogo_desc": "Explora la colección outlet 2026 con tus precios B2B.",
+        "card_solicitudes_desc": "Consulta el estado de tus solicitudes de pedido.",
+        "estado_rechazado_lead": "Tu solicitud de acceso B2B no ha podido activarse.",
+        "estado_revision_lead": "Tu solicitud está siendo revisada por nuestro equipo.",
+        "session_email_html": "Sesión iniciada como <strong>{{ email }}</strong>",
+        "volver_portal": "Volver al portal"
+      },
+      "revision": {
+        "heading": "Estamos validando tu solicitud",
+        "datos_heading": "Datos que nos diste",
+        "correct_html": "¿Ves un error? Escríbenos a <a href=\"mailto:{{ email }}\">{{ email }}</a> antes de que aprobemos."
+      },
+      "rechazada": {
+        "badge": "No activada",
+        "heading": "Tu cuenta no ha podido activarse",
+        "motivo_heading": "Motivo",
+        "correct_html": "Si crees que es un error o quieres ampliar información, escríbenos a <a href=\"mailto:{{ email }}\">{{ email }}</a>."
+      }
+    },
+    "header": {
+      "brand_aria_inicio": "Inicio"
     }
   }
 }

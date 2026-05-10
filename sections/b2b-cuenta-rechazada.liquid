@@ -4,11 +4,15 @@
   Muestra el motivo (si se rellenó) y el email de contacto.
 {% endcomment %}
 
+{%- liquid
+  assign backoffice_email = shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com'
+-%}
+
 <section class="b2b-status" aria-labelledby="b2b-status-heading">
   <div class="b2b-status__inner">
-    <span class="b2b-status__badge b2b-status__badge--rejected">No activada</span>
+    <span class="b2b-status__badge b2b-status__badge--rejected">{{ 'ledsc4.account.rechazada.badge' | t }}</span>
     <h1 id="b2b-status-heading" class="b2b-status__heading">
-      Tu cuenta no ha podido activarse
+      {{ 'ledsc4.account.rechazada.heading' | t }}
     </h1>
 
     <p class="b2b-status__lead">
@@ -17,7 +21,7 @@
 
     {%- if customer and customer.metafields.b2b.motivo_rechazo != blank -%}
       <div class="b2b-status__datos b2b-status__datos--motivo">
-        <h2 class="b2b-status__datos-heading">Motivo</h2>
+        <h2 class="b2b-status__datos-heading">{{ 'ledsc4.account.rechazada.motivo_heading' | t }}</h2>
         <p class="b2b-status__motivo">
           {{ customer.metafields.b2b.motivo_rechazo }}
         </p>
@@ -25,10 +29,7 @@
     {%- endif -%}
 
     <p class="b2b-status__correct">
-      Si crees que es un error o quieres ampliar información, escríbenos a
-      <a href="mailto:{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}">
-        {{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}
-      </a>.
+      {{ 'ledsc4.account.rechazada.correct_html' | t: email: backoffice_email }}
     </p>
 
     <div class="b2b-status__ctas">
