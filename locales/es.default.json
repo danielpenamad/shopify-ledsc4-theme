@@ -758,7 +758,7 @@
         },
         "banner": {
           "config_missing": "Configuración incompleta del tema. Avisa al equipo y vuelve a intentarlo más tarde.",
-          "email_exists_html": "Ya existe una cuenta con este email. <a href=\"/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes\">Iniciar sesión</a>.",
+          "email_exists_html": "Ya existe una cuenta con este email. <a href=\"{{ login_url }}\">Iniciar sesión</a>.",
           "signature_expired_html": "Tu sesión en el formulario ha caducado. <a href=\"\" onclick=\"window.location.reload(); return false;\">Recarga la página</a> y vuelve a intentarlo.",
           "service_unavailable_html": "Servicio temporalmente no disponible. Vuelve a intentarlo en unos minutos. Si persiste, escribe a <a href=\"mailto:soporte@ledsc4.com\">soporte@ledsc4.com</a>.",
           "generic_fallback": "Algo ha ido mal al enviar la solicitud. Vuelve a intentarlo.",

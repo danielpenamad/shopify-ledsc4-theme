@@ -47,7 +47,8 @@
           Cerrar sesión
         </a>
       {%- else -%}
-        <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-header-simple__link">
+        {%- assign login_return_to = routes.root_url | append: 'pages/mis-solicitudes' | url_encode -%}
+        <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-header-simple__link">
           Iniciar sesión
         </a>
       {%- endif -%}

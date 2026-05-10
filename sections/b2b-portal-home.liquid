@@ -232,8 +232,13 @@
             Opción C (Fase D post-launch): pasamos checkout_url para que
             Shopify new customer accounts redirija a nuestra page tras
             login, en vez de a shopify.com/<shop>/account.
+            URL base sin prefijo locale (decisión D5 + Shopify market-aware
+            auth docs); locale se pasa como query param para localizar el
+            form de login. return_to lleva prefijo locale para que el
+            redirect post-login mantenga el contexto.
           {%- endcomment -%}
-          <a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes" class="b2b-portal__btn b2b-portal__btn--primary">
+          {%- assign login_return_to = routes.root_url | append: 'pages/mis-solicitudes' | url_encode -%}
+          <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-portal__btn b2b-portal__btn--primary">
             {{ 'ledsc4.common.cta.login' | t }}
           </a>
           <a href="{{ routes.root_url }}pages/acceso-profesional#registro" class="b2b-portal__btn b2b-portal__btn--secondary">

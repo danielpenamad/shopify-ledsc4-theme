@@ -28,6 +28,11 @@
   var I18N = (window.LEDSC4_I18N && window.LEDSC4_I18N.acceso_form) || {};
   var I18N_ERR = I18N.err || {};
   var I18N_BANNER = I18N.banner || {};
+  // LOCALE_PREFIX (Sprint 3.5): viene de window.LEDSC4_I18N.locale_prefix
+  // inyectado desde Liquid. Default '/' si falta. Se usa para construir
+  // URLs locale-aware en redirects y en el fallback del banner i18n.
+  var LOCALE_PREFIX = (window.LEDSC4_I18N && window.LEDSC4_I18N.locale_prefix) || '/';
+  var LOCALE_ISO = (document.documentElement && document.documentElement.lang) || 'es';
 
   // --- NIF / NIE / CIF (port del registro classic, eliminado en C.6 T6) ---
 
@@ -283,17 +288,24 @@
         var b = result.body || {};
 
         if (s === 200 && b.ok) {
-          var redirectTo = '/pages/registro-recibido?email=' +
+          var redirectTo = LOCALE_PREFIX + 'pages/registro-recibido?email=' +
             encodeURIComponent(truncateEmail(values.email));
           window.location.assign(redirectTo);
           return;
         }
 
         if (s === 409 && b.code === 'EMAIL_ALREADY_EXISTS') {
+          // Fallback hardcoded — solo se usa si I18N_BANNER.email_exists_html
+          // falta. URL outcome (b)+: ruta sin prefijo, return_to con prefijo,
+          // &locale para localizar form. Eliminar `&locale=...` para revert
+          // selectivo si Locksmith no respeta el query param.
+          var fallbackLoginUrl = '/customer_authentication/login?return_to=' +
+            encodeURIComponent(LOCALE_PREFIX + 'pages/mis-solicitudes') +
+            '&locale=' + LOCALE_ISO;
           setBanner(
             I18N_BANNER.email_exists_html ||
             'Ya existe una cuenta con este email. ' +
-            '<a href="/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes">Iniciar sesión</a>.'
+            '<a href="' + fallbackLoginUrl + '">Iniciar sesión</a>.'
           );
           var emailInput = form.querySelector('#reg-email');
           if (emailInput) emailInput.setAttribute('aria-invalid', 'true');
