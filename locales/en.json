@@ -794,7 +794,8 @@
       "cta": {
         "login": "Log in",
         "login_existente": "Already have an account · Log in",
-        "solicitar_acceso": "Request Access"
+        "solicitar_acceso": "Request Access",
+        "mis_solicitudes": "My applications"
       },
       "country": {
         "es": "Spain",
