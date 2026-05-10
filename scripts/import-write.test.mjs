@@ -978,7 +978,7 @@ function testOrphans_acceptsIterables() {
 // ---- PR-IMG-2: pre-upload + media polling -----------------------------
 
 function testBuildProductSetInput_resolvedImages_idMode() {
-  console.log('Test: buildProductSetInput — resolvedImages → files[] uses id, no originalSource');
+  console.log('Test: buildProductSetInput — resolvedImages → files[] uses id ONLY (no filename/contentType/dupMode)');
   const model = makeModel();
   // Two images in model; supply pre-resolved fileIds for both.
   const input = buildProductSetInput(model, {
@@ -990,11 +990,18 @@ function testBuildProductSetInput_resolvedImages_idMode() {
   });
   assert(input.files.length === 2, `expected 2 files, got ${input.files.length}`);
   for (const f of input.files) {
+    // id is the ONLY field we pass when referencing an existing File.
+    // Anything else (filename, contentType, duplicateResolutionMode) is
+    // create-mode-only and triggers
+    //   [INVALID_INPUT] input.files.N.duplicateResolutionMode: Invalid duplicate resolution mode provided.
+    // when present alongside id (regression hit on the first prod run
+    // 2026-05-10 — 446/454 productSet failed). Keep this strict.
     assert(typeof f.id === 'string' && f.id.startsWith('gid://shopify/MediaImage/'), `id is a MediaImage GID, got ${JSON.stringify(f)}`);
-    assert(!('originalSource' in f), `originalSource must be absent in id-mode, got ${JSON.stringify(f)}`);
-    assert(!('contentType' in f), `contentType must be absent in id-mode (Shopify ignores it for refs), got ${JSON.stringify(f)}`);
-    assert(typeof f.filename === 'string' && f.filename.length > 0, `filename still set for dup-resolution match`);
-    assert(f.duplicateResolutionMode === 'REPLACE', `REPLACE preserved for idempotent re-runs`);
+    assert(!('originalSource' in f), `originalSource must be absent in id-mode`);
+    assert(!('contentType' in f), `contentType must be absent in id-mode`);
+    assert(!('filename' in f), `filename must be absent in id-mode (create-only field)`);
+    assert(!('duplicateResolutionMode' in f), `duplicateResolutionMode must be absent in id-mode (create-only field) — Shopify rejects this combo`);
+    assert(Object.keys(f).length === 1, `id-mode passes ONLY the id field, got ${JSON.stringify(f)}`);
   }
 }
 

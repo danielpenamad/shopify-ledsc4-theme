@@ -155,9 +155,12 @@ export function buildProductSetInput(model, opts) {
 
   // Files (images). Two construction modes, decided per slot:
   //   - resolvedImages[idx].fileId set → use FileSetInput.id to reference an
-  //     existing Shopify File (uploaded by lib/image-upload.mjs). productSet
-  //     re-uses the file across products; idempotent on re-run because
-  //     duplicateResolutionMode + the stable filename match the prior run.
+  //     existing Shopify File (uploaded by lib/image-upload.mjs). Pass ONLY
+  //     the id — Shopify rejects duplicateResolutionMode + filename when
+  //     id is set ("Invalid duplicate resolution mode provided"). Those
+  //     fields apply to the create-via-originalSource path. Idempotency on
+  //     re-run is handled at the productSet level: passing the same File id
+  //     twice converges to the same desired-state (no duplication).
   //   - resolvedImages[idx] missing or null → skip the slot. The pre-upload
   //     failed and we'd rather publish the product without that image than
   //     fall back to the CDN URL (which is what triggered the FAILED-by-429
@@ -170,20 +173,15 @@ export function buildProductSetInput(model, opts) {
   const files = [];
   for (let idx = 0; idx < product.images.length; idx++) {
     const img = product.images[idx];
-    const filename = makeStableFilename(sku, img.position ?? idx, img.src);
     if (resolvedImages !== undefined) {
       const r = resolvedImages[idx];
       if (!r || !r.fileId) continue; // skip failed slot
-      files.push({
-        id: r.fileId,
-        filename,
-        duplicateResolutionMode: 'REPLACE',
-      });
+      files.push({ id: r.fileId });
     } else {
       files.push({
         contentType: 'IMAGE',
         originalSource: img.src,
-        filename,
+        filename: makeStableFilename(sku, img.position ?? idx, img.src),
         duplicateResolutionMode: 'REPLACE',
       });
     }
