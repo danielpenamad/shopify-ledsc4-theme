@@ -26,6 +26,9 @@
   if locale_prefix == '/'
     assign locale_prefix = ''
   endif
+
+  assign greeting_fallback = 'ledsc4.common.greeting.fallback_bienvenido' | t
+  assign greeting_name = customer.first_name | default: customer.name | default: greeting_fallback
 -%}
 
 <style>
@@ -48,8 +51,8 @@
 </style>
 
 <div class="b2b-account">
-  <h1>Hola, {{ customer.first_name | default: customer.name | default: 'bienvenido' }}</h1>
-  <p class="b2b-account__hello">Tu portal B2B LedsC4 Outlet.</p>
+  <h1>{{ 'ledsc4.common.greeting.hola_name' | t: name: greeting_name }}</h1>
+  <p class="b2b-account__hello">{{ 'ledsc4.account.dashboard.subheading' | t }}</p>
 
   {%- if customer.metafields.b2b.empresa != blank -%}
     <p class="b2b-account__empresa"><strong>{{ customer.metafields.b2b.empresa }}</strong>{% if customer.metafields.b2b.nif != blank %} · {{ customer.metafields.b2b.nif }}{% endif %}</p>
@@ -58,24 +61,24 @@
   {%- if customer.tags contains 'aprobado' -%}
     <div class="b2b-account__grid">
       <a href="{{ locale_prefix }}/collections/coleccion-2026" class="b2b-account__card b2b-account__card--primary">
-        <h2>Ver catálogo</h2>
-        <p>Explora la colección outlet 2026 con tus precios B2B.</p>
+        <h2>{{ 'ledsc4.account.dashboard.card_catalogo_title' | t }}</h2>
+        <p>{{ 'ledsc4.account.dashboard.card_catalogo_desc' | t }}</p>
       </a>
       <a href="{{ locale_prefix }}/pages/mis-solicitudes" class="b2b-account__card">
         <h2>{{ 'ledsc4.common.cta.mis_solicitudes' | t }}</h2>
-        <p>Consulta el estado de tus solicitudes de pedido.</p>
+        <p>{{ 'ledsc4.account.dashboard.card_solicitudes_desc' | t }}</p>
       </a>
     </div>
   {%- elsif customer.tags contains 'rechazado' -%}
-    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud de acceso B2B no ha podido activarse. <a href="{{ locale_prefix }}/pages/cuenta-rechazada" style="color:#1a1f27;">{{ 'ledsc4.common.cta.mas_informacion_arrow' | t }}</a></p>
+    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">{{ 'ledsc4.account.dashboard.estado_rechazado_lead' | t }} <a href="{{ locale_prefix }}/pages/cuenta-rechazada" style="color:#1a1f27;">{{ 'ledsc4.common.cta.mas_informacion_arrow' | t }}</a></p>
   {%- else -%}
-    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">Tu solicitud está siendo revisada por nuestro equipo. <a href="{{ locale_prefix }}/pages/cuenta-en-revision" style="color:#1a1f27;">{{ 'ledsc4.common.cta.ver_estado_arrow' | t }}</a></p>
+    <p style="font-size:1rem;color:#666;margin-bottom:32px;line-height:1.55;">{{ 'ledsc4.account.dashboard.estado_revision_lead' | t }} <a href="{{ locale_prefix }}/pages/cuenta-en-revision" style="color:#1a1f27;">{{ 'ledsc4.common.cta.ver_estado_arrow' | t }}</a></p>
   {%- endif -%}
 
   <div class="b2b-account__footer">
-    <span>Sesión iniciada como <strong>{{ customer.email }}</strong></span>
+    <span>{{ 'ledsc4.account.dashboard.session_email_html' | t: email: customer.email }}</span>
     <a href="{{ routes.account_logout_url }}">{{ 'customer.log_out' | t }}</a>
-    <a href="{{ routes.root_url }}">Volver al portal</a>
+    <a href="{{ routes.root_url }}">{{ 'ledsc4.account.dashboard.volver_portal' | t }}</a>
   </div>
 </div>
 

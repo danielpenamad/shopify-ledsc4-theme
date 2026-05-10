@@ -7,11 +7,15 @@
   un mensaje con tiempo estimado + email de contacto.
 {% endcomment %}
 
+{%- liquid
+  assign backoffice_email = shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com'
+-%}
+
 <section class="b2b-status" aria-labelledby="b2b-status-heading">
   <div class="b2b-status__inner">
-    <span class="b2b-status__badge b2b-status__badge--pending">En revisión</span>
+    <span class="b2b-status__badge b2b-status__badge--pending">{{ 'ledsc4.solicitudes.status.pendiente_revision' | t }}</span>
     <h1 id="b2b-status-heading" class="b2b-status__heading">
-      Estamos validando tu solicitud
+      {{ 'ledsc4.account.revision.heading' | t }}
     </h1>
 
     <p class="b2b-status__lead">
@@ -20,29 +24,25 @@
 
     {%- if customer -%}
       <div class="b2b-status__datos">
-        <h2 class="b2b-status__datos-heading">Datos que nos diste</h2>
+        <h2 class="b2b-status__datos-heading">{{ 'ledsc4.account.revision.datos_heading' | t }}</h2>
         <dl class="b2b-status__datos-list">
           {%- if customer.metafields.b2b.empresa != blank -%}
-            <dt>Empresa</dt>
+            <dt>{{ 'customer.addresses.company' | t }}</dt>
             <dd>{{ customer.metafields.b2b.empresa }}</dd>
           {%- endif -%}
           {%- if customer.metafields.b2b.nif != blank -%}
-            <dt>NIF / CIF</dt>
+            <dt>{{ 'ledsc4.acceso.form.label_nif' | t }}</dt>
             <dd>{{ customer.metafields.b2b.nif }}</dd>
           {%- endif -%}
           {%- if customer.metafields.b2b.sector != blank -%}
-            <dt>Sector</dt>
+            <dt>{{ 'ledsc4.acceso.form.label_sector' | t }}</dt>
             <dd>{{ customer.metafields.b2b.sector | replace: '_', ' / ' | capitalize }}</dd>
           {%- endif -%}
-          <dt>Email</dt>
+          <dt>{{ 'ledsc4.acceso.form.label_email' | t }}</dt>
           <dd>{{ customer.email }}</dd>
         </dl>
         <p class="b2b-status__correct">
-          ¿Ves un error? Escríbenos a
-          <a href="mailto:{{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}">
-            {{ shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com' }}
-          </a>
-          antes de que aprobemos.
+          {{ 'ledsc4.account.revision.correct_html' | t: email: backoffice_email }}
         </p>
       </div>
     {%- endif -%}
