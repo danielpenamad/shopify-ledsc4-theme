@@ -560,5 +560,46 @@
       "expanded": "Formulario del destinatario de la tarjeta de regalo expandido",
       "collapsed": "Formulario del destinatario de tarjeta de regalo contraído"
     }
+  },
+  "ledsc4": {
+    "product": {
+      "specs": {
+        "familia": "Familia",
+        "catalogo": "Catálogo",
+        "garantia": "Garantía",
+        "garantia_value": "{{ value }} años",
+        "material": "Material",
+        "acabado": "Acabado",
+        "voltaje": "Voltaje",
+        "ancho": "Ancho (mm)",
+        "alto": "Alto (mm)",
+        "largo": "Largo (mm)",
+        "proyeccion": "Proyección (mm)",
+        "fuente_luz": "Fuente de luz",
+        "incluye_bombilla": "Incluye bombilla",
+        "eficiencia_energetica": "Eficiencia energética",
+        "peso_neto": "Peso neto (kg)",
+        "potencia": "Potencia (W)",
+        "lumenes": "Lúmenes (lm)",
+        "lumenes_reales": "Lúmenes reales (lm)",
+        "temperatura_color": "Temperatura de color",
+        "cri": "CRI",
+        "angulo_haz": "Ángulo del haz",
+        "regulacion": "Regulación",
+        "ip": "IP",
+        "ik": "IK",
+        "dimensiones": "Dimensiones"
+      },
+      "documents": {
+        "ficha": "Ficha técnica",
+        "fotometria": "Fotometría",
+        "etiqueta_energetica": "Etiqueta energética",
+        "plano_comercial": "Plano comercial",
+        "accesorio": "Información técnica accesorios",
+        "ies": "Archivo IES",
+        "ldt": "Archivo LDT",
+        "modelo_3d": "Modelo 3D"
+      }
+    }
   }
 }
