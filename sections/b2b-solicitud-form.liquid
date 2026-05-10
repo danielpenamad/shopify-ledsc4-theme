@@ -14,6 +14,12 @@
   assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
   assign hmac_payload = customer_gid | append: ':' | append: now_ts
   assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
+
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
 -%}
 
 <style>
@@ -118,7 +124,9 @@
         const CUSTOMER_ID = {{ customer_gid | json }};
         const TIMESTAMP = {{ now_ts | json }};
         const SIGNATURE = {{ hmac_sig | json }};
-        const LOCALE_PREFIX = {{ routes.root_url | json }};
+        // LOCALE_PREFIX: '' en home, '/fr' en /fr (ver hotfix doc).
+        // Usos: LOCALE_PREFIX + '/path/X' (con slash inicial).
+        const LOCALE_PREFIX = {{ locale_prefix | json }};
 
         const T = {
           submit: {{ 'ledsc4.solicitudes.form.submit' | t | json }},
@@ -224,7 +232,7 @@
             /* no bloqueante */
           }
           const ref = encodeURIComponent(res.draftOrderName || '');
-          window.location.href = LOCALE_PREFIX + 'pages/solicitud-enviada?ref=' + ref;
+          window.location.href = LOCALE_PREFIX + '/pages/solicitud-enviada?ref=' + ref;
         }
 
         form.addEventListener('submit', function (ev) {

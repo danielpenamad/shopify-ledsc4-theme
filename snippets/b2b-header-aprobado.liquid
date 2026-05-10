@@ -14,6 +14,14 @@
   en el editor de tema y simplificar el switch.
 {% endcomment %}
 
+{%- liquid
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+-%}
+
 <header class="b2b-header-aprobado" role="banner">
   <div class="b2b-header-aprobado__inner">
     <a href="{{ routes.root_url }}" class="b2b-header-aprobado__brand" aria-label="LedsC4 Outlet — Inicio">
@@ -27,7 +35,7 @@
     </a>
 
     <nav class="b2b-header-aprobado__nav" aria-label="Cuenta">
-      <a href="{{ routes.root_url }}pages/mis-solicitudes" class="b2b-header-aprobado__link">{{ 'ledsc4.common.cta.mis_solicitudes' | t }}</a>
+      <a href="{{ locale_prefix }}/pages/mis-solicitudes" class="b2b-header-aprobado__link">{{ 'ledsc4.common.cta.mis_solicitudes' | t }}</a>
       <a href="{{ routes.account_logout_url }}" class="b2b-header-aprobado__link b2b-header-aprobado__link--ghost">
         {{ 'customer.log_out' | t }}
       </a>

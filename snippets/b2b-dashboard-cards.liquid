@@ -18,6 +18,14 @@
 {%- assign tiene_menu = false -%}
 {%- if menu_links.size >= 2 -%}{%- assign tiene_menu = true -%}{%- endif -%}
 
+{%- liquid
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+-%}
+
 <div class="b2b-dash-cards {{ dashboard_class }}">
   {%- if tiene_menu -%}
     <ul class="b2b-dash-cards__grid" role="list">
@@ -73,7 +81,7 @@
     </ul>
   {%- else -%}
     {%- assign fallback_count = collections['coleccion-2026'].products_count | default: 0 -%}
-    <a href="{{ routes.root_url }}collections/coleccion-2026" class="b2b-dash-cards__fallback">
+    <a href="{{ locale_prefix }}/collections/coleccion-2026" class="b2b-dash-cards__fallback">
       <div>
         <h3 class="b2b-dash-cards__fallback-title">{{ 'ledsc4.solicitudes.dashboard_cards.fallback_title' | t }}</h3>
         <p class="b2b-dash-cards__fallback-meta">

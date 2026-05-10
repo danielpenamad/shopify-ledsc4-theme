@@ -26,6 +26,12 @@
     when 'pt-PT'
       assign locale_bcp47 = 'pt-PT'
   endcase
+
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
 -%}
 
 <style>
@@ -51,7 +57,7 @@
 </style>
 
 <div class="b2b-detalle">
-  <a href="{{ routes.root_url }}pages/mis-solicitudes" class="b2b-detalle__back">{{ 'ledsc4.solicitudes.detalle.back' | t }}</a>
+  <a href="{{ locale_prefix }}/pages/mis-solicitudes" class="b2b-detalle__back">{{ 'ledsc4.solicitudes.detalle.back' | t }}</a>
 
   <div id="b2b-detalle-loading" class="b2b-detalle__loading">{{ 'ledsc4.solicitudes.detalle.loading' | t }}</div>
   <div id="b2b-detalle-content" style="display:none;"></div>

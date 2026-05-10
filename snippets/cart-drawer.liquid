@@ -8,6 +8,14 @@
 {{ 'quantity-popover.css' | asset_url | stylesheet_tag }}
 {{ 'component-card.css' | asset_url | stylesheet_tag }}
 
+{%- liquid
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+-%}
+
 <script src="{{ 'cart.js' | asset_url }}" defer="defer"></script>
 <script src="{{ 'quantity-popover.js' | asset_url }}" defer="defer"></script>
 
@@ -564,7 +572,7 @@
         {%- comment -%}B2B override (Fase D): link al flujo de solicitud.{%- endcomment -%}
         <div class="cart__ctas" {{ block.shopify_attributes }}>
           <a
-            href="{{ routes.root_url }}pages/solicitud"
+            href="{{ locale_prefix }}/pages/solicitud"
             id="CartDrawer-Checkout"
             class="cart__checkout-button button"
             {% if cart == empty %}aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:0.5;"{% endif %}

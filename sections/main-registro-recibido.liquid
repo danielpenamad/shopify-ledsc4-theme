@@ -12,6 +12,14 @@
 
 {%- assign scheme = section.settings.color_scheme | default: 'dark' -%}
 
+{%- liquid
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+-%}
+
 {%- comment -%}
   Email truncado. El JS pasa "abc…@dominio.com" en el querystring; lo
   defendemos por si llega completo o vacío.
@@ -48,7 +56,7 @@
     </ul>
 
     <div class="b2b-recibido__ctas">
-      <a href="{{ routes.root_url }}pages/acceso-profesional" class="b2b-recibido__btn b2b-recibido__btn--secondary">
+      <a href="{{ locale_prefix }}/pages/acceso-profesional" class="b2b-recibido__btn b2b-recibido__btn--secondary">
         {{ 'ledsc4.registro_recibido.btn_back' | t }}
       </a>
     </div>
