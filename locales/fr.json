@@ -717,7 +717,9 @@
         "login": "Connexion",
         "login_existente": "J'ai déjà un compte · Se connecter",
         "solicitar_acceso": "Demander l'accès",
-        "mis_solicitudes": "Mes demandes"
+        "mis_solicitudes": "Mes demandes",
+        "mas_informacion_arrow": "Plus d'informations →",
+        "ver_estado_arrow": "Voir le statut →"
       },
       "country": {
         "es": "Espagne",
@@ -793,11 +795,89 @@
     "solicitudes": {
       "form": {
         "heading": "Demande de commande",
-        "submit_loading": "Envoi en cours…"
+        "submit_loading": "Envoi en cours…",
+        "lead": "Vérifiez votre commande, ajoutez un commentaire facultatif et envoyez la demande. Notre équipe commerciale examinera votre demande et confirmera la disponibilité, les prix finaux (TVA et frais de port) et les dates dans les prochaines 48 heures ouvrables.",
+        "empty_html": "Votre panier est vide. <a href=\"/collections/coleccion-2026\">Voir le catalogue</a>.",
+        "warn": "* Les prix définitifs seront confirmés par l'équipe commerciale après vérification de la disponibilité et ajustement des volumes.",
+        "comentario_label": "Commentaire ou proposition (facultatif)",
+        "comentario_placeholder": "Ex: J'ai besoin de recevoir la commande avant le 15 mai. Renseignez-vous sur les remises de volume si j'atteins X unités.",
+        "aviso": "J'ai lu que le montant affiché est indicatif et ne comprend pas la TVA ni les frais de port, qui seront confirmés par l'équipe commerciale avant de traiter la commande.",
+        "submit": "Confirmer et envoyer la demande",
+        "cancel": "Retour au panier",
+        "js_errors": {
+          "aviso_required": "Vous devez cocher la case d'avertissement avant de soumettre.",
+          "cart_read_failed": "Le panier n'a pas pu être lu. Veuillez rafraîchir la page et réessayer.",
+          "cart_empty": "Votre panier est vide.",
+          "network": "Erreur réseau lors de l'envoi de la requête : {message}",
+          "recent_request_suffix": "(Votre dernière demande {name} est toujours en cours d'examen.)",
+          "create_failed": "La demande n'a pas pu être créée : {error}. Si le problème persiste, veuillez contacter l'équipe commerciale.",
+          "create_failed_unknown": "erreur inconnue"
+        }
       },
       "enviada": {
-        "heading": "Demande envoyée"
+        "heading": "Demande envoyée",
+        "thanks": "Merci, {{ name }}. Nous avons bien reçu votre demande de commande.",
+        "thanks_fallback_name": "client",
+        "ref_label": "Référence",
+        "next": "Vous recevrez une confirmation par e-mail sous peu. Notre équipe commerciale examinera votre demande dans les prochaines 48 heures ouvrables et vous contactera pour confirmer la disponibilité, les prix finaux et les dates de livraison.",
+        "cta_lista": "Voir mes demandes",
+        "cta_catalogo": "Retour au catalogue"
+      },
+      "status": {
+        "pendiente_revision": "En cours de révision",
+        "en_tramite": "En cours de traitement",
+        "confirmada": "Confirmée",
+        "cancelada": "Annulé"
+      },
+      "table": {
+        "th_producto": "Produit",
+        "th_uds": "Vous.",
+        "th_precio_unit": "Prix unit.",
+        "th_subtotal": "Sous-total",
+        "importe_estimado": "Montant estimé (hors TVA et frais de port)"
+      },
+      "lista": {
+        "loading": "Chargement des requêtes…",
+        "empty_lead": "Vous n'avez pas encore envoyé de demande. Parcourez le catalogue outlet de LEDS C4 et préparez votre première commande – elle apparaîtra ici dès que vous l'aurez envoyée.",
+        "subheading": "Vos demandes",
+        "th_fecha": "Date",
+        "th_ref": "Réf",
+        "th_importe_est": "Montant estimé",
+        "th_estado": "État",
+        "js_errors": {
+          "load": "Erreur lors du chargement des demandes : {message}",
+          "api": "Erreur : {error}"
+        }
+      },
+      "detalle": {
+        "back": "← Mes demandes",
+        "loading": "Chargement de la demande…",
+        "heading": "Demande {name}",
+        "note_label": "Votre commentaire",
+        "footer_note": "Les demandes ne peuvent être ni modifiées ni annulées à partir d'ici. Si vous devez apporter des modifications, veuillez écrire à l'équipe commerciale en citant la référence.",
+        "js_errors": {
+          "missing_ref": "Il manque le paramètre ref dans l'URL.",
+          "load": "Erreur lors du chargement de la requête : {message}",
+          "not_found": "Demande introuvable ou vous n'en êtes pas le propriétaire.",
+          "api": "Erreur : {error}"
+        }
+      },
+      "dashboard_cards": {
+        "producto": {
+          "one": "1 produit",
+          "other": "{{ count }} produits"
+        },
+        "fallback_title": "Voir le catalogue complet",
+        "fallback_meta_count": {
+          "one": "1 produit disponible",
+          "other": "{{ count }} produits disponibles"
+        },
+        "fallback_meta_default": "Stocks excédentaires et déréférencés de LEDS C4"
       }
+    },
+    "cart": {
+      "cta_solicitud": "Envoyer une demande de commande",
+      "disclaimer": "Les prix indiqués sont indicatifs · hors TVA et frais de port · sous réserve de confirmation par notre équipe commerciale"
     }
   }
 }
