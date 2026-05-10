@@ -795,7 +795,9 @@
         "login": "Log in",
         "login_existente": "Already have an account · Log in",
         "solicitar_acceso": "Request Access",
-        "mis_solicitudes": "My applications"
+        "mis_solicitudes": "My applications",
+        "mas_informacion_arrow": "More information →",
+        "ver_estado_arrow": "See status →"
       },
       "country": {
         "es": "Spain",
@@ -865,6 +867,10 @@
       "pdf_ficha_link": "Datasheet",
       "tab_specs": "Specifications",
       "tab_docs": "Documents"
+    },
+    "cart": {
+      "cta_solicitud": "Send purchase order request",
+      "disclaimer": "The prices shown are approximate · do not include VAT or shipping · subject to confirmation by our sales team"
     }
   },
   "shopify": {
