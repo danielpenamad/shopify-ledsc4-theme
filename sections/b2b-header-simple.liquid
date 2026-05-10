@@ -44,12 +44,12 @@
           {{ customer.first_name | default: customer.email | truncate: 24 }}
         </span>
         <a href="{{ routes.account_logout_url }}" class="b2b-header-simple__link">
-          Cerrar sesión
+          {{ 'customer.log_out' | t }}
         </a>
       {%- else -%}
         {%- assign login_return_to = routes.root_url | append: 'pages/mis-solicitudes' | url_encode -%}
         <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-header-simple__link">
-          Iniciar sesión
+          {{ 'ledsc4.common.cta.login' | t }}
         </a>
       {%- endif -%}
     </nav>
