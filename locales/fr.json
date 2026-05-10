@@ -547,5 +547,119 @@
       "expanded": "Formulaire de destinataire de carte-cadeau agrandi",
       "collapsed": "Formulaire de destinataire de carte-cadeau réduit"
     }
+  },
+  "ledsc4": {
+    "acceso": {
+      "como": {
+        "step2_desc": "Approuvé automatiquement en quelques minutes ou examen manuel sous 24 à 48 heures ouvrées.",
+        "step3_title": "Accès au catalogue",
+        "step3_desc": "Vous recevrez un e-mail de bienvenue avec le lien vers le catalogue Outlet."
+      },
+      "dentro": {
+        "heading": "Ce que vous trouverez à l'intérieur",
+        "f1_title": "Catalogue Outlet",
+        "f1_desc_html": "Plus de <strong>745 références</strong> de stocks excédentaires, de fin de série et déréférencées, actualisées chaque semaine.",
+        "f2_title": "Demandes examinées",
+        "f2_desc": "À ce stade, il ne s'agit pas d'un achat direct : chaque demande est validée par un commercial, qui confirme les délais, les quantités minimales et les ajustements possibles avant de finaliser la commande.",
+        "f3_title": "Historique et état",
+        "f3_desc": "Chaque demande est enregistrée dans votre espace privé avec son état actuel : en révision, en cours de traitement, confirmée ou annulée."
+      },
+      "faq": {
+        "heading": "Foire aux questions",
+        "q1_summary": "Dois-je payer quelque chose pour utiliser le portail ?",
+        "q1_body": "Non. L'accès au portail est gratuit pour les professionnels agréés. Vous ne payez que les produits que vous commandez.",
+        "q2_summary": "Combien de temps prend l'approbation ?",
+        "q2_body_html": "Si votre e-mail figure sur la liste des pré-approuvés, quelques minutes. S'il nécessite une révision manuelle, entre <strong>24 et 48 heures ouvrables</strong>. Dans les deux cas, vous recevrez un e-mail avec le résultat.",
+        "q3_summary": "Puis-je acheter directement ?",
+        "q3_body_html": "À ce stade, non. Le portail gère les <strong>demandes de commande</strong> qu'un commercial examine et confirme par e-mail — il peut ajuster les délais, les minimaux ou appliquer des remises avant de finaliser la commande. L'achat direct avec paiement instantané est prévu pour les phases ultérieures.",
+        "q4_summary": "Mon compte fonctionne-t-il aussi sur ledsc4.com ?",
+        "q4_body_html": "Non. Ce compte est exclusivement réservé à l'Outlet B2B. Le compte <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, ouvert au public) est indépendant et géré depuis ce même site web.",
+        "q5_summary": "Que se passe-t-il si je suis refusé ?",
+        "q5_body": "Vous recevrez un e-mail indiquant le motif (données incomplètes, profil non conforme aux critères, etc.). Si vous estimez qu'il y a eu une erreur, vous pouvez contacter l'équipe commerciale en répondant à cet e-mail pour le faire réviser.",
+        "q6_summary": "Comment modifier les données de mon entreprise ?",
+        "q6_body": "Une fois approuvé, vous pouvez consulter vos données dans l'espace privé du portail. Pour les changements sensibles (raison sociale, NIF), veuillez écrire à l'équipe commerciale et nous les mettrons à jour manuellement."
+      },
+      "ctas_lead": "Cela te convient ? Commence par demander l'accès. Si tu as déjà un compte, retourne à ton espace personnel.",
+      "form": {
+        "heading": "Demander l'accès",
+        "step1_html": "<strong>Remplissez vos coordonnées.</strong>",
+        "step2_html": "<strong>Nous vous avons envoyé un e-mail</strong> contenant un lien pour activer votre compte.",
+        "step3_html": "<strong>Nous validons votre profil professionnel</strong> (24-48h ouvrables) et vous prévenons par e-mail lorsqu'il est prêt.",
+        "legend_personales": "Données personnelles",
+        "legend_empresa": "Données de l'entreprise",
+        "label_nombre": "Nom",
+        "label_apellidos": "Nom de famille",
+        "label_email": "Courriel",
+        "label_telefono": "Téléphone",
+        "label_razon_social": "Raison sociale",
+        "label_sector": "Secteur",
+        "label_pais": "Pays",
+        "label_volumen": "Volume annuel estimé",
+        "sector": {
+          "instalador": "Installateur électricien",
+          "arquitecto": "Architecte / Design d'intérieur",
+          "retail": "Détail / Magasin",
+          "distribuidor": "Distributeur",
+          "empresa_final": "Entreprise cliente finale",
+          "otro": "Un autre professionnel du secteur"
+        },
+        "volumen": {
+          "no_decir": "Je préfère ne pas le dire",
+          "lt_5k": "Moins de 5 000 €",
+          "5k_25k": "5 000 - 25 000 €",
+          "25k_100k": "25 000 - 100 000 €",
+          "gt_100k": "Plus de 100 000 €",
+          "no_se": "Je ne sais pas"
+        },
+        "terms_html": "J'ai lu et j'accepte les <a href=\"/pages/condiciones-de-uso\" target=\"_blank\" rel=\"noopener\">conditions d'utilisation</a> et la <a href=\"/pages/politica-de-privacidad\" target=\"_blank\" rel=\"noopener\">politique de confidentialité</a>.",
+        "submit": "Envoyer la demande",
+        "submit_loading": "Envoi en cours…",
+        "err": {
+          "required": "Ce champ est obligatoire.",
+          "email": "E-mail invalide.",
+          "nif": "NIF / CIF / NIE non valide (vérifiez le format et le chiffre de contrôle).",
+          "terms": "Vous devez accepter les conditions pour continuer."
+        },
+        "banner": {
+          "config_missing": "Configuration du thème incomplète. Contactez l'équipe et réessayez plus tard.",
+          "email_exists_html": "Il existe déjà un compte avec cette adresse e-mail. <a href=\"/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes\">Se connecter</a>.",
+          "signature_expired_html": "Votre session de formulaire a expiré. <a href=\"\" onclick=\"window.location.reload(); return false;\">Rechargez la page</a> et réessayez.",
+          "service_unavailable_html": "Service temporairement indisponible. Veuillez réessayer dans quelques minutes. Si le problème persiste, veuillez écrire à <a href=\"mailto:soporte@ledsc4.com\">soporte@ledsc4.com</a>.",
+          "generic_fallback": "Une erreur est survenue lors de l'envoi de la requête. Veuillez réessayer.",
+          "network_error": "Nous n'avons pas pu nous connecter au serveur. Vérifiez votre connexion et réessayez."
+        }
+      }
+    },
+    "portal": {
+      "eyebrow": "Portail B2B · accès exclusif",
+      "heading_html": "Catalogue outlet <em>pour les professionnels</em>",
+      "lead": "Stocks excédentaires et déréférencés de LEDS C4 à prix réduits. Accès limité aux installateurs, architectes, distributeurs et détaillants du secteur de l'éclairage.",
+      "help_link": "Vous avez des doutes concernant l'accès ? Découvrez comment ça marche →",
+      "scroll_hint": "Plus d'infos",
+      "f1_title": "Liquidation de stock",
+      "f1_desc": "Surplus, fins de série et articles discontinués de LEDS C4 à prix réduits. Mise à jour chaque semaine.",
+      "f2_title": "Activation en 24-48h",
+      "f2_desc": "Vous remplissez le formulaire de demande et nous validons vos données professionnelles. Pas de minimums pour la première commande.",
+      "f3_title": "Expédition en Espagne continentale 24-48h",
+      "f3_desc": "Entrepôt ibérique avec stock disponible. Envoi direct et sans intermédiaires pour les commandes professionnelles."
+    },
+    "aprobado_home": {
+      "lead": "Explorez le catalogue outlet de LEDS C4, préparez votre demande de commande et consultez l'état de vos envois.",
+      "solicitudes": {
+        "eyebrow": "Votre activité",
+        "title": "Mes demandes de commande",
+        "desc": "Consultez le statut de vos demandes envoyées, téléchargez les confirmations et examinez l'historique de vos commandes."
+      }
+    },
+    "registro_recibido": {
+      "eyebrow": "Demande envoyée",
+      "heading": "Vérifie tes e-mails",
+      "lead_generic": "Nous vous avons envoyé un e-mail contenant un lien pour activer votre compte.",
+      "lead_with_email_html": "Nous vous avons envoyé un e-mail à <strong>{email}</strong> avec un lien pour activer votre compte.",
+      "note1_html": "Si vous ne le recevez pas dans les <strong>5 minutes</strong>, veuillez vérifier votre dossier de spam ou de promotions.",
+      "note2_html": "Une fois votre compte activé, nous validerons votre profil professionnel dans un délai de <strong>24 à 48 heures ouvrables</strong>.",
+      "note3": "Nous vous tiendrons informé(e) par e-mail de l'état d'avancement, que votre demande soit approuvée ou refusée.",
+      "btn_back": "Retour à l'accueil"
+    }
   }
 }
