@@ -130,11 +130,21 @@
   {
     "ownerType": "PRODUCT",
     "namespace": "product",
+    "key": "accesorio_url",
+    "name": "Información técnica de accesorios",
+    "description": "URL al HTML técnico de accesorios del producto (https://files.ledsc4.com/ft3/<locale>/<sku>.html). Sustituye a product.accesorio (text), conservada como deuda técnica.",
+    "type": "url",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
     "key": "catalogo",
     "name": "Catálogo",
     "description": "Catálogo LedsC4 al que pertenece el producto.",
     "type": "single_line_text_field",
-    "pin": false,
+    "pin": true,
     "access": { "storefront": "PUBLIC_READ" }
   },
   {
@@ -240,6 +250,16 @@
   {
     "ownerType": "PRODUCT",
     "namespace": "product",
+    "key": "fotometria_url",
+    "name": "Fotometría (PDF)",
+    "description": "URL al PDF de fotometría del producto.",
+    "type": "url",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
     "key": "fuente_luz",
     "name": "Fuente de luz",
     "description": "Fuente de luz del producto.",
@@ -255,6 +275,16 @@
     "description": "Garantía del producto.",
     "type": "single_line_text_field",
     "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "ies_url",
+    "name": "Archivo IES",
+    "description": "URL al archivo fotométrico IES del producto.",
+    "type": "url",
+    "pin": false,
     "access": { "storefront": "PUBLIC_READ" }
   },
   {
@@ -300,6 +330,16 @@
   {
     "ownerType": "PRODUCT",
     "namespace": "product",
+    "key": "ldt_url",
+    "name": "Archivo LDT",
+    "description": "URL al archivo fotométrico LDT (EULUMDAT) del producto.",
+    "type": "url",
+    "pin": false,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
     "key": "lumenes",
     "name": "Lúmenes",
     "description": "Lúmenes del producto en lm.",
@@ -325,6 +365,16 @@
     "description": "Material del producto.",
     "type": "single_line_text_field",
     "pin": true,
+    "access": { "storefront": "PUBLIC_READ" }
+  },
+  {
+    "ownerType": "PRODUCT",
+    "namespace": "product",
+    "key": "modelo_3d_url",
+    "name": "Modelo 3D",
+    "description": "URL al archivo de modelo 3D del producto.",
+    "type": "url",
+    "pin": false,
     "access": { "storefront": "PUBLIC_READ" }
   },
   {
