@@ -42,7 +42,11 @@ import {
 } from './lib/shopify-collections.mjs';
 
 const DRY_RUN = process.argv.includes('--dry-run');
-if (!DRY_RUN) requireEnv();
+// requireEnv() es incondicional: dry-run sigue ejecutando TODAS las
+// lecturas (resolver publication, findCollectionByHandle, iterOutletProducts)
+// contra la tienda real. Solo se saltan las escrituras. Si la API/credencial
+// está rota, el dry-run debe explotar igual que el real.
+requireEnv();
 
 // Orden de padres en stdout/log/menú downstream (lo replica setup-cat-menu).
 const PADRES = ['Forlight', 'Architectural', 'Decorative', 'DIY', 'Outdoor'];
@@ -228,9 +232,11 @@ async function processOtros(publicationId, results) {
 async function main() {
   console.log(`${DRY_RUN ? '[dry-run] ' : ''}Building cat-* outlet collections (target catalog: "${CATALOG_PUBLICATION_TITLE}")`);
 
-  const publicationId = DRY_RUN
-    ? 'gid://shopify/Publication/DRY'
-    : await resolvePublicationIdByCatalogTitle(CATALOG_PUBLICATION_TITLE);
+  // dry-run ejercita TODAS las lecturas (resolver publication incluido) —
+  // si esto falla en dry-run, falla igual de pronto que en real. El guard
+  // anterior `DRY_RUN ? GID/DRY : await ...` ocultaba el fallo de
+  // resolvePublicationIdByCatalogTitle y rompía silencioso en producción.
+  const publicationId = await resolvePublicationIdByCatalogTitle(CATALOG_PUBLICATION_TITLE);
   console.log(`Publication GID: ${publicationId}\n`);
 
   const results = [];

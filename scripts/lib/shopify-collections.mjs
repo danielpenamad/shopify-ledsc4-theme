@@ -174,36 +174,53 @@ export async function collectionAddProducts(collectionId, productIds) {
 
 // ─── Publicaciones (catalog "Outlet general") ──────────────────────────────
 
-// Lista publications e intenta casar el título contra `name` o
-// `catalog.title`. B2B catalogs aparecen aquí con un publication asociado.
+/**
+ * Resuelve el publication GID de un B2B catalog por su título.
+ *
+ * IMPORTANTE: "Outlet general" es un B2B catalog (CompanyLocationCatalog),
+ * NO un sales channel publication. La conexión raíz `publications` solo
+ * lista canales nativos (Online Store, Point of Sale, Shop) y NO incluye
+ * los catalogs B2B — por eso una implementación que itere `publications`
+ * fallará con `Seen: ["Online Store","Point of Sale","Shop"]` aunque el
+ * catalog exista perfectamente.
+ *
+ * La ruta correcta es:
+ *   1. catalogs(query: "title:<X>") → CompanyLocationCatalog
+ *   2. node.publication.id (campo solo presente en la unión
+ *      CompanyLocationCatalog; otros catalog kinds no lo tienen).
+ *
+ * Mismo patrón que usan scripts/publish-catalog-products.mjs y
+ * supabase/functions/create-company-for-customer/index.ts.
+ */
 export async function resolvePublicationIdByCatalogTitle(title) {
-  const seenNames = [];
-  let cursor = null;
-  while (true) {
-    const q = `query($after: String) {
-      publications(first: 100, after: $after) {
-        edges {
-          cursor
-          node {
-            id name
-            catalog { id title }
-          }
+  const q = `query($q: String!) {
+    catalogs(first: 50, query: $q) {
+      edges {
+        node {
+          id title
+          ... on CompanyLocationCatalog { publication { id } }
         }
-        pageInfo { hasNextPage endCursor }
       }
-    }`;
-    const d = await gql(q, { after: cursor }, { requestedCost: 50 });
-    for (const e of d.publications.edges) {
-      const n = e.node;
-      seenNames.push(n.catalog?.title ?? n.name);
-      if (n.name === title || n.catalog?.title === title) return n.id;
     }
-    if (!d.publications.pageInfo.hasNextPage) break;
-    cursor = d.publications.pageInfo.endCursor;
+  }`;
+  const d = await gql(q, { q: `title:${title}` }, { requestedCost: 30 });
+  const edges = d.catalogs?.edges ?? [];
+  const node = edges.find((e) => e.node.title === title)?.node;
+  if (!node) {
+    const seen = edges.map((e) => e.node.title);
+    throw new Error(
+      `No B2B catalog matches title "${title}". Seen titles: ${JSON.stringify(seen)}. ` +
+      `If the catalog exists under a different name, fix CATALOG_PUBLICATION_TITLE in this lib. ` +
+      `If it doesn't exist yet, run scripts/setup-b2b-catalog.mjs first.`
+    );
   }
-  throw new Error(
-    `No publication matches catalog title "${title}". Seen: ${JSON.stringify(seenNames)}`
-  );
+  if (!node.publication?.id) {
+    throw new Error(
+      `B2B catalog "${title}" (${node.id}) exists but has no publication. ` +
+      `Run scripts/setup-b2b-catalog.mjs to ensure the publication.`
+    );
+  }
+  return node.publication.id;
 }
 
 export async function isPublishedOn(collectionId, publicationId) {

@@ -30,7 +30,10 @@ import {
 } from './lib/shopify-collections.mjs';
 
 const DRY_RUN = process.argv.includes('--dry-run');
-if (!DRY_RUN) requireEnv();
+// requireEnv() es incondicional: dry-run sigue ejecutando todas las
+// lecturas (collections cat-*, findMenu) contra la tienda real. Si la
+// API/credencial está rota, el dry-run debe explotar igual que el real.
+requireEnv();
 
 // Orden cerrado. cat-otros al final, sin hijos.
 const PADRE_ORDER = [
