@@ -37,6 +37,7 @@
   .b2b-solicitud__field { margin: 0 0 28px 0; }
   .b2b-solicitud__field label { display: block; margin-bottom: 10px; font-weight: 500; font-size: 1.4rem; }
   .b2b-solicitud__field textarea { width: 100%; min-height: 160px; padding: 16px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 1.4rem; line-height: 1.55; resize: vertical; }
+  .b2b-solicitud__hint { font-size: 1.3rem; color: #666; margin: 8px 0 0 0; line-height: 1.5; }
   .b2b-solicitud__checkbox { display: flex; align-items: flex-start; gap: 14px; padding: 20px 24px; background: #f0f5ff; border-left: 3px solid rgb(0, 81, 255); margin: 0 0 32px 0; border-radius: 4px; }
   .b2b-solicitud__checkbox input { margin-top: 5px; flex-shrink: 0; width: 20px; height: 20px; }
   .b2b-solicitud__checkbox label { font-size: 1.4rem; line-height: 1.55; cursor: pointer; }
@@ -105,6 +106,7 @@
       <div class="b2b-solicitud__field">
         <label for="b2b-comentario">{{ 'ledsc4.solicitudes.form.comentario_label' | t }}</label>
         <textarea id="b2b-comentario" name="comentario" maxlength="1000" placeholder="{{ 'ledsc4.solicitudes.form.comentario_placeholder' | t }}"></textarea>
+        <p class="b2b-solicitud__hint">{{ 'ledsc4.solicitudes.form.comentario_hint' | t }}</p>
       </div>
 
       <div class="b2b-solicitud__checkbox">

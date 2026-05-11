@@ -510,6 +510,15 @@
               id="FacetsWrapperMobile"
               class="mobile-facets__main has-submenu gradient"
             >
+              {%- comment -%}
+                Categorías nav en el drawer mobile (PR D, mayo 2026). Solo se
+                renderiza cuando el caller pasa `categories_nav_for` (collection
+                product grid lo pasa, search no — no aplica a resultados).
+              {%- endcomment -%}
+              {%- if categories_nav_for -%}
+                {%- render 'collection-sidebar-nav', current_collection: categories_nav_for -%}
+              {%- endif -%}
+
               {%- if enable_filtering -%}
                 {%- for filter in results.filters -%}
                   {% liquid

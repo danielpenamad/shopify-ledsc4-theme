@@ -128,20 +128,15 @@
                     <span>{{ 'products.product.volume_pricing.note' | t }}</span>
                   </div>
                 {%- endif -%}
-                {%- if cart.taxes_included or cart.duties_included or shop.shipping_policy.body != blank -%}
-                  <div class="product__tax caption rte">
-                    {%- if cart.duties_included and cart.taxes_included -%}
-                      {{ 'products.product.duties_and_taxes_included' | t }}
-                    {%- elsif cart.taxes_included -%}
-                      {{ 'products.product.taxes_included' | t }}
-                    {%- elsif cart.duties_included -%}
-                      {{ 'products.product.duties_included' | t }}
-                    {%- endif -%}
-                    {%- if shop.shipping_policy.body != blank -%}
-                      {{ 'products.product.shipping_policy_html' | t: link: shop.shipping_policy.url }}
-                    {%- endif -%}
-                  </div>
-                {%- endif -%}
+                {%- comment -%}
+                  Nota Dawn "Impuestos incluidos / Política de envío"
+                  eliminada en PR D (mayo 2026): la información fiscal y
+                  de envío del Outlet B2B se comunica en el bloque de
+                  disclaimers del carrito (ledsc4.checkout.disclaimers.body_html
+                  introducido en PR A), no en cada ficha. Las claves
+                  Dawn (products.product.taxes_included, etc.) quedan
+                  huérfanas en locales — coste cero, son estándar.
+                {%- endcomment -%}
                 <div {{ block.shopify_attributes }}>
                   {%- assign product_form_installment_id = 'product-form-installment-' | append: section.id -%}
                   {%- form 'product', product, id: product_form_installment_id, class: 'installment caption-large' -%}
@@ -151,13 +146,19 @@
                 </div>
               {%- when 'inventory' -%}
                 {%- comment -%}
-                  Estado binario de disponibilidad (PR B, mayo 2026): se
-                  elimina el semáforo verde/naranja/gris con rangos y la
-                  visualización del inventory_quantity. Solo
-                  Disponible / No disponible basado en variant.available.
-                  Verde para disponible y gris para no disponible se
-                  mantienen como semántica universal de estado, no como
-                  identidad de marca.
+                  Contador numérico de stock (PR D, mayo 2026): tras feedback
+                  del cliente revertimos el binario puro de PR B y mostramos
+                  el inventory_quantity exacto cuando hay variant.available y
+                  el variant lo tiene tracked (inventory_management == 'shopify').
+                  Sin threshold ni color naranja: solo verde con cifra cuando
+                  hay stock, gris con "No disponible" cuando no.
+
+                  Cuando show_inventory_quantity está desactivado, o el variant
+                  no usa inventory tracking de Shopify, caemos al texto literal
+                  "Disponible" (sin cifra) — mejor que omitir el bloque.
+
+                  Verde/gris son semántica universal de estado, no identidad
+                  de marca: por eso no se sustituyen por el azul corporativo.
                 {%- endcomment -%}
                 <p
                   class="product__inventory{% if block.settings.text_style == 'uppercase' %} caption-with-letter-spacing{% elsif block.settings.text_style == 'subtitle' %} subtitle{% endif %}"
@@ -169,7 +170,17 @@
                     <span class="svg-wrapper" style="color: rgb(62, 214, 96)">
                       {{- 'icon-inventory-status.svg' | inline_asset_content -}}
                     </span>
-                    {{- 'products.product.inventory_in_stock' | t -}}
+                    {%- if block.settings.show_inventory_quantity
+                        and product.selected_or_first_available_variant.inventory_management == 'shopify'
+                        and product.selected_or_first_available_variant.inventory_quantity > 0
+                    -%}
+                      {{-
+                        'products.product.inventory_in_stock_show_count'
+                        | t: quantity: product.selected_or_first_available_variant.inventory_quantity
+                      -}}
+                    {%- else -%}
+                      {{- 'products.product.inventory_in_stock' | t -}}
+                    {%- endif -%}
                   {%- else -%}
                     <span class="svg-wrapper" style="color: rgb(200, 200, 200)">
                       {{- 'icon-inventory-status.svg' | inline_asset_content -}}
@@ -856,6 +867,12 @@
           ],
           "default": "body",
           "label": "t:sections.main-product.blocks.inventory.settings.text_style.label"
+        },
+        {
+          "type": "checkbox",
+          "id": "show_inventory_quantity",
+          "label": "t:sections.main-product.blocks.inventory.settings.show_inventory_quantity.label",
+          "default": true
         }
       ]
     },

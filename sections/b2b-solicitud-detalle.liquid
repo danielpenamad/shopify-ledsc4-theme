@@ -186,7 +186,10 @@
 
         <div class="b2b-detalle__totals">
           <div class="row"><span>${T.importe_estimado}</span><span>${fmtMoney(data.totalPrice)}</span></div>
-          ${cbmTotal ? `<div class="row"><span>${T.cbm_total_label}</span><span>${cbmTotal} m³</span></div>` : ''}
+          ${/* CBM total ocultado en frontend (PR D, mayo 2026): el dato se sigue
+                calculando server-side (custom attribute cbm_total del draft order)
+                pero no se muestra al cliente. Email backoffice 07b sigue mostrándolo
+                hasta el PR de emails. */ ''}
         </div>
 
         ${noteHtml}

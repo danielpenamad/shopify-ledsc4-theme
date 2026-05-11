@@ -684,6 +684,11 @@
         "body_html": ""
       }
     },
+    "collection": {
+      "sidebar": {
+        "categories_label": ""
+      }
+    },
     "portal": {
       "eyebrow": "Portail B2B · accès exclusif",
       "heading_html": "",
@@ -804,6 +809,7 @@
         "warn": "* Les prix définitifs seront confirmés par l'équipe commerciale après vérification de la disponibilité et ajustement des volumes.",
         "comentario_label": "Commentaire ou proposition (facultatif)",
         "comentario_placeholder": "Ex: J'ai besoin de recevoir la commande avant le 15 mai. Renseignez-vous sur les remises de volume si j'atteins X unités.",
+        "comentario_hint": "",
         "aviso": "J'ai lu que le montant affiché est indicatif et ne comprend pas la TVA ni les frais de port, qui seront confirmés par l'équipe commerciale avant de traiter la commande.",
         "submit": "Confirmer et envoyer la demande",
         "cancel": "Retour au panier",

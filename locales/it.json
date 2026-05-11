@@ -554,11 +554,21 @@
         "body_html": ""
       }
     },
+    "collection": {
+      "sidebar": {
+        "categories_label": ""
+      }
+    },
     "portal": {
       "heading_html": "",
       "lead": "",
       "f1_title": "",
       "f1_desc": ""
+    },
+    "solicitudes": {
+      "form": {
+        "comentario_hint": ""
+      }
     }
   }
 }

@@ -1,0 +1,105 @@
+{%- comment -%}
+  Renders a category navigation block for the collection sidebar.
+
+  Source: the same linklist that the storefront header uses (`main-menu`).
+  This keeps a single source of truth — anything Albert reorganises from
+  Online Store → Navigation propagates to header + sidebar simultaneously.
+
+  Active state: relies on Shopify's `link.current`, which evaluates to
+  true when the link target matches the current request URL. Works for
+  both collection links (most common) and any other link in main-menu.
+
+  Param: `current_collection` (Collection, optional) — kept for forward
+  compatibility, not strictly used because `link.current` already covers
+  the active state. Pass it when you have it.
+
+  Usage:
+    {%- render 'collection-sidebar-nav', current_collection: collection -%}
+
+  Layout:
+  - Renders inline (no extra wrapper drawer). The caller decides the
+    positioning context: the desktop sidebar wraps it inside the
+    `<aside class="facets-wrapper">`; the mobile facets drawer also
+    includes it at the top of `mobile-facets__main` via the
+    `categories_nav_for` param of the `facets` snippet.
+{%- endcomment -%}
+
+{%- assign menu_links = linklists['main-menu'].links -%}
+{%- if menu_links != empty -%}
+  {%- style -%}
+    .collection-sidebar-nav {
+      margin: 0 0 2.4rem;
+      padding: 0 0 1.6rem;
+      border-bottom: 1px solid rgba(var(--color-foreground), 0.08);
+    }
+    .collection-sidebar-nav__heading {
+      margin: 0 0 1rem;
+      padding: 0;
+      font-weight: 600;
+      letter-spacing: 0.07rem;
+      text-transform: uppercase;
+    }
+    .collection-sidebar-nav__list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .collection-sidebar-nav__link {
+      display: block;
+      padding: 0.6rem 0;
+      color: rgb(var(--color-foreground));
+      text-decoration: none;
+      font-size: 1.4rem;
+      line-height: 1.4;
+      transition: color 0.15s ease;
+    }
+    .collection-sidebar-nav__link:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .collection-sidebar-nav__link.is-active {
+      color: rgb(0, 81, 255);
+      font-weight: 600;
+    }
+    .collection-sidebar-nav__link:focus-visible {
+      outline: 2px solid rgb(0, 81, 255);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
+    /* Inside the mobile facets drawer the surrounding container already
+       supplies horizontal padding and a divider, so we drop our own
+       bottom border + reduce vertical rhythm to match the rest of the
+       drawer sections. */
+    .mobile-facets__main .collection-sidebar-nav {
+      padding: 1.2rem 1.5rem 0.4rem;
+      margin: 0;
+      border-bottom: 1px solid rgba(var(--color-foreground), 0.08);
+    }
+  {%- endstyle -%}
+
+  <nav
+    class="collection-sidebar-nav"
+    aria-label="{{ 'ledsc4.collection.sidebar.categories_label' | t }}"
+  >
+    <h2 class="collection-sidebar-nav__heading caption-large text-body">
+      {{ 'ledsc4.collection.sidebar.categories_label' | t }}
+    </h2>
+    <ul class="collection-sidebar-nav__list" role="list">
+      {%- for link in menu_links -%}
+        <li class="collection-sidebar-nav__item">
+          <a
+            href="{{ link.url }}"
+            class="collection-sidebar-nav__link{% if link.current %} is-active{% endif %}"
+            {% if link.current %}aria-current="page"{% endif %}
+          >
+            {{ link.title | escape }}
+          </a>
+        </li>
+      {%- endfor -%}
+    </ul>
+  </nav>
+{%- endif -%}

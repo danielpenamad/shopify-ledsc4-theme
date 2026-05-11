@@ -23,7 +23,8 @@
         "inventory": {
           "type": "inventory",
           "settings": {
-            "text_style": "body"
+            "text_style": "body",
+            "show_inventory_quantity": true
           }
         },
         "quantity_selector": {
