@@ -680,17 +680,17 @@
     },
     "checkout": {
       "disclaimers": {
-        "body_html": ""
+        "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Prices are always a Subtotal that does not include taxes.</li><li>Shipping costs will be calculated and invoiced according to LedsC4's customer conditions sheet. They will be reflected in the order confirmation.</li><li>Promotional products cannot be returned. Once the order request has been submitted, our customer service team will confirm the final available quantities; these are limited units that may be subject to variations.</li></ol>"
       }
     },
     "portal": {
       "eyebrow": "B2B Portal · exclusive access",
-      "heading_html": "",
-      "lead": "",
+      "heading_html": "Outlet catalog for professionals",
+      "lead": "Limited access for LedsC4 professional clients.",
       "help_link": "Got questions about access? See how it works →",
       "scroll_hint": "More info",
-      "f1_title": "",
-      "f1_desc": "",
+      "f1_title": "More than 745 references",
+      "f1_desc": "Excess, end-of-line, and discontinued stock synchronized daily.",
       "f2_title": "Sign-up in 24-48h",
       "f2_desc": "You fill out the application form and we validate your professional data. No minimums on the first order.",
       "f3_title": "Peninsula shipping 24-48h",
