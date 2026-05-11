@@ -7,10 +7,9 @@
   que el usuario sepa dónde mirar el invite. NO mostramos el email
   completo (privacidad si comparten pantalla).
 
-  Misma estética que main-acceso-profesional (dark / accent dorado).
+  Misma estética que main-acceso-profesional: paleta light (blanco/negro)
+  con acento corporativo rgb(0, 81, 255). Sin dual scheme (PR A.1).
 {% endcomment %}
-
-{%- assign scheme = section.settings.color_scheme | default: 'dark' -%}
 
 {%- liquid
   # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
@@ -28,7 +27,7 @@
 {%- assign email_param = '' -%}
 
 <section
-  class="b2b-recibido b2b-recibido--{{ scheme }}"
+  class="b2b-recibido"
   aria-labelledby="b2b-recibido-heading"
   style="--b2b-recibido-pad-top: {{ section.settings.padding_top | default: 96 }}px; --b2b-recibido-pad-bottom: {{ section.settings.padding_bottom | default: 80 }}px;"
 >
@@ -105,14 +104,15 @@
 
 <style>
   .b2b-recibido {
-    --bg: #0c0e12;
-    --bg-card: rgba(245, 245, 247, 0.04);
-    --fg: #f5f5f7;
-    --fg-strong: #ffffff;
-    --fg-muted: rgba(245, 245, 247, 0.78);
-    --fg-dim: rgba(245, 245, 247, 0.55);
-    --accent: #d4a84a;
-    --border: rgba(245, 245, 247, 0.10);
+    /* Paleta ledsc4.com — blanco + negro, acento azul corporativo. */
+    --bg: #ffffff;
+    --bg-card: rgba(0, 0, 0, 0.04);
+    --fg: #000000;
+    --fg-strong: #000000;
+    --fg-muted: rgba(0, 0, 0, 0.72);
+    --fg-dim: rgba(0, 0, 0, 0.50);
+    --accent: rgb(0, 81, 255);
+    --border: rgba(0, 0, 0, 0.10);
 
     background: var(--bg);
     color: var(--fg);
@@ -129,17 +129,6 @@
     box-sizing: border-box;
   }
 
-  .b2b-recibido--light {
-    --bg: #fbfaf7;
-    --bg-card: rgba(12, 14, 18, 0.04);
-    --fg: #1a1a1a;
-    --fg-strong: #0c0e12;
-    --fg-muted: rgba(26, 26, 26, 0.78);
-    --fg-dim: rgba(26, 26, 26, 0.55);
-    --accent: #b08725;
-    --border: rgba(26, 26, 26, 0.10);
-  }
-
   .b2b-recibido__inner {
     max-width: 600px;
     width: 100%;
@@ -153,7 +142,7 @@
     width: 5.6rem;
     height: 5.6rem;
     border-radius: 50%;
-    background: rgba(212, 168, 74, 0.15);
+    background: rgba(0, 81, 255, 0.10);
     color: var(--accent);
     margin-bottom: 2rem;
   }
@@ -249,11 +238,8 @@
   }
   .b2b-recibido__btn--secondary:hover {
     border-color: var(--fg);
-    background: rgba(245, 245, 247, 0.04);
+    background: rgba(0, 0, 0, 0.04);
     transform: translateY(-1px);
-  }
-  .b2b-recibido--light .b2b-recibido__btn--secondary:hover {
-    background: rgba(26, 26, 26, 0.04);
   }
 
   @media (max-width: 750px) {
@@ -269,16 +255,6 @@
   "tag": "section",
   "class": "section-b2b-recibido",
   "settings": [
-    {
-      "type": "select",
-      "id": "color_scheme",
-      "label": "Esquema de color",
-      "options": [
-        { "value": "dark", "label": "Oscuro" },
-        { "value": "light", "label": "Claro" }
-      ],
-      "default": "dark"
-    },
     {
       "type": "range",
       "id": "padding_top",
