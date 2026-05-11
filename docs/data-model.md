@@ -184,7 +184,94 @@ actualiza membership automáticamente.
 }
 ```
 
-## 6. Staff role "Backoffice Aprobaciones"
+## 6. Capas de publicación
+
+La visibilidad de productos y colecciones en el storefront B2B se gobierna por
+tres mecanismos independientes. Cada uno responde a una pregunta distinta y
+operan en planos ortogonales: cambiar uno no altera los otros.
+
+| Capa | Pregunta que responde            | Mecanismo                                    | Quién publica aquí                       |
+|------|----------------------------------|----------------------------------------------|------------------------------------------|
+| 1    | ¿Qué puede comprar esta Company? | Catalog B2B `Outlet general` (publication)   | Productos (los 455 con tag `Coleccion:2026`) |
+| 2    | ¿Qué se renderiza en el storefront? | Publication `Online Store` (sales channel) | Colecciones, páginas, blogs              |
+| 3    | ¿Quién puede ver las URLs?       | Gate por tag `aprobado` en `theme.liquid`    | (No es publicación; es control de acceso) |
+
+### Capa 1 — Catalog B2B "Outlet general"
+
+Define qué productos están disponibles para cada Company asignada al catálogo
+(precio + visibilidad de variantes + stock). En el modelo actual, todas las
+Companies cuelgan del único catalog activo y por tanto comparten oferta.
+
+- Tipo: `CompanyLocationCatalog` (B2B nativo).
+- Publication asociada: resuelta dinámicamente vía la conexión `catalogs`
+  filtrando por `title:"Outlet general"`. Ver [scripts/publish-catalog-products.mjs](../scripts/publish-catalog-products.mjs) y
+  [supabase/functions/create-company-for-customer/index.ts](../supabase/functions/create-company-for-customer/index.ts) — usan el mismo patrón.
+- Qué se publica aquí: los 455 productos con tag `Coleccion:2026`, vía
+  `scripts/publish-catalog-products.mjs`.
+- **No** se pueden publicar colecciones aquí (ver anti-patrón abajo).
+
+### Capa 2 — Publication "Online Store"
+
+Es el sales channel nativo de Shopify donde viven las colecciones, las páginas
+y todo lo que el storefront necesita renderizar. Sin esta publicación, una
+colección existe en el admin pero las URLs `/collections/<handle>` devuelven
+404.
+
+- Tipo: sales channel publication; `catalog` es `null` (la distinguen
+  `catalog == null` y `supportsFuturePublishing == true`, exclusivo del Online
+  Store entre los tres canales nativos: Online Store, Point of Sale, Shop).
+- Identificación capability-based (no por nombre — el admin localiza el
+  título: este store lo muestra como `Tienda online`). Ver
+  [scripts/lib/shopify-collections.mjs](../scripts/lib/shopify-collections.mjs)
+  → `resolveOnlineStorePublicationId()`.
+- Qué se publica aquí: las 44 colecciones `cat-*` (5 padres + 38 hijos + 1
+  custom `cat-otros`) y la smart `coleccion-2026`, vía
+  [scripts/setup-cat-collections.mjs](../scripts/setup-cat-collections.mjs).
+
+### Capa 3 — Gate por tag `aprobado` en `theme.liquid`
+
+Las dos capas anteriores deciden qué hay; esta capa decide quién lo ve. El
+tema redirige al login (o a `/account`) cualquier petición a URLs sensibles
+si el `customer` no tiene tag `aprobado`. Customers con tag `pendiente` o
+`rechazado` no pasan el gate.
+
+- URLs gateadas: `/collections/*`, `/products/*` (y, dependiendo del setup,
+  algunas páginas adicionales).
+- Implementación: bloque Liquid en `layout/theme.liquid`. El gate corre en
+  servidor antes de renderizar; no hay forma de saltarlo via JS cliente.
+- No usa Locksmith — la decisión de Fase A fue inlinear el gate en el tema
+  para no añadir app de pago.
+
+### Por qué ortogonalidad
+
+- Un producto puede estar en la **Capa 1** (publicado al catalog B2B) pero
+  no necesita aparecer en ninguna colección de la **Capa 2**: seguirá siendo
+  buscable y comprable por el cliente B2B desde el buscador o por URL directa.
+- Una colección puede vivir en la **Capa 2** sin que ningún producto esté en
+  la **Capa 1**: la página `/collections/<handle>` carga, pero estará vacía o
+  con error de price unavailable para el customer B2B (los productos no están
+  en su catálogo).
+- La **Capa 3** es estrictamente de gating: revoca el acceso del visitante,
+  no la presencia del recurso. Un developer con admin sí puede ver las URLs
+  porque no pasa por el gate.
+
+### Anti-patrón conocido
+
+Intentar publicar colecciones al catalog B2B falla siempre con:
+
+```
+Cannot publish a collection to a publication that does not belong to a
+channel catalog.
+```
+
+Las publications de tipo `CompanyLocationCatalog` aceptan productos pero no
+colecciones — las colecciones son **organización de catálogo** (Capa 2) y
+viven en el Online Store. Si necesitas que un cliente B2B vea
+`/collections/cat-forlight`, asegúrate de que (a) la colección está publicada
+al Online Store y (b) el customer tiene tag `aprobado`. La Capa 1 sólo
+determina qué productos puede comprar dentro de cada colección.
+
+## 7. Staff role "Backoffice Aprobaciones"
 
 Plan Grow ofrece roles custom con toggles granulares. Este rol **solo** gestiona
 altas y aprobaciones B2B. Sin acceso a ventas, productos, finanzas ni analytics.
@@ -216,7 +303,7 @@ altas y aprobaciones B2B. Sin acceso a ventas, productos, finanzas ni analytics.
 > Guardar captura de pantalla de los toggles en `docs/screenshots/` al crear el rol,
 > para que el setup quede reproducible en otro tenant.
 
-## 7. Scripts incluidos
+## 8. Scripts incluidos
 
 | Script                                      | Qué hace                                          |
 |---------------------------------------------|---------------------------------------------------|
@@ -263,14 +350,14 @@ node --env-file=.env.local scripts/publish-catalog-products.mjs
 node --env-file=.env.local scripts/audit-customer-state.js
 ```
 
-## 8. Fuera de alcance en esta fase
+## 9. Fuera de alcance en esta fase
 
 - Flujo de aprobación / rechazo (fase B)
 - Storefront, bloqueo Locksmith, UI de login (fase C)
 - Draft orders, solicitudes, formularios (fase D)
 - Emails transaccionales (fase E transversal)
 
-## 9. Criterios de aceptación (Fase A)
+## 10. Criterios de aceptación (Fase A)
 
 - [x] Metafield definitions definidas en código
 - [x] Metafield definitions aplicadas al store (9/9 aplicadas, idempotencia verificada)
