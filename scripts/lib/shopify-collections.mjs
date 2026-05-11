@@ -7,12 +7,20 @@
 //   - Reglas de smart collection se construyen con buildPadreRuleSet /
 //     buildHijoRuleSet (eje 1: metafield product.catalogo; eje 2: metafield
 //     product.tipo).
-//   - Publicación al catalog "Outlet general" via publishablePublish,
-//     resolviendo dinámicamente el publication GID por título de catalog
-//     (no se hardcodea — distintos stores tienen GIDs distintos).
+//   - Publicación: dos destinos distintos, dos resolvers distintos.
+//       · Collections → Online Store publication. Resolver:
+//         resolveOnlineStorePublicationId() (capability-based, no usa nombre
+//         porque el admin localiza el name — este shop lo tiene como
+//         "Tienda online").
+//       · Productos al catalog B2B → CompanyLocationCatalog publication.
+//         Resolver: resolvePublicationIdByCatalogTitle(CATALOG_PUBLICATION_TITLE).
+//     B2B catalog publications NO aceptan collections — Shopify devuelve
+//     "Cannot publish a collection to a publication that does not belong to
+//     a channel catalog".
 //
 // Consumidores actuales: scripts/setup-cat-collections.mjs,
-// scripts/setup-cat-menu.mjs.
+// scripts/setup-cat-menu.mjs. publish-catalog-products.mjs es autocontenido
+// pero comparte semántica con CATALOG_PUBLICATION_TITLE.
 
 import { gql } from '../_shopify.mjs';
 
@@ -20,6 +28,10 @@ import { gql } from '../_shopify.mjs';
 
 export const COLLECTION_TAG = 'Coleccion:2026';
 export const MIN_SUBNIVEL = 3;
+
+// Título del B2B catalog donde publicamos PRODUCTOS (no colecciones).
+// Lo gobierna scripts/setup-b2b-catalog.mjs. Usado por
+// resolvePublicationIdByCatalogTitle.
 export const CATALOG_PUBLICATION_TITLE = 'Outlet general';
 
 // Metafield definitions IDs (resueltos en Paso 1 — auditoría).
@@ -172,22 +184,81 @@ export async function collectionAddProducts(collectionId, productIds) {
   return d.collectionAddProducts.collection;
 }
 
-// ─── Publicaciones (catalog "Outlet general") ──────────────────────────────
+// ─── Publicaciones (dos destinos: Online Store vs B2B catalog) ────────────
+
+/**
+ * Resuelve el publication GID del Online Store, destino de las collections.
+ *
+ * IMPORTANTE: las collections SOLO se pueden publicar a sales channel
+ * publications (las que no tienen `catalog`). Publicarlas a un B2B
+ * CompanyLocationCatalog devuelve:
+ *   "Cannot publish a collection to a publication that does not belong to
+ *    a channel catalog."
+ *
+ * NO filtramos por `name === "Online Store"` porque el admin localiza el
+ * name según el idioma del staff. En este shop (LedsC4 B2B) el name viene
+ * como "Tienda online", en otros como "Online Store". Filtrar por nombre es
+ * frágil entre tiendas.
+ *
+ * Ruta capability-based (resistente a locale):
+ *   1. publications → iterar los nativos (Online Store, Point of Sale, Shop).
+ *   2. `catalog === null` descarta cualquier publication asociada a un
+ *      catalog B2B/Market/App (esas tienen un catalog no nulo).
+ *   3. `supportsFuturePublishing === true` es exclusivo del Online Store
+ *      entre las tres publications nativas (POS y Shop devuelven false).
+ *      Combinado con (2), identifica unívocamente el Online Store.
+ *
+ * Devuelve el GID. Lanza si no encuentra el Online Store (caso de tienda mal
+ * configurada), listando lo que vio para diagnóstico.
+ */
+export async function resolveOnlineStorePublicationId() {
+  const seen = [];
+  let cursor = null;
+  while (true) {
+    const q = `query($after: String) {
+      publications(first: 100, after: $after) {
+        edges {
+          cursor
+          node {
+            id name
+            supportsFuturePublishing
+            catalog { id }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }`;
+    const d = await gql(q, { after: cursor }, { requestedCost: 50 });
+    for (const e of d.publications.edges) {
+      const n = e.node;
+      const hasCatalog = n.catalog != null;
+      seen.push({
+        id: n.id, name: n.name,
+        supportsFuturePublishing: n.supportsFuturePublishing,
+        hasCatalog,
+      });
+      if (!hasCatalog && n.supportsFuturePublishing === true) return n.id;
+    }
+    if (!d.publications.pageInfo.hasNextPage) break;
+    cursor = d.publications.pageInfo.endCursor;
+  }
+  throw new Error(
+    `No Online Store publication found (looked for catalog=null AND ` +
+    `supportsFuturePublishing=true). Seen: ${JSON.stringify(seen)}.`
+  );
+}
 
 /**
  * Resuelve el publication GID de un B2B catalog por su título.
  *
- * IMPORTANTE: "Outlet general" es un B2B catalog (CompanyLocationCatalog),
- * NO un sales channel publication. La conexión raíz `publications` solo
- * lista canales nativos (Online Store, Point of Sale, Shop) y NO incluye
- * los catalogs B2B — por eso una implementación que itere `publications`
- * fallará con `Seen: ["Online Store","Point of Sale","Shop"]` aunque el
- * catalog exista perfectamente.
+ * Para PRODUCTOS al catalog B2B (lo que hace scripts/publish-catalog-products.mjs
+ * con "Outlet general"). NO para colecciones — esas van al Online Store; ver
+ * resolveOnlineStorePublicationId.
  *
- * La ruta correcta es:
- *   1. catalogs(query: "title:<X>") → CompanyLocationCatalog
- *   2. node.publication.id (campo solo presente en la unión
- *      CompanyLocationCatalog; otros catalog kinds no lo tienen).
+ * IMPORTANTE: la conexión raíz `publications` no incluye los B2B catalogs;
+ * solo enumera sales channels. Hay que entrar por la conexión `catalogs`
+ * y extraer publication.id del fragmento CompanyLocationCatalog (otros
+ * catalog kinds no tienen ese campo).
  *
  * Mismo patrón que usan scripts/publish-catalog-products.mjs y
  * supabase/functions/create-company-for-customer/index.ts.

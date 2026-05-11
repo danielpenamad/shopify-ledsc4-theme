@@ -28,14 +28,13 @@ import {
   slug,
   sleep,
   OTROS_CATALOGOS,
-  CATALOG_PUBLICATION_TITLE,
   buildPadreRuleSet,
   buildHijoRuleSet,
   findCollectionByHandle,
   collectionCreate,
   collectionUpdate,
   collectionAddProducts,
-  resolvePublicationIdByCatalogTitle,
+  resolveOnlineStorePublicationId,
   ensurePublished,
   ruleSetMatches,
   iterOutletProducts,
@@ -234,14 +233,16 @@ async function processOtros(publicationId, results) {
 }
 
 async function main() {
-  console.log(`${DRY_RUN ? '[dry-run] ' : ''}Building cat-* outlet collections (target catalog: "${CATALOG_PUBLICATION_TITLE}")`);
+  console.log(`${DRY_RUN ? '[dry-run] ' : ''}Building cat-* outlet collections (publishing to Online Store)`);
 
+  // Las collections viven en el Online Store publication (no en el catalog
+  // B2B — ese solo acepta productos). Resolver capability-based, ver
+  // resolveOnlineStorePublicationId en lib/shopify-collections.mjs.
+  //
   // dry-run ejercita TODAS las lecturas (resolver publication incluido) —
-  // si esto falla en dry-run, falla igual de pronto que en real. El guard
-  // anterior `DRY_RUN ? GID/DRY : await ...` ocultaba el fallo de
-  // resolvePublicationIdByCatalogTitle y rompía silencioso en producción.
-  const publicationId = await resolvePublicationIdByCatalogTitle(CATALOG_PUBLICATION_TITLE);
-  console.log(`Publication GID: ${publicationId}\n`);
+  // si esto falla en dry-run, falla igual de pronto que en real.
+  const publicationId = await resolveOnlineStorePublicationId();
+  console.log(`Online Store publication GID: ${publicationId}\n`);
 
   const results = [];
 
