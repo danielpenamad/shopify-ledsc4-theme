@@ -34,6 +34,7 @@ import {
   collectionCreate,
   collectionUpdate,
   collectionAddProducts,
+  getCollectionProductIds,
   resolveOnlineStorePublicationId,
   ensurePublished,
   ruleSetMatches,
@@ -201,8 +202,17 @@ async function processOtros(publicationId, results) {
       action = 'create';
     }
 
+    // Idempotencia: collectionAddProducts no acepta GIDs ya presentes
+    // (devuelve error genérico "Error adding <gid> to collection"). Leer
+    // los que ya están y solo añadir el diff. Si la collection se acaba
+    // de crear, el GET devolverá Set vacío y se añadirán los 5.
+    let toAdd = productIds;
     if (!DRY_RUN && productIds.length) {
-      await collectionAddProducts(collection.id, productIds);
+      const existing = await getCollectionProductIds(collection.id);
+      toAdd = productIds.filter((id) => !existing.has(id));
+      if (toAdd.length) {
+        await collectionAddProducts(collection.id, toAdd);
+      }
     }
     const publishAction = DRY_RUN
       ? 'dry'

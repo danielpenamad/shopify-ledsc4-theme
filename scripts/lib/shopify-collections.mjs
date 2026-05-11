@@ -166,6 +166,37 @@ export async function collectionUpdate({ id, title, ruleSet }) {
   return d.collectionUpdate.collection;
 }
 
+/**
+ * Devuelve un Set con los GIDs de productos ya presentes en una custom
+ * collection. Usar para hacer idempotente collectionAddProducts: la
+ * mutation NO es idempotente — añadir un producto que ya está devuelve un
+ * error genérico "Error adding <gid> to collection".
+ *
+ * Pagina por si la collection crece (250 por página). Para cat-otros (5
+ * productos) basta con una página.
+ */
+export async function getCollectionProductIds(collectionId) {
+  const ids = new Set();
+  let cursor = null;
+  while (true) {
+    const q = `query($id: ID!, $after: String) {
+      collection(id: $id) {
+        products(first: 250, after: $after) {
+          edges { cursor node { id } }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }`;
+    const d = await gql(q, { id: collectionId, after: cursor }, { requestedCost: 100 });
+    const conn = d.collection?.products;
+    if (!conn) break;
+    for (const e of conn.edges) ids.add(e.node.id);
+    if (!conn.pageInfo.hasNextPage) break;
+    cursor = conn.pageInfo.endCursor;
+  }
+  return ids;
+}
+
 export async function collectionAddProducts(collectionId, productIds) {
   if (!productIds.length) return null;
   const m = `mutation($id: ID!, $productIds: [ID!]!) {
