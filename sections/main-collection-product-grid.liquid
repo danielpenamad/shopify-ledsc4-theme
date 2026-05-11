@@ -107,12 +107,21 @@
           id="main-collection-filters"
           data-id="{{ section.id }}"
         >
+          {%- comment -%}
+            Categorías (PR D, mayo 2026): nav lateral sobre las facetas, mismo
+            linklist que el header (main-menu). El render mobile va dentro del
+            drawer de facetas via el param `categories_nav_for` del snippet
+            `facets`. Solo aplica en collection grid — search page no lo pasa.
+          {%- endcomment -%}
+          {%- render 'collection-sidebar-nav', current_collection: collection -%}
+
           {% render 'facets',
             results: collection,
             enable_filtering: section.settings.enable_filtering,
             enable_sorting: section.settings.enable_sorting,
             filter_type: section.settings.filter_type,
-            paginate: paginate
+            paginate: paginate,
+            categories_nav_for: collection
           %}
         </aside>
       {%- endif -%}

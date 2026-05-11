@@ -683,6 +683,11 @@
         "body_html": ""
       }
     },
+    "collection": {
+      "sidebar": {
+        "categories_label": ""
+      }
+    },
     "portal": {
       "eyebrow": "B2B Portal · exclusive access",
       "heading_html": "",
@@ -734,6 +739,7 @@
         "warn": "* The sales team will confirm final pricing after reviewing availability and volume adjustments.",
         "comentario_label": "Comment or proposal (optional)",
         "comentario_placeholder": "I need to receive the order before May 15th. Ask me about a volume discount if I reach X units.",
+        "comentario_hint": "",
         "aviso": "I have read that the amount shown is indicative and does not include VAT or shipping costs, which will be confirmed by the sales team before processing the order.",
         "submit": "Confirm and submit application",
         "submit_loading": "Sending…",

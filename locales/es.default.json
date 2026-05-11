@@ -177,7 +177,7 @@
       "value_unavailable": "{{ option_value }}: no disponible",
       "variant_sold_out_or_unavailable": "Variante agotada o no disponible",
       "inventory_in_stock": "Disponible",
-      "inventory_in_stock_show_count": "{{ quantity }} en existencias",
+      "inventory_in_stock_show_count": "{{ quantity }} uds disponibles",
       "inventory_low_stock": "Bajas existencias",
       "inventory_low_stock_show_count": "Bajas existencias: quedan {{ quantity }}",
       "inventory_out_of_stock": "No disponible",
@@ -769,6 +769,11 @@
         "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Los precios son siempre un Subtotal que no incluye impuestos.</li><li>Los gastos de envío serán calculados y emitidos en factura según la ficha de condiciones de cliente de LedsC4. Aparecerán reflejados en la confirmación de pedido.</li><li>Los productos de la promoción no admiten devoluciones. Una vez solicitada la petición de pedido, nuestro equipo de atención al cliente confirmará las cantidades finales disponibles; se trata de unidades limitadas que pueden estar sujetas a variaciones.</li></ol>"
       }
     },
+    "collection": {
+      "sidebar": {
+        "categories_label": "Categorías"
+      }
+    },
     "portal": {
       "eyebrow": "Portal B2B · acceso exclusivo",
       "heading_html": "Catálogo Outlet para profesionales",
@@ -821,6 +826,7 @@
         "warn": "* Los precios definitivos los confirmará el equipo comercial tras revisar disponibilidad y ajustes de volumen.",
         "comentario_label": "Comentario o propuesta (opcional)",
         "comentario_placeholder": "Ej: Necesito recibir el pedido antes del 15 de mayo. Pregúntame por descuento por volumen si llego a X unidades.",
+        "comentario_hint": "Incluye la dirección de envío de tu pedido",
         "aviso": "He leído que el importe mostrado es orientativo y no incluye IVA ni costes de envío, que se confirmarán por el equipo comercial antes de procesar el pedido.",
         "submit": "Confirmar y enviar solicitud",
         "submit_loading": "Enviando…",
