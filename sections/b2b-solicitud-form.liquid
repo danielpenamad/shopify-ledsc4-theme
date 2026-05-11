@@ -75,12 +75,14 @@
         {%- for item in cart.items -%}
           <tr>
             <td>
-              <strong>{{ item.product.title }}</strong>
+              {%- comment -%}
+                Título prefijado con SKU vía product-display-title (PR B).
+                La línea separada "SKU: ..." se eliminó por single source
+                of truth: el SKU ya forma parte del título mostrado.
+              {%- endcomment -%}
+              <strong>{%- render 'product-display-title', product: item.product -%}</strong>
               {%- if item.variant.title != 'Default Title' -%}
                 <br><small style="color:#666;">{{ item.variant.title }}</small>
-              {%- endif -%}
-              {%- if item.variant.sku -%}
-                <br><small style="color:#999;">SKU: {{ item.variant.sku }}</small>
               {%- endif -%}
             </td>
             <td class="num">{{ item.quantity }}</td>

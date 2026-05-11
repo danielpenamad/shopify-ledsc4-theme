@@ -31,14 +31,23 @@
 {%- if customer.tags contains 'aprobado' -%}
 
   {%- comment -%}
-    Cascade fallback con clave i18n al final: si empresa y first_name son blank,
-    cae al string literal 'ledsc4.common.greeting.fallback_bienvenido' que el filtro `| t`
-    final traduce a "Bienvenido". Cuando empresa o first_name tienen valor, `| t`
-    devuelve la propia string (Shopify behavior: si la key no existe, retorna input).
+    Saludo con cascade: empresa → first_name → fallback "Bienvenido".
+
+    El fallback i18n se pre-resuelve en su propia asignación (`| t` aplicado a
+    una clave literal). En la cascade siguiente solo viajan valores ya
+    resueltos — `| t` NO se aplica al resultado final.
+
+    Bug histórico (PR B, mayo 2026): el `| t` venía pegado al fallback dentro
+    de la misma asignación, lo que aplicaba la traducción a todo el resultado
+    de la cascade. Cuando customer.metafields.b2b.empresa traía un nombre real
+    ("Instalaciones Prueba SL"), Shopify intentaba traducir esa cadena como
+    clave i18n y devolvía "Translation missing: es.Instalaciones Prueba SL".
+    Patrón correcto idéntico al de b2b-mis-solicitudes y b2b-account-dashboard.
   {%- endcomment -%}
+  {%- assign fallback_bienvenido = 'ledsc4.common.greeting.fallback_bienvenido' | t -%}
   {%- assign saludo = customer.metafields.b2b.empresa
     | default: customer.first_name
-    | default: 'ledsc4.common.greeting.fallback_bienvenido' | t
+    | default: fallback_bienvenido
   -%}
 
   <section class="b2b-aprobado-home" aria-labelledby="b2b-aprobado-heading">

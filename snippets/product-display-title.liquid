@@ -1,0 +1,27 @@
+{%- comment -%}
+  Renders product title prefixed with the selected/first available variant SKU:
+    "{SKU} – {title}"
+  When the variant has no SKU, returns only the title (no orphan dash).
+  Separator: U+2013 (en dash) with surrounding spaces.
+
+  Output is HTML-escaped via `| escape`, mirroring the original `{{ product.title | escape }}` usages this snippet replaces.
+
+  NOTE: the snippet is purely presentational. It does not mutate product.title,
+  meta tags, JSON-LD, URL handle or Shop App `data-shopify-title` — keep those
+  bound to `product.title` directly.
+
+  Param: `product` (Product object).
+
+  Usage:
+    {%- render 'product-display-title', product: product -%}
+    {%- render 'product-display-title', product: card_product -%}
+    {%- render 'product-display-title', product: item.product -%}
+{%- endcomment -%}
+{%- liquid
+  assign _sku = product.selected_or_first_available_variant.sku
+  if _sku != blank
+    echo _sku | escape
+    echo ' – '
+  endif
+  echo product.title | escape
+-%}

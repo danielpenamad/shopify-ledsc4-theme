@@ -104,10 +104,10 @@
                   <p class="product__type-label">{{ product.type }}</p>
                 {%- endif -%}
                 <div class="product__title" {{ block.shopify_attributes }}>
-                  <h1>{{ product.title | escape }}</h1>
+                  <h1>{%- render 'product-display-title', product: product -%}</h1>
                   <a href="{{ product.url }}" class="product__title">
                     <h2 class="h1">
-                      {{ product.title | escape }}
+                      {%- render 'product-display-title', product: product -%}
                     </h2>
                   </a>
                 </div>
@@ -115,20 +115,13 @@
                   <p class="product__familia">Familia: <strong>{{ product.metafields.product.familia.value }}</strong></p>
                 {%- endif -%}
               {%- when 'price' -%}
-                <div class="product__price-stock-row" style="display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem;">
-                  <div id="price-{{ section.id }}" role="status" {{ block.shopify_attributes }}>
-                    {%- render 'price',
-                      product: product,
-                      use_variant: true,
-                      show_badges: true,
-                      price_class: 'price--large'
-                    -%}
-                  </div>
-                  {%- if product.selected_or_first_available_variant.inventory_management == 'shopify' -%}
-                    <p class="product__stock-inline" id="StockCount-{{ section.id }}">
-                      {{ product.selected_or_first_available_variant.inventory_quantity }} uds
-                    </p>
-                  {%- endif -%}
+                <div id="price-{{ section.id }}" role="status" {{ block.shopify_attributes }}>
+                  {%- render 'price',
+                    product: product,
+                    use_variant: true,
+                    show_badges: true,
+                    price_class: 'price--large'
+                  -%}
                 </div>
                 {%- if product.quantity_price_breaks_configured? -%}
                   <div class="volume-pricing-note" id="Volume-Note-{{ section.id }}">
@@ -157,54 +150,31 @@
                   {%- endform -%}
                 </div>
               {%- when 'inventory' -%}
+                {%- comment -%}
+                  Estado binario de disponibilidad (PR B, mayo 2026): se
+                  elimina el semáforo verde/naranja/gris con rangos y la
+                  visualización del inventory_quantity. Solo
+                  Disponible / No disponible basado en variant.available.
+                  Verde para disponible y gris para no disponible se
+                  mantienen como semántica universal de estado, no como
+                  identidad de marca.
+                {%- endcomment -%}
                 <p
-                  class="product__inventory{% if block.settings.text_style == 'uppercase' %} caption-with-letter-spacing{% elsif block.settings.text_style == 'subtitle' %} subtitle{% endif %}{% if product.selected_or_first_available_variant.inventory_management != 'shopify' %} visibility-hidden{% endif %}"
+                  class="product__inventory{% if block.settings.text_style == 'uppercase' %} caption-with-letter-spacing{% elsif block.settings.text_style == 'subtitle' %} subtitle{% endif %}"
                   {{ block.shopify_attributes }}
                   id="Inventory-{{ section.id }}"
                   role="status"
                 >
-                  {%- if product.selected_or_first_available_variant.inventory_management == 'shopify' -%}
-                    {%- if product.selected_or_first_available_variant.inventory_quantity > 0 -%}
-                      {%- if product.selected_or_first_available_variant.inventory_quantity
-                          <= block.settings.inventory_threshold
-                      -%}
-                        <span class="svg-wrapper" style="color: rgb(238, 148, 65)">
-                          {{- 'icon-inventory-status.svg' | inline_asset_content -}}
-                        </span>
-                        {%- if block.settings.show_inventory_quantity -%}
-                          {{-
-                            'products.product.inventory_low_stock_show_count'
-                            | t: quantity: product.selected_or_first_available_variant.inventory_quantity
-                          -}}
-                        {%- else -%}
-                          {{- 'products.product.inventory_low_stock' | t -}}
-                        {%- endif -%}
-                      {%- else -%}
-                        <span class="svg-wrapper" style="color: rgb(62, 214, 96)">
-                          {{- 'icon-inventory-status.svg' | inline_asset_content -}}
-                        </span>
-                        {%- if block.settings.show_inventory_quantity -%}
-                          {{-
-                            'products.product.inventory_in_stock_show_count'
-                            | t: quantity: product.selected_or_first_available_variant.inventory_quantity
-                          -}}
-                        {%- else -%}
-                          {{- 'products.product.inventory_in_stock' | t -}}
-                        {%- endif -%}
-                      {%- endif -%}
-                    {%- else -%}
-                      {%- if product.selected_or_first_available_variant.inventory_policy == 'continue' -%}
-                        <span class="svg-wrapper" style="color: rgb(62, 214, 96)">
-                          {{- 'icon-inventory-status.svg' | inline_asset_content -}}
-                        </span>
-                        {{- 'products.product.inventory_out_of_stock_continue_selling' | t -}}
-                      {%- else -%}
-                        <span class="svg-wrapper" style="color: rgb(200, 200, 200)">
-                          {{- 'icon-inventory-status.svg' | inline_asset_content -}}
-                        </span>
-                        {{- 'products.product.inventory_out_of_stock' | t -}}
-                      {%- endif -%}
-                    {%- endif -%}
+                  {%- if product.selected_or_first_available_variant.available -%}
+                    <span class="svg-wrapper" style="color: rgb(62, 214, 96)">
+                      {{- 'icon-inventory-status.svg' | inline_asset_content -}}
+                    </span>
+                    {{- 'products.product.inventory_in_stock' | t -}}
+                  {%- else -%}
+                    <span class="svg-wrapper" style="color: rgb(200, 200, 200)">
+                      {{- 'icon-inventory-status.svg' | inline_asset_content -}}
+                    </span>
+                    {{- 'products.product.inventory_out_of_stock' | t -}}
                   {%- endif -%}
                 </p>
               {%- when 'description' -%}
@@ -886,21 +856,6 @@
           ],
           "default": "body",
           "label": "t:sections.main-product.blocks.inventory.settings.text_style.label"
-        },
-        {
-          "type": "range",
-          "id": "inventory_threshold",
-          "label": "t:sections.main-product.blocks.inventory.settings.inventory_threshold.label",
-          "min": 0,
-          "max": 100,
-          "step": 1,
-          "default": 10
-        },
-        {
-          "type": "checkbox",
-          "id": "show_inventory_quantity",
-          "label": "t:sections.main-product.blocks.inventory.settings.show_inventory_quantity.label",
-          "default": true
         }
       ]
     },
