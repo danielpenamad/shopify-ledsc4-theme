@@ -259,6 +259,10 @@ function makeModelWithMetafieldTranslations() {
 
 function testMfBatches_groupsByMetafieldAcrossLocales() {
   console.log('Test 13: buildMetafieldTranslationBatches — groups by metafield across locales');
+  // PR-PIPELINE-A (mayo 2026): la guarda "skip if value === esValue" se
+  // eliminó. Esta prueba ahora cuenta TODOS los locales con valor no-vacío,
+  // incluidos los idénticos a ES (que antes se omitían). Ver buildMetafield-
+  // TranslationBatches comentario interno.
   const model = makeModelWithMetafieldTranslations();
   const productMetafields = [
     { id: 'gid://shopify/Metafield/1001', namespace: 'product', key: 'tipo' },
@@ -274,23 +278,47 @@ function testMfBatches_groupsByMetafieldAcrossLocales() {
   ]);
   const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
 
-  // Only `tipo` ends up with non-empty, non-equal-to-ES values across locales.
-  // familia and catalogo are equal to ES in every locale → skipped entirely.
-  // cri is not in any translations[locale].metafields (not translatable) → no batch.
-  assert(batches.length === 1, `expected 1 batch (only tipo has translatable diffs), got ${batches.length}: ${JSON.stringify(batches.map((b) => b.resourceId))}`);
-  const b = batches[0];
-  assert(b.resourceId === 'gid://shopify/Metafield/1001', `expected tipo's GID, got ${b.resourceId}`);
-  // tipo: en=Bath, fr=Salle de bains, de=Bad, it=Bagno, pt-PT=Casa de banho → 5 entries
-  assert(b.translations.length === 5, `expected 5 locale entries for tipo, got ${b.translations.length}: ${JSON.stringify(b.translations.map((t) => t.locale + '=' + t.value))}`);
-  for (const t of b.translations) {
-    assert(t.key === 'value', `expected key='value', got '${t.key}'`);
-    assert(t.translatableContentDigest === 'd-tipo', `expected tipo digest`);
-    assert(['en', 'fr', 'de', 'it', 'pt-PT'].includes(t.locale), `expected valid locale, got ${t.locale}`);
+  // Expected post-guard-removal:
+  //   tipo:      en, fr, de, it, pt-PT → 5 entries (all differ from ES)
+  //   familia:   en (same as ES), fr (same as ES) → 2 entries (de is empty
+  //              and skipped; it and pt-PT don't include familia at all)
+  //   catalogo:  en (same as ES) → 1 entry (fr/de/it/pt-PT don't include
+  //              catalogo at all)
+  //   cri:       not translatable → no batch
+  // Total: 3 batches.
+  assert(batches.length === 3, `expected 3 batches (tipo/familia/catalogo), got ${batches.length}: ${JSON.stringify(batches.map((b) => b.resourceId))}`);
+
+  const tipoBatch = batches.find((b) => b.resourceId === 'gid://shopify/Metafield/1001');
+  assert(tipoBatch != null, 'expected tipo batch');
+  assert(tipoBatch.translations.length === 5, `expected 5 locale entries for tipo, got ${tipoBatch.translations.length}`);
+  for (const t of tipoBatch.translations) {
+    assert(t.key === 'value', `tipo: expected key='value', got '${t.key}'`);
+    assert(t.translatableContentDigest === 'd-tipo', `tipo: expected digest 'd-tipo'`);
+    assert(['en', 'fr', 'de', 'it', 'pt-PT'].includes(t.locale), `tipo: bad locale ${t.locale}`);
   }
+
+  const familiaBatch = batches.find((b) => b.resourceId === 'gid://shopify/Metafield/1002');
+  assert(familiaBatch != null, 'expected familia batch (same-as-ES values now included)');
+  assert(familiaBatch.translations.length === 2, `expected 2 locale entries for familia (en+fr same-as-ES, de empty, others absent), got ${familiaBatch.translations.length}`);
+  const familiaLocales = familiaBatch.translations.map((t) => t.locale).sort();
+  assert(JSON.stringify(familiaLocales) === '["en","fr"]', `familia: expected locales [en, fr], got ${JSON.stringify(familiaLocales)}`);
+  for (const t of familiaBatch.translations) {
+    assert(t.value === 'Toilet Slim', `familia: expected value 'Toilet Slim' (same as ES, included), got '${t.value}'`);
+  }
+
+  const catalogoBatch = batches.find((b) => b.resourceId === 'gid://shopify/Metafield/1003');
+  assert(catalogoBatch != null, 'expected catalogo batch (same-as-ES value now included)');
+  assert(catalogoBatch.translations.length === 1, `expected 1 locale entry for catalogo (only en defined), got ${catalogoBatch.translations.length}`);
+  assert(catalogoBatch.translations[0].locale === 'en', `catalogo: expected locale 'en', got '${catalogoBatch.translations[0].locale}'`);
+  assert(catalogoBatch.translations[0].value === 'Decorative', `catalogo: expected value 'Decorative' (same as ES, included), got '${catalogoBatch.translations[0].value}'`);
 }
 
 function testMfBatches_skipsEmptyValues() {
   console.log('Test 14: buildMetafieldTranslationBatches — skips empty per-locale values');
+  // PR-PIPELINE-A (mayo 2026): post-guard-removal. Esta prueba sigue
+  // demostrando que valores vacíos se omiten, pero ahora familia SÍ tiene
+  // batch (las entradas en+fr coinciden con ES y antes se omitían; ahora
+  // se incluyen).
   const model = makeModelWithMetafieldTranslations();
   const productMetafields = [
     { id: 'gid://shopify/Metafield/2001', namespace: 'product', key: 'tipo' },
@@ -301,13 +329,22 @@ function testMfBatches_skipsEmptyValues() {
     ['gid://shopify/Metafield/2002', 'd-familia'],
   ]);
   const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
-  // familia: only DE is set (and it's empty), others equal ES → skip entirely
   const familiaBatch = batches.find((b) => b.resourceId === 'gid://shopify/Metafield/2002');
-  assert(familiaBatch == null, `expected NO familia batch (all locales empty or equal to ES), got: ${JSON.stringify(familiaBatch)}`);
+  assert(familiaBatch != null, `expected familia batch (en+fr same-as-ES are included now), got: ${JSON.stringify(familiaBatch)}`);
+  // de=empty is dropped — only en and fr survive.
+  const familiaLocales = familiaBatch.translations.map((t) => t.locale).sort();
+  assert(JSON.stringify(familiaLocales) === '["en","fr"]', `familia: expected locales [en, fr] (de dropped because empty), got ${JSON.stringify(familiaLocales)}`);
 }
 
-function testMfBatches_skipsValuesEqualToEs() {
-  console.log('Test 15: buildMetafieldTranslationBatches — skips locale value equal to ES');
+function testMfBatches_includesValuesEqualToEs() {
+  console.log('Test 15: buildMetafieldTranslationBatches — INCLUDES locale value equal to ES (regression guard, PR-PIPELINE-A)');
+  // PR-PIPELINE-A (mayo 2026): éste es el test diametralmente opuesto al
+  // original "skipsValuesEqualToEs". El bug que motiva la inversión:
+  // `catalogo: Forlight` viene idéntico en los 6 locales del CSV de SFTP.
+  // La guarda antigua omitía la mutación FR (porque value === esValue),
+  // dejaba un hueco en Shopify, y T&A escribía "Pour la lumière" en FR.
+  // Ahora SÍ escribimos la traducción aunque coincida con ES, para que el
+  // valor del SFTP siempre prevalezca.
   const model = makeModelWithMetafieldTranslations();
   const productMetafields = [
     { id: 'gid://shopify/Metafield/3001', namespace: 'product', key: 'catalogo' },
@@ -316,27 +353,29 @@ function testMfBatches_skipsValuesEqualToEs() {
     ['gid://shopify/Metafield/3001', 'd-catalogo'],
   ]);
   const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
-  // catalogo is "Decorative" in ES and "Decorative" in EN (only locale present)
-  // so the only translation entry would be a no-op → batch must be omitted.
-  assert(batches.length === 0, `expected 0 batches (catalogo identical to ES), got ${batches.length}`);
+  assert(batches.length === 1, `expected 1 batch (catalogo with en=Decorative, even though same as ES), got ${batches.length}`);
+  const b = batches[0];
+  assert(b.translations.length === 1, `expected 1 entry (only en is defined in translations), got ${b.translations.length}`);
+  assert(b.translations[0].locale === 'en', `expected locale 'en', got '${b.translations[0].locale}'`);
+  assert(b.translations[0].value === 'Decorative', `expected value 'Decorative' (= ES, included to block T&A auto-translate), got '${b.translations[0].value}'`);
 }
 
 function testMfBatches_skipsMetafieldsMissingFromProduct() {
   console.log('Test 16: buildMetafieldTranslationBatches — defensive: skips metafields not in productMetafields');
+  // PR-PIPELINE-A (mayo 2026): post-guard-removal. Esta prueba sigue
+  // demostrando que se ignoran metafields que el productSet no devolvió,
+  // pero ahora familia genera un batch (en+fr same-as-ES, antes 0).
   const model = makeModelWithMetafieldTranslations();
-  // productSet returned only "familia"; "tipo" is missing (e.g. not yet propagated).
   const productMetafields = [
     { id: 'gid://shopify/Metafield/4001', namespace: 'product', key: 'familia' },
   ];
   const digests = new Map([['gid://shopify/Metafield/4001', 'd-familia']]);
   const batches = buildMetafieldTranslationBatches(model, productMetafields, digests);
-  // Even though model.translations.en.metafields has tipo, no batch is emitted
-  // because the metafield's GID is unknown.
-  for (const b of batches) {
-    assert(b.resourceId !== 'gid://shopify/Metafield/4001-tipo-fake', 'must not invent tipo gid');
-  }
-  // familia entries are all skipped (empty or equal-to-ES) so no batch at all.
-  assert(batches.length === 0, `expected 0 batches when only familia exists and all values are empty/equal-to-ES, got ${batches.length}`);
+  // tipo está en model.translations pero NO en productMetafields → ignorado.
+  // familia sí está → su batch incluye los 2 locales con valor (en, fr).
+  assert(batches.length === 1, `expected 1 batch (only familia exists in productMetafields), got ${batches.length}`);
+  assert(batches[0].resourceId === 'gid://shopify/Metafield/4001', `expected familia GID, got ${batches[0].resourceId}`);
+  assert(batches[0].translations.length === 2, `expected familia to have 2 entries (en+fr), got ${batches[0].translations.length}`);
 }
 
 function testMfBatches_skipsWhenDigestMissing() {
@@ -1378,7 +1417,7 @@ async function main() {
   testBuildTranslations_noShopContent();
   testMfBatches_groupsByMetafieldAcrossLocales();
   testMfBatches_skipsEmptyValues();
-  testMfBatches_skipsValuesEqualToEs();
+  testMfBatches_includesValuesEqualToEs();
   testMfBatches_skipsMetafieldsMissingFromProduct();
   testMfBatches_skipsWhenDigestMissing();
   testMfBatches_ignoresNonProductNamespace();
