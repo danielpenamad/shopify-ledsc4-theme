@@ -240,11 +240,6 @@ export function buildMetafieldTranslationBatches(model, productMetafields, diges
     if (mf.namespace === 'product') gidByKey.set(mf.key, mf.id);
   }
 
-  const esValueByKey = new Map();
-  for (const mf of model.product.metafields) {
-    if (mf.namespace === 'product') esValueByKey.set(mf.key, String(mf.value ?? ''));
-  }
-
   const translatableKeys = new Set();
   for (const locale of TRANSLATION_LOCALES) {
     const t = model.translations[locale];
@@ -258,7 +253,6 @@ export function buildMetafieldTranslationBatches(model, productMetafields, diges
     if (!gid) continue;
     const digest = digestByResourceId.get(gid);
     if (!digest) continue;
-    const esValue = esValueByKey.get(key) ?? '';
 
     const translations = [];
     for (const locale of TRANSLATION_LOCALES) {
@@ -268,7 +262,17 @@ export function buildMetafieldTranslationBatches(model, productMetafields, diges
       if (!mf) continue;
       const value = String(mf.value ?? '').trim();
       if (value === '') continue;
-      if (value === esValue.trim()) continue;
+      // PR-PIPELINE-A (mayo 2026): la guarda histórica
+      //   `if (value === esValue.trim()) continue;`
+      // se eliminó. Saltarse mutaciones cuando el valor del locale coincide
+      // con el de ES dejaba un "hueco" en Shopify que T&A rellenaba con
+      // auto-translate. Bug reportado: `catalogo: Forlight` (idéntico en
+      // los 6 locales del CSV de SFTP) acababa apareciendo como
+      // "Pour la lumière" en FR. Ahora escribimos siempre la traducción —
+      // aunque coincida con ES — para que el valor del SFTP siempre prevalezca
+      // sobre el auto-translate de T&A. Coste: ~+30-40% mutations por full
+      // sync; sigue dentro del budget observado (run 8-may: 498s para 453
+      // SKUs / 9069 entries; +40% → ~700s para ~12700 entries). NO restaurar.
       translations.push({
         locale,
         key: 'value',
