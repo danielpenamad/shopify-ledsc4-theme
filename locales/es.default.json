@@ -705,8 +705,6 @@
         "q1_body": "No. El acceso al portal es gratuito para profesionales aprobados. Pagas únicamente los productos que pidas.",
         "q2_summary": "¿Cuánto tarda la aprobación?",
         "q2_body_html": "Si tu email está en la lista de pre-aprobados, minutos. Si requiere revisión manual, entre <strong>24 y 48 horas hábiles</strong>. En ambos casos te llega un email con el resultado.",
-        "q3_summary": "¿Puedo comprar directamente?",
-        "q3_body_html": "En esta fase, no. El portal gestiona <strong>solicitudes de pedido</strong> que un comercial revisa y confirma por email — puede ajustar plazos, mínimos o aplicar descuentos antes de cerrar el pedido. La compra directa con checkout instantáneo está prevista para fases posteriores.",
         "q4_summary": "¿Mi cuenta sirve también en ledsc4.com?",
         "q4_body_html": "No. Esta cuenta es exclusiva del Outlet B2B. La cuenta de <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, abierta al público) es independiente y se gestiona desde esa misma web.",
         "q5_summary": "¿Qué pasa si me rechazan?",
@@ -766,14 +764,19 @@
         }
       }
     },
+    "checkout": {
+      "disclaimers": {
+        "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Los precios son siempre un Subtotal que no incluye impuestos.</li><li>Los gastos de envío serán calculados y emitidos en factura según la ficha de condiciones de cliente de LedsC4. Aparecerán reflejados en la confirmación de pedido.</li><li>Los productos de la promoción no admiten devoluciones. Una vez solicitada la petición de pedido, nuestro equipo de atención al cliente confirmará las cantidades finales disponibles; se trata de unidades limitadas que pueden estar sujetas a variaciones.</li></ol>"
+      }
+    },
     "portal": {
       "eyebrow": "Portal B2B · acceso exclusivo",
-      "heading_html": "Catálogo outlet <em>para profesionales</em>",
-      "lead": "Stocks excedentes y descatalogados de LEDS C4 a precios reducidos. Acceso limitado a instaladores, arquitectos, distribuidores y retail del sector de la iluminación.",
+      "heading_html": "Catálogo Outlet para profesionales",
+      "lead": "Acceso limitado a clientes profesionales de LedsC4.",
       "help_link": "¿Tienes dudas sobre el acceso? Mira cómo funciona →",
       "scroll_hint": "Más info",
-      "f1_title": "Stock outlet",
-      "f1_desc": "Excedentes, fin de serie y descatalogados de LEDS C4 a precios reducidos. Actualizado cada semana.",
+      "f1_title": "Más de 745 referencias",
+      "f1_desc": "Stocks excedentes, fin de serie y descatalogados sincronizados diariamente.",
       "f2_title": "Alta en 24-48h",
       "f2_desc": "Rellenas el formulario de solicitud y validamos tus datos profesionales. Sin mínimos en el primer pedido.",
       "f3_title": "Envío península 24-48h",

@@ -535,5 +535,18 @@
       "expanded": "Formular für den Empfänger des Gutscheins erweitert",
       "collapsed": "Formular für den Empfänger des Gutscheins minimiert"
     }
+  },
+  "ledsc4": {
+    "checkout": {
+      "disclaimers": {
+        "body_html": ""
+      }
+    },
+    "portal": {
+      "heading_html": "",
+      "lead": "",
+      "f1_title": "",
+      "f1_desc": ""
+    }
   }
 }

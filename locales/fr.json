@@ -598,8 +598,6 @@
         "q1_body": "Non. L'accès au portail est gratuit pour les professionnels agréés. Vous ne payez que les produits que vous commandez.",
         "q2_summary": "Combien de temps prend l'approbation ?",
         "q2_body_html": "Si votre e-mail figure sur la liste des pré-approuvés, quelques minutes. S'il nécessite une révision manuelle, entre <strong>24 et 48 heures ouvrables</strong>. Dans les deux cas, vous recevrez un e-mail avec le résultat.",
-        "q3_summary": "Puis-je acheter directement ?",
-        "q3_body_html": "À ce stade, non. Le portail gère les <strong>demandes de commande</strong> qu'un commercial examine et confirme par e-mail — il peut ajuster les délais, les minimaux ou appliquer des remises avant de finaliser la commande. L'achat direct avec paiement instantané est prévu pour les phases ultérieures.",
         "q4_summary": "Mon compte fonctionne-t-il aussi sur ledsc4.com ?",
         "q4_body_html": "Non. Ce compte est exclusivement réservé à l'Outlet B2B. Le compte <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, ouvert au public) est indépendant et géré depuis ce même site web.",
         "q5_summary": "Que se passe-t-il si je suis refusé ?",
@@ -681,14 +679,19 @@
         "note_html": "Pour valider votre activité, nous avons besoin d'une <strong>raison sociale active</strong> et d'un <strong>NIF/CIF/NIE valide</strong>. L'enregistrement demande également le secteur d'activité, le pays et, facultativement, le volume annuel estimé afin de nous aider à dimensionner le service."
       }
     },
+    "checkout": {
+      "disclaimers": {
+        "body_html": ""
+      }
+    },
     "portal": {
       "eyebrow": "Portail B2B · accès exclusif",
-      "heading_html": "Catalogue outlet <em>pour les professionnels</em>",
-      "lead": "Stocks excédentaires et déréférencés de LEDS C4 à prix réduits. Accès limité aux installateurs, architectes, distributeurs et détaillants du secteur de l'éclairage.",
+      "heading_html": "",
+      "lead": "",
       "help_link": "Vous avez des doutes concernant l'accès ? Découvrez comment ça marche →",
       "scroll_hint": "Plus d'infos",
-      "f1_title": "Liquidation de stock",
-      "f1_desc": "Surplus, fins de série et articles discontinués de LEDS C4 à prix réduits. Mise à jour chaque semaine.",
+      "f1_title": "",
+      "f1_desc": "",
       "f2_title": "Activation en 24-48h",
       "f2_desc": "Vous remplissez le formulaire de demande et nous validons vos données professionnelles. Pas de minimums pour la première commande.",
       "f3_title": "Expédition en Espagne continentale 24-48h",

@@ -194,11 +194,6 @@
     </details>
 
     <details class="b2b-acceso__faq">
-      <summary>{{ 'ledsc4.acceso.faq.q3_summary' | t }}</summary>
-      <p>{{ 'ledsc4.acceso.faq.q3_body_html' | t }}</p>
-    </details>
-
-    <details class="b2b-acceso__faq">
       <summary>{{ 'ledsc4.acceso.faq.q4_summary' | t }}</summary>
       <p>{{ 'ledsc4.acceso.faq.q4_body_html' | t }}</p>
     </details>
@@ -311,19 +306,15 @@
             <input type="text" name="nif" id="reg-nif" required maxlength="20" autocapitalize="characters" spellcheck="false">
             <span class="b2b-acceso__field-error" data-field="nif" hidden></span>
           </div>
-          <div class="b2b-acceso__field">
-            <label for="reg-sector">{{ 'ledsc4.acceso.form.label_sector' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
-            <select name="sector" id="reg-sector" required>
-              <option value="" disabled selected>{{ 'ledsc4.common.form.option_select' | t }}</option>
-              <option value="instalador">{{ 'ledsc4.acceso.form.sector.instalador' | t }}</option>
-              <option value="arquitecto_interiorismo">{{ 'ledsc4.acceso.form.sector.arquitecto' | t }}</option>
-              <option value="retail_tienda">{{ 'ledsc4.acceso.form.sector.retail' | t }}</option>
-              <option value="distribuidor">{{ 'ledsc4.acceso.form.sector.distribuidor' | t }}</option>
-              <option value="empresa_final">{{ 'ledsc4.acceso.form.sector.empresa_final' | t }}</option>
-              <option value="otro">{{ 'ledsc4.acceso.form.sector.otro' | t }}</option>
-            </select>
-            <span class="b2b-acceso__field-error" data-field="sector" hidden></span>
-          </div>
+          {%- comment -%}
+            Sector eliminado del UI (PR A, mayo 2026). Mantenemos un hidden
+            con valor "otro" para que la edge function `register-b2b-customer`
+            (que valida sector ∈ SECTOR_ENUM y popula el metafield b2b.sector)
+            siga funcionando sin cambios server-side. El metafield queda
+            poblado con "otro" hasta que el equipo decida si lo retira del
+            esquema o lo deja como histórico.
+          {%- endcomment -%}
+          <input type="hidden" name="sector" value="otro">
           <div class="b2b-acceso__field">
             <label for="reg-pais">{{ 'ledsc4.acceso.form.label_pais' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
             <select name="pais" id="reg-pais" required>
