@@ -669,8 +669,6 @@
         "q1_body": "No. Access to the portal is free for approved professionals. You only pay for the products you order.",
         "q2_summary": "How long does approval take?",
         "q2_body_html": "If your email is on the pre-approved list, it will take minutes. If it requires manual review, it will take between <strong>24 and 48 business hours</strong>. In both cases, you will receive an email with the result.",
-        "q3_summary": "Can I buy directly?",
-        "q3_body_html": "<p>Not at this stage. The portal handles <strong>purchase requests</strong> that a sales representative reviews and confirms via email—they can adjust deadlines, minimums, or apply discounts before closing the order. Direct purchase with instant checkout is planned for later stages.</p>",
         "q4_summary": "Does my account also work on ledsc4.com?",
         "q4_body_html": "No. This account is exclusive to the B2B Outlet. The <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, open to the public) account is independent and managed from that website.",
         "q5_summary": "What if I'm rejected?",
@@ -680,13 +678,19 @@
       },
       "ctas_lead": "Does this work for you? Start by requesting access. If you already have an account, return to your private area."
     },
+    "checkout": {
+      "disclaimers": {
+        "body_html": ""
+      }
+    },
     "portal": {
       "eyebrow": "B2B Portal · exclusive access",
-      "heading_html": "Outlet catalog <em>for professionals</em>",
-      "lead": "Surplus and discontinued LEDS C4 stock at reduced prices. Limited access for installers, architects, distributors, and lighting sector retailers.",
+      "heading_html": "",
+      "lead": "",
       "help_link": "Got questions about access? See how it works →",
       "scroll_hint": "More info",
-      "f1_desc": "Surplus, end-of-series, and discontinued LEDS C4 products at reduced prices. Updated weekly.",
+      "f1_title": "",
+      "f1_desc": "",
       "f2_title": "Sign-up in 24-48h",
       "f2_desc": "You fill out the application form and we validate your professional data. No minimums on the first order.",
       "f3_title": "Peninsula shipping 24-48h",
