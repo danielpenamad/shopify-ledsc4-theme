@@ -123,7 +123,7 @@ export async function collectionCreate({ handle, title, ruleSet }) {
         productsCount { count }
         ruleSet { appliedDisjunctively rules { column relation condition } }
       }
-      userErrors { field message code }
+      userErrors { field message }
     }
   }`;
   const input = { title, handle };
@@ -142,7 +142,7 @@ export async function collectionUpdate({ id, title, ruleSet }) {
         productsCount { count }
         ruleSet { appliedDisjunctively rules { column relation condition } }
       }
-      userErrors { field message code }
+      userErrors { field message }
     }
   }`;
   const input = { id };
@@ -333,7 +333,7 @@ export async function menuCreate({ handle = MENU_HANDLE, title, items }) {
   const m = `mutation($title: String!, $handle: String!, $items: [MenuItemCreateInput!]!) {
     menuCreate(title: $title, handle: $handle, items: $items) {
       menu { id handle title }
-      userErrors { field message code }
+      userErrors { field message }
     }
   }`;
   const d = await gql(m, { title, handle, items }, { requestedCost: 80 });
@@ -346,7 +346,7 @@ export async function menuUpdate({ id, handle = MENU_HANDLE, title, items }) {
   const m = `mutation($id: ID!, $title: String!, $handle: String!, $items: [MenuItemUpdateInput!]!) {
     menuUpdate(id: $id, title: $title, handle: $handle, items: $items) {
       menu { id handle title }
-      userErrors { field message code }
+      userErrors { field message }
     }
   }`;
   const d = await gql(m, { id, title, handle, items }, { requestedCost: 80 });
