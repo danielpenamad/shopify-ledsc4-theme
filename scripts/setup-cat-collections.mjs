@@ -51,14 +51,18 @@ requireEnv();
 // Orden de padres en stdout/log/menú downstream (lo replica setup-cat-menu).
 const PADRES = ['Forlight', 'Architectural', 'Decorative', 'DIY', 'Outdoor'];
 
-// Conteos esperados por padre (suma de hijos top + tipos sub-umbral).
-// Fuente: Paso 1 audit. Solo informativos para el WARN; no se usan en reglas.
+// Conteos esperados por padre: TOTAL de productos del outlet en ese catalogo,
+// incluyendo huérfanos (tipos sub-umbral <3 y productos sin product.tipo).
+// La regla del padre es solo AND(tag, catalogo) — no filtra por tipo — así
+// que el conteo debe coincidir con el total del audit, no con la suma de
+// los hijos top-level. Fuente: scripts/audit-catalogo-tipo.mjs.
+// (Solo informativo para el WARN de tolerancia; no se usa en reglas.)
 const PADRE_EXPECTED = {
-  Forlight:      166,
-  Architectural: 102,
-  Decorative:     64,
-  DIY:            40,
-  Outdoor:        45,
+  Forlight:      172,
+  Architectural: 103,
+  Decorative:     72,
+  DIY:            53,
+  Outdoor:        50,
 };
 
 // Subcolecciones por padre: [tipo, expectedCount]. Solo los combos con
