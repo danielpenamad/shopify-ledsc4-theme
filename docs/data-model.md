@@ -271,6 +271,11 @@ viven en el Online Store. Si necesitas que un cliente B2B vea
 al Online Store y (b) el customer tiene tag `aprobado`. La Capa 1 sólo
 determina qué productos puede comprar dentro de cada colección.
 
+> Aprendido durante la implementación de la navegación por colecciones
+> (commit `60b8bba`, mayo 2026): un primer intento publicaba colecciones al
+> catalog B2B y fallaba con error explícito de Shopify. La separación de
+> capas resolvió el bloqueo.
+
 ## 7. Staff role "Backoffice Aprobaciones"
 
 Plan Grow ofrece roles custom con toggles granulares. Este rol **solo** gestiona
