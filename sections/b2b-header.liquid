@@ -82,7 +82,7 @@
                   aria-controls="{{ panel_id }}"
                   data-b2b-dropdown-toggle
                 >
-                  <span>{{ link.title | escape }}</span>
+                  <span>{{ link.object.title | default: link.title | escape }}</span>
                   <span class="b2b-header__caret" aria-hidden="true">▾</span>
                 </button>
                 <ul
@@ -98,7 +98,7 @@
                         class="b2b-header__submenu-link{% if child.current %} b2b-header__submenu-link--active{% endif %}"
                         {% if child.current %}aria-current="page"{% endif %}
                       >
-                        {{ child.title | escape }}
+                        {{ child.object.title | default: child.title | escape }}
                       </a>
                     </li>
                   {%- endfor -%}
@@ -109,7 +109,7 @@
                   class="b2b-header__menu-item{% if link.current %} b2b-header__menu-item--active{% endif %}"
                   {% if link.current %}aria-current="page"{% endif %}
                 >
-                  {{ link.title | escape }}
+                  {{ link.object.title | default: link.title | escape }}
                 </a>
               {%- endif -%}
             </li>
