@@ -1,12 +1,29 @@
 {% comment %}
   Header unificado para customer aprobado (B2B). Sustituye al doble flujo
-  anterior:
-    - snippets/b2b-header-aprobado.liquid (solo home)
-    - sections/header.liquid via header-group (resto de rutas, Dawn negro)
+  anterior (snippet b2b-header-aprobado en home + header-group Dawn en el
+  resto).
 
-  Mismo header en todas las rutas: logo + Catálogo / Mis solicitudes /
-  Cerrar sesión. Sin search, cart, account dropdown, country/language ni
-  announcement bar (no aplican al flujo B2B con catálogo cerrado).
+  Estructura:
+    [logo] [main-menu padres] ... [Mis solicitudes] [ES ▾] [☰ mobile]
+
+  - Logo: asset logo-ledsc4.svg, link a /.
+  - Menú: itera linklists['main-menu']. Padres con hijos → <button> que
+    despliega <ul> de hijos (click, no hover). Padres sin hijos → <a>.
+    Estado activo vía link.current / link.child_active.
+  - Mis solicitudes: <a> plano a /pages/mis-solicitudes, estado activo
+    por request.path.
+  - Selector de idioma: <form 'localization'> con UI propia. Solo se
+    renderiza si localization.available_languages.size > 1.
+  - Cerrar sesión: NO está en el header. Vive en /account.
+
+  Interacción:
+  - No usamos <details> (el shadow-slot de <details> no permite override
+    CSS para forzar visibilidad en desktop; ver bug producción mayo 2026).
+    Reemplazamos por <button aria-expanded> + JS minimal (~25 líneas).
+  - Solo un dropdown abierto a la vez en todo el header (categorías y
+    locale comparten lógica).
+  - Click fuera del header + Escape cierran todo.
+  - Hamburguesa mobile (<720px) togglea visibilidad del nav completo.
 
   Se invoca desde layout/theme.liquid con `{% section 'b2b-header' %}`
   cuando customer.tags contains 'aprobado'. NO se inserta como bloque
@@ -20,14 +37,17 @@
     assign locale_prefix = ''
   endif
 
+  assign main_menu = linklists['main-menu']
+
   assign current_path = request.path
-  assign is_catalogo = false
-  if current_path contains '/collections' or current_path contains '/products/'
-    assign is_catalogo = true
-  endif
   assign is_mis_solicitudes = false
   if current_path contains '/pages/mis-solicitudes'
     assign is_mis_solicitudes = true
+  endif
+
+  assign show_locale = false
+  if localization.available_languages.size > 1
+    assign show_locale = true
   endif
 -%}
 
@@ -43,36 +63,119 @@
       >
     </a>
 
-    <details class="b2b-header__menu">
-      <summary class="b2b-header__toggle" aria-label="{{ 'ledsc4.header.menu_aria' | t }}">
-        <span class="b2b-header__toggle-bar" aria-hidden="true"></span>
-        <span class="b2b-header__toggle-bar" aria-hidden="true"></span>
-        <span class="b2b-header__toggle-bar" aria-hidden="true"></span>
-      </summary>
+    <nav class="b2b-header__nav" id="b2b-header-nav" aria-label="{{ 'customer.account_fallback' | t }}">
+      {%- if main_menu.links.size > 0 -%}
+        <ul class="b2b-header__menu" role="list">
+          {%- for link in main_menu.links -%}
+            {%- assign panel_id = 'b2b-submenu-' | append: forloop.index -%}
+            <li class="b2b-header__menu-li">
+              {%- if link.links != blank -%}
+                <button
+                  type="button"
+                  class="b2b-header__menu-item b2b-header__menu-item--has-children{% if link.current or link.child_active %} b2b-header__menu-item--active{% endif %}"
+                  aria-expanded="false"
+                  aria-controls="{{ panel_id }}"
+                  data-b2b-dropdown-toggle
+                >
+                  <span>{{ link.title | escape }}</span>
+                  <span class="b2b-header__caret" aria-hidden="true">▾</span>
+                </button>
+                <ul
+                  id="{{ panel_id }}"
+                  class="b2b-header__submenu"
+                  role="list"
+                  data-b2b-dropdown-panel
+                >
+                  {%- for child in link.links -%}
+                    <li>
+                      <a
+                        href="{{ child.url }}"
+                        class="b2b-header__submenu-link{% if child.current %} b2b-header__submenu-link--active{% endif %}"
+                        {% if child.current %}aria-current="page"{% endif %}
+                      >
+                        {{ child.title | escape }}
+                      </a>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              {%- else -%}
+                <a
+                  href="{{ link.url }}"
+                  class="b2b-header__menu-item{% if link.current %} b2b-header__menu-item--active{% endif %}"
+                  {% if link.current %}aria-current="page"{% endif %}
+                >
+                  {{ link.title | escape }}
+                </a>
+              {%- endif -%}
+            </li>
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
 
-      <nav class="b2b-header__nav" aria-label="{{ 'customer.account_fallback' | t }}">
-        <a
-          href="{{ locale_prefix }}/collections/all"
-          class="b2b-header__link{% if is_catalogo %} b2b-header__link--active{% endif %}"
-          {% if is_catalogo %}aria-current="page"{% endif %}
-        >
-          {{ 'ledsc4.common.cta.catalogo' | t }}
-        </a>
-        <a
-          href="{{ locale_prefix }}/pages/mis-solicitudes"
-          class="b2b-header__link{% if is_mis_solicitudes %} b2b-header__link--active{% endif %}"
-          {% if is_mis_solicitudes %}aria-current="page"{% endif %}
-        >
-          {{ 'ledsc4.common.cta.mis_solicitudes' | t }}
-        </a>
-        <a
-          href="{{ routes.account_logout_url }}"
-          class="b2b-header__link b2b-header__link--ghost"
-        >
-          {{ 'customer.log_out' | t }}
-        </a>
-      </nav>
-    </details>
+      <a
+        href="{{ locale_prefix }}/pages/mis-solicitudes"
+        class="b2b-header__mis-solicitudes{% if is_mis_solicitudes %} b2b-header__mis-solicitudes--active{% endif %}"
+        {% if is_mis_solicitudes %}aria-current="page"{% endif %}
+      >
+        {{ 'ledsc4.common.cta.mis_solicitudes' | t }}
+      </a>
+    </nav>
+
+    <div class="b2b-header__end">
+      {%- if show_locale -%}
+        <div class="b2b-header__locale">
+          {%- form 'localization', class: 'b2b-header__locale-form' -%}
+            <input type="hidden" name="locale_code" value="{{ localization.language.iso_code }}" data-b2b-locale-input>
+            <button
+              type="button"
+              class="b2b-header__locale-toggle"
+              aria-expanded="false"
+              aria-controls="b2b-locale-panel"
+              aria-label="{{ 'localization.language_label' | t }}"
+              data-b2b-dropdown-toggle
+            >
+              <span>{{ localization.language.iso_code | upcase }}</span>
+              <span class="b2b-header__caret" aria-hidden="true">▾</span>
+            </button>
+            <ul
+              id="b2b-locale-panel"
+              class="b2b-header__locale-panel"
+              role="list"
+              data-b2b-dropdown-panel
+            >
+              {%- for language in localization.available_languages -%}
+                <li>
+                  <a
+                    href="#"
+                    hreflang="{{ language.iso_code }}"
+                    lang="{{ language.iso_code }}"
+                    data-value="{{ language.iso_code }}"
+                    class="b2b-header__locale-option{% if language.iso_code == localization.language.iso_code %} b2b-header__locale-option--active{% endif %}"
+                    {% if language.iso_code == localization.language.iso_code %}aria-current="true"{% endif %}
+                    data-b2b-locale-option
+                  >
+                    {{ language.endonym_name | capitalize }}
+                  </a>
+                </li>
+              {%- endfor -%}
+            </ul>
+          {%- endform -%}
+        </div>
+      {%- endif -%}
+
+      <button
+        type="button"
+        class="b2b-header__hamburger"
+        aria-expanded="false"
+        aria-controls="b2b-header-nav"
+        aria-label="{{ 'ledsc4.header.menu_aria' | t }}"
+        data-b2b-hamburger
+      >
+        <span class="b2b-header__hamburger-bar" aria-hidden="true"></span>
+        <span class="b2b-header__hamburger-bar" aria-hidden="true"></span>
+        <span class="b2b-header__hamburger-bar" aria-hidden="true"></span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -82,6 +185,9 @@
     border-bottom: 1px solid rgba(var(--color-foreground), 0.08);
     padding: 1rem 1.5rem;
     font-family: var(--font-ledsc4-ui);
+    color: rgb(var(--color-foreground));
+    position: relative;
+    z-index: 50;
   }
   .b2b-header *,
   .b2b-header *::before,
@@ -93,8 +199,7 @@
     margin: 0 auto;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    gap: 2rem;
   }
   .b2b-header__brand {
     display: inline-flex;
@@ -109,31 +214,202 @@
     height: auto;
   }
 
+  /* NAV (categories + mis-solicitudes) */
+  .b2b-header__nav {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-width: 0;
+  }
   .b2b-header__menu {
-    /* Reset details default styles */
-  }
-  .b2b-header__menu > summary {
     list-style: none;
-    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
-  .b2b-header__menu > summary::-webkit-details-marker {
-    display: none;
+  .b2b-header__menu-li {
+    position: relative;
   }
-  .b2b-header__toggle {
+  .b2b-header__menu-item {
     display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: rgb(var(--color-foreground));
+    background: transparent;
+    border: 0;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .b2b-header__menu-item:hover {
+    background: rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-header__menu-item--active {
+    color: var(--color-ledsc4-accent);
+    border-bottom-color: var(--color-ledsc4-accent);
+  }
+  .b2b-header__caret {
+    font-size: 0.7em;
+    line-height: 1;
+    transition: transform 0.15s ease;
+  }
+  .b2b-header__menu-item[aria-expanded="true"] .b2b-header__caret,
+  .b2b-header__locale-toggle[aria-expanded="true"] .b2b-header__caret {
+    transform: rotate(180deg);
+  }
+
+  /* Mis solicitudes — empuja a la derecha del nav */
+  .b2b-header__mis-solicitudes {
+    margin-left: auto;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: rgb(var(--color-foreground));
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .b2b-header__mis-solicitudes:hover {
+    background: rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-header__mis-solicitudes--active {
+    color: var(--color-ledsc4-accent);
+    border-bottom-color: var(--color-ledsc4-accent);
+  }
+
+  /* Submenu de categorías */
+  .b2b-header__submenu {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0;
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 220px;
+    background: #ffffff;
+    border: 1px solid rgba(var(--color-foreground), 0.08);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(var(--color-foreground), 0.10);
+    z-index: 60;
+  }
+  .b2b-header__submenu.b2b-header__panel--open {
+    display: block;
+  }
+  .b2b-header__submenu-link {
+    display: block;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    color: rgb(var(--color-foreground));
+    font-size: 0.875rem;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .b2b-header__submenu-link:hover {
+    background: rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-header__submenu-link--active {
+    color: var(--color-ledsc4-accent);
+    font-weight: 600;
+  }
+
+  /* END: locale + hamburger */
+  .b2b-header__end {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  /* Locale picker */
+  .b2b-header__locale {
+    position: relative;
+  }
+  .b2b-header__locale-form {
+    margin: 0;
+  }
+  .b2b-header__locale-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgb(var(--color-foreground));
+    background: transparent;
+    border: 1px solid rgba(var(--color-foreground), 0.15);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .b2b-header__locale-toggle:hover {
+    border-color: rgba(var(--color-foreground), 0.3);
+    background: rgba(var(--color-foreground), 0.04);
+  }
+  .b2b-header__locale-panel {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0;
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    right: 0;
+    min-width: 160px;
+    background: #ffffff;
+    border: 1px solid rgba(var(--color-foreground), 0.08);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(var(--color-foreground), 0.10);
+    z-index: 60;
+  }
+  .b2b-header__locale-panel.b2b-header__panel--open {
+    display: block;
+  }
+  .b2b-header__locale-option {
+    display: block;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    color: rgb(var(--color-foreground));
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease;
+  }
+  .b2b-header__locale-option:hover {
+    background: rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-header__locale-option--active {
+    color: var(--color-ledsc4-accent);
+    font-weight: 600;
+  }
+
+  /* Hamburger (mobile only) */
+  .b2b-header__hamburger {
+    display: none;
     flex-direction: column;
     justify-content: center;
     gap: 4px;
     width: 36px;
     height: 36px;
     padding: 8px;
+    background: transparent;
+    border: 0;
     border-radius: 4px;
+    cursor: pointer;
     transition: background-color 0.15s ease;
   }
-  .b2b-header__toggle:hover {
+  .b2b-header__hamburger:hover {
     background: rgba(var(--color-foreground), 0.06);
   }
-  .b2b-header__toggle-bar {
+  .b2b-header__hamburger-bar {
     display: block;
     width: 100%;
     height: 2px;
@@ -141,90 +417,164 @@
     border-radius: 1px;
   }
 
-  .b2b-header__nav {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  .b2b-header__link {
-    font-size: 1rem;
-    font-weight: 500;
-    text-decoration: none;
-    color: rgb(var(--color-foreground));
-    padding: 0.5rem 0.875rem;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    transition: color 0.15s ease, background-color 0.15s ease;
-    white-space: nowrap;
-  }
-  .b2b-header__link:hover {
-    background: rgba(var(--color-foreground), 0.06);
-  }
-  .b2b-header__link--active {
-    color: var(--color-ledsc4-accent);
-    border-bottom: 2px solid currentColor;
-  }
-  .b2b-header__link--ghost {
-    color: rgba(var(--color-foreground), 0.65);
-    margin-left: 0.5rem;
-  }
-
-  /* Desktop (>=720px): hide hamburger, force nav visible regardless of <details open>. */
+  /* DESKTOP (>= 720px): hamburger oculta, nav siempre visible inline. */
   @media (min-width: 720px) {
-    .b2b-header__toggle {
-      display: none;
-    }
     .b2b-header__nav {
-      display: flex !important;
+      display: flex;
     }
   }
 
-  /* Mobile (<720px): show hamburger; <details> handles nav visibility. */
+  /* MOBILE (< 720px): hamburger visible, nav como dropdown bajo el header. */
   @media (max-width: 719px) {
     .b2b-header {
       padding: 0.75rem 1rem;
     }
+    .b2b-header__inner {
+      gap: 0.75rem;
+    }
     .b2b-header__brand img {
       width: 110px;
     }
-    .b2b-header__menu {
-      position: relative;
-    }
-    .b2b-header__menu:not([open]) .b2b-header__nav {
-      display: none;
+    .b2b-header__hamburger {
+      display: inline-flex;
     }
     .b2b-header__nav {
+      display: none;
       position: absolute;
-      top: calc(100% + 0.5rem);
+      top: 100%;
+      left: 0;
       right: 0;
       flex-direction: column;
       align-items: stretch;
       gap: 0;
-      min-width: 220px;
       padding: 0.5rem 0;
       background: #ffffff;
-      border: 1px solid rgba(var(--color-foreground), 0.08);
-      border-radius: 6px;
-      box-shadow: 0 8px 24px rgba(var(--color-foreground), 0.12);
-      z-index: 10;
+      border-bottom: 1px solid rgba(var(--color-foreground), 0.08);
+      box-shadow: 0 8px 24px rgba(var(--color-foreground), 0.10);
+      z-index: 55;
     }
-    .b2b-header__link {
-      padding: 0.75rem 1rem;
+    .b2b-header--menu-open .b2b-header__nav {
+      display: flex;
+    }
+    .b2b-header__menu {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+    .b2b-header__menu-li {
+      position: static;
+    }
+    .b2b-header__menu-item {
+      width: 100%;
+      justify-content: space-between;
+      padding: 0.75rem 1.25rem;
       border-bottom: none;
       font-size: 0.95rem;
     }
-    .b2b-header__link--active {
-      background: rgba(var(--color-foreground), 0.04);
+    .b2b-header__menu-item--active {
+      background: rgba(var(--color-ledsc4-accent), 0.04);
       border-bottom: none;
     }
-    .b2b-header__link--ghost {
+    .b2b-header__submenu {
+      position: static;
+      min-width: 0;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 0 0 0.5rem 0;
+      background: rgba(var(--color-foreground), 0.02);
+    }
+    .b2b-header__submenu-link {
+      padding-left: 2.5rem;
+    }
+    .b2b-header__mis-solicitudes {
       margin-left: 0;
+      padding: 0.75rem 1.25rem;
+      border-bottom: none;
       border-top: 1px solid rgba(var(--color-foreground), 0.08);
       margin-top: 0.25rem;
-      padding-top: 0.75rem;
+      font-size: 0.95rem;
+    }
+    .b2b-header__mis-solicitudes--active {
+      border-bottom: none;
+      background: rgba(var(--color-ledsc4-accent), 0.04);
     }
   }
 {% endstyle %}
+
+<script>
+  (function () {
+    const header = document.querySelector('.b2b-header');
+    if (!header) return;
+
+    const hamburger = header.querySelector('[data-b2b-hamburger]');
+    const dropdownToggles = header.querySelectorAll('[data-b2b-dropdown-toggle]');
+
+    function closeAllDropdowns(except) {
+      dropdownToggles.forEach(function (toggle) {
+        if (toggle === except) return;
+        if (toggle.getAttribute('aria-expanded') !== 'true') return;
+        toggle.setAttribute('aria-expanded', 'false');
+        const panel = document.getElementById(toggle.getAttribute('aria-controls'));
+        if (panel) panel.classList.remove('b2b-header__panel--open');
+      });
+    }
+
+    function closeHamburger() {
+      if (!hamburger) return;
+      if (hamburger.getAttribute('aria-expanded') !== 'true') return;
+      hamburger.setAttribute('aria-expanded', 'false');
+      header.classList.remove('b2b-header--menu-open');
+    }
+
+    dropdownToggles.forEach(function (toggle) {
+      toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        closeAllDropdowns(toggle);
+        toggle.setAttribute('aria-expanded', String(!expanded));
+        const panel = document.getElementById(toggle.getAttribute('aria-controls'));
+        if (panel) panel.classList.toggle('b2b-header__panel--open', !expanded);
+      });
+    });
+
+    if (hamburger) {
+      hamburger.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const expanded = hamburger.getAttribute('aria-expanded') === 'true';
+        hamburger.setAttribute('aria-expanded', String(!expanded));
+        header.classList.toggle('b2b-header--menu-open', !expanded);
+        closeAllDropdowns();
+      });
+    }
+
+    // Locale: click en una opción → set hidden input + submit form.
+    header.querySelectorAll('[data-b2b-locale-option]').forEach(function (opt) {
+      opt.addEventListener('click', function (e) {
+        e.preventDefault();
+        const form = opt.closest('form');
+        if (!form) return;
+        const input = form.querySelector('[data-b2b-locale-input]');
+        if (!input) return;
+        input.value = opt.dataset.value;
+        form.submit();
+      });
+    });
+
+    document.addEventListener('click', function (e) {
+      if (header.contains(e.target)) return;
+      closeAllDropdowns();
+      closeHamburger();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeAllDropdowns();
+        closeHamburger();
+      }
+    });
+  })();
+</script>
 
 {% schema %}
 {
