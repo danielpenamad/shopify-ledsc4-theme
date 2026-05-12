@@ -73,4 +73,5 @@ nav:
       - Flujo diario: operador/00-flujo-diario.md
       - Aprobar altas: operador/01-aprobar-altas.md
       - Whitelist: operador/02-gestionar-whitelist.md
-      - Resolución de incidencias: operador/03-resolucion-incidencias.md
+      - Quitar acceso: operador/03-quitar-acceso.md
+      - Resolución de incidencias: operador/04-resolucion-incidencias.md
