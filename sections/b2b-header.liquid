@@ -92,13 +92,15 @@
                   data-b2b-dropdown-panel
                 >
                   {%- for child in link.links -%}
+                    {%- assign child_title = child.object.title | default: child.title -%}
+                    {%- assign child_segments = child_title | split: ' — ' -%}
                     <li>
                       <a
                         href="{{ child.url }}"
                         class="b2b-header__submenu-link{% if child.current %} b2b-header__submenu-link--active{% endif %}"
                         {% if child.current %}aria-current="page"{% endif %}
                       >
-                        {{ child.object.title | default: child.title | escape }}
+                        {{ child_segments.last | escape }}
                       </a>
                     </li>
                   {%- endfor -%}
