@@ -90,6 +90,9 @@
     </h2>
     <ul class="collection-sidebar-nav__list" role="list">
       {%- for link in menu_links -%}
+        {%- comment %}<locksmith:f1b5>{% endcomment -%}
+          {%- capture var %}{% render 'locksmith-variables', scope: 'subject', subject: link, variable: 'transparent' %}{% endcapture %}{% if var == "true" %}{% else %}{% continue %}{% endif -%}
+        {%- comment %}</locksmith:f1b5>{% endcomment -%}
         <li class="collection-sidebar-nav__item">
           <a
             href="{{ link.url }}"
