@@ -8,7 +8,7 @@
 
 ## Resumen
 
-Sección dirigida al operador de back-office. Cubre el flujo diario, la aprobación de altas de profesionales, la gestión de la whitelist y la resolución de incidencias habituales.
+Sección dirigida al operador de back-office. Cubre el flujo diario, la aprobación de altas de profesionales, la gestión de la whitelist, el retiro de acceso a clientes y la resolución de incidencias habituales.
 
 ## Contenido
 
@@ -19,7 +19,8 @@ Leyenda: ✅ completo · ⚠️ parcial · 🚧 esqueleto.
 | [Flujo diario](00-flujo-diario.md) | ✅ completo | — |
 | [Aprobar altas](01-aprobar-altas.md) | ✅ completo | — |
 | [Whitelist](02-gestionar-whitelist.md) | ✅ completo | — |
-| [Resolución de incidencias](03-resolucion-incidencias.md) | 🚧 esqueleto | — |
+| [Quitar acceso](03-quitar-acceso.md) | ✅ completo | — |
+| [Resolución de incidencias](04-resolucion-incidencias.md) | 🚧 esqueleto | — |
 
 ---
 

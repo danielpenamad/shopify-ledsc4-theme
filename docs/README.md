@@ -48,7 +48,8 @@ Leyenda: ✅ completo · ⚠️ parcial · 🚧 esqueleto.
 | [`operador/00-flujo-diario.md`](operador/00-flujo-diario.md) | ✅ completo | — |
 | [`operador/01-aprobar-altas.md`](operador/01-aprobar-altas.md) | ✅ completo | — |
 | [`operador/02-gestionar-whitelist.md`](operador/02-gestionar-whitelist.md) | ✅ completo | — |
-| [`operador/03-resolucion-incidencias.md`](operador/03-resolucion-incidencias.md) | 🚧 esqueleto | — |
+| [`operador/03-quitar-acceso.md`](operador/03-quitar-acceso.md) | ✅ completo | — |
+| [`operador/04-resolucion-incidencias.md`](operador/04-resolucion-incidencias.md) | 🚧 esqueleto | — |
 
 ## Build local
 
