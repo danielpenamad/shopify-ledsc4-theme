@@ -6,16 +6,15 @@
   1. Customer aprobado (.b2b-aprobado-home)
      Dashboard claro: hero corto con saludo personalizado + grid de
      colecciones (linklists.main-menu) con fallback a "Ver catálogo
-     completo" + CTA destacado a "Mis solicitudes". Se renderiza con el
-     header simplificado del snippet b2b-header-aprobado y el
-     footer-group de Dawn (ambos via theme.liquid).
+     completo" + CTA destacado a "Mis solicitudes". Se renderiza con la
+     section b2b-header (header unificado B2B) inyectada en theme.liquid.
 
   2. Anónimo / pendiente / rechazado (.b2b-portal)
      Hero oscuro full-screen con features y footer legal. Diseño estable
      desde 2026-04-19 — mismo mensaje para anon, pendiente y rechazado.
-     Sin header (theme.liquid lo suprime en index para esta rama). El
-     footer legal local sustituye al footer-group de Dawn (que solo se
-     renderiza para aprobados).
+     theme.liquid inyecta b2b-header-simple encima del hero (header
+     unificado del gate). El footer legal local sigue sustituyendo al
+     footer-group de Dawn, que solo se renderiza para aprobados.
 {% endcomment %}
 
 {%- liquid
@@ -323,7 +322,7 @@
       --fg: #000000;
       --fg-muted: rgba(0, 0, 0, 0.68);
       --fg-dim: rgba(0, 0, 0, 0.45);
-      --accent: rgb(0, 81, 255);
+      --accent: var(--color-ledsc4-accent);
       --border: rgba(0, 0, 0, 0.08);
 
       background: var(--bg);

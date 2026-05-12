@@ -239,7 +239,7 @@ Validar tras cualquier deploy de tema o cambio en gate / Locksmith / edge functi
 ### Aprobado
 
 - Login → aterriza en `/pages/mis-solicitudes` (return_to del login).
-- `/` → header `b2b-header-aprobado` + dashboard B2B (no hero).
+- `/` → header `b2b-header` (unificado) + dashboard B2B (no hero).
 - `/products/<handle>` → carga ficha sin redirect.
 - `/collections/all`, `/collections/coleccion-2026` → listado sin redirect.
 - `/cart` → carrito.

@@ -403,22 +403,16 @@
     {%- endif -%}
 
     {%- comment -%}
-      B2B gate header logic:
-      - Template 'index' + customer aprobado → header propio simplificado
-        (logo + Mi cuenta + Cerrar sesión). La home aprobada es un dashboard
-        sobre fondo claro, no un hero full-screen.
-      - Template 'index' + no-aprobado/anónimo → SIN header; la sección
-        b2b-portal-home tiene su propio branding full-page para marketing.
-      - Customer aprobado en otras rutas → Dawn header-group completo.
-      - Anónimo o no-aprobado en otras rutas → header simple con logo +
-        login/logout. Evita filtrar navegación comercial a no-autorizados.
+      B2B header gate (unificado): un único header para aprobados en todas
+      las rutas (b2b-header), y header minimalista para el resto (anónimos,
+      pendientes, rechazados; b2b-header-simple). El template 'index'
+      anónimo/pendiente/rechazado sigue mostrando su hero full-page
+      (b2b-portal-home), pero ahora con el header simple encima en vez de
+      sin header — coste asumible a cambio de un único punto de verdad
+      para el gate.
     {%- endcomment -%}
-    {%- if template == 'index' and customer.tags contains 'aprobado' -%}
-      {%- render 'b2b-header-aprobado' -%}
-    {%- elsif template == 'index' -%}
-      {%- comment -%} Sin header — la sección hero ocupa toda la pantalla. {%- endcomment -%}
-    {%- elsif customer.tags contains 'aprobado' -%}
-      {% sections 'header-group' %}
+    {%- if customer.tags contains 'aprobado' -%}
+      {% section 'b2b-header' %}
     {%- else -%}
       {% section 'b2b-header-simple' %}
     {%- endif -%}
