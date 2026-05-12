@@ -1,0 +1,76 @@
+site_name: Documentación LedsC4 B2B
+site_description: Documentación técnica, de administración y operación
+site_url: https://danielpenamad.github.io/shopify-ledsc4-theme/
+repo_url: https://github.com/danielpenamad/shopify-ledsc4-theme
+repo_name: shopify-ledsc4-theme
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: es
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Cambiar a modo oscuro
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Cambiar a modo claro
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Inicio: index.md
+  - Desarrollo:
+      - desarrollo/index.md
+      - Arquitectura: desarrollo/00-arquitectura.md
+      - Pipeline de datos: desarrollo/01-pipeline-datos.md
+      - Emails transaccionales: desarrollo/02-emails-transaccionales.md
+      - Theme y customizaciones: desarrollo/03-theme-customizaciones.md
+      - Currency e i18n: desarrollo/04-currency-i18n.md
+      - GitHub (repo): desarrollo/05-github-repo.md
+      - GitHub Actions: desarrollo/06-github-actions.md
+      - Supabase: desarrollo/07-supabase.md
+  - Administración:
+      - administracion/index.md
+      - Visión general: administracion/00-vision-general.md
+      - Gestión de productos: administracion/01-gestion-productos.md
+      - Categorías y menú: administracion/02-gestion-categorias-menu.md
+      - Emails: administracion/03-gestion-emails.md
+      - Traducciones: administracion/04-traducciones.md
+  - Operador:
+      - operador/index.md
+      - Flujo diario: operador/00-flujo-diario.md
+      - Aprobar altas: operador/01-aprobar-altas.md
+      - Whitelist: operador/02-gestionar-whitelist.md
+      - Resolución de incidencias: operador/03-resolucion-incidencias.md
