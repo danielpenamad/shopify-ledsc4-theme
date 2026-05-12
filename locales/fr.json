@@ -890,7 +890,8 @@
     },
     "header": {
       "brand_aria_inicio": "Accueil",
-      "menu_aria": "Ouvrir le menu"
+      "menu_aria": "Ouvrir le menu",
+      "cart_aria": "Panier ({{ count }})"
     }
   }
 }

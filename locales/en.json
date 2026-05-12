@@ -907,7 +907,8 @@
     },
     "header": {
       "brand_aria_inicio": "Home",
-      "menu_aria": "Open menu"
+      "menu_aria": "Open menu",
+      "cart_aria": "Cart ({{ count }})"
     }
   },
   "shopify": {
