@@ -403,16 +403,17 @@
     {%- endif -%}
 
     {%- comment -%}
-      B2B header gate (unificado): un único header para aprobados en todas
-      las rutas (b2b-header), y header minimalista para el resto (anónimos,
-      pendientes, rechazados; b2b-header-simple). El template 'index'
-      anónimo/pendiente/rechazado sigue mostrando su hero full-page
-      (b2b-portal-home), pero ahora con el header simple encima en vez de
-      sin header — coste asumible a cambio de un único punto de verdad
-      para el gate.
+      B2B header gate (unificado):
+        - Aprobado en cualquier ruta → b2b-header (header unificado).
+        - No-aprobado en template 'index' → sin header; el hero de
+          b2b-portal-home actúa como brand-block full-page.
+        - No-aprobado en el resto de rutas → b2b-header-simple
+          (minimalista, evita filtrar nav comercial).
     {%- endcomment -%}
     {%- if customer.tags contains 'aprobado' -%}
       {% section 'b2b-header' %}
+    {%- elsif template == 'index' -%}
+      {%- comment -%} home pública: sin header, brand-block en hero {%- endcomment -%}
     {%- else -%}
       {% section 'b2b-header-simple' %}
     {%- endif -%}
