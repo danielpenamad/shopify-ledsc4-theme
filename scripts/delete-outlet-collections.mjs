@@ -488,7 +488,7 @@ const COLLECTION_DELETE_MUTATION = /* GraphQL */ `
   mutation collectionDelete($input: CollectionDeleteInput!) {
     collectionDelete(input: $input) {
       deletedCollectionId
-      userErrors { field message code }
+      userErrors { field message }
     }
   }
 `;
