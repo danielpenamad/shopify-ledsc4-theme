@@ -559,7 +559,8 @@
       }
     },
     "header": {
-      "menu_aria": "Abrir menú"
+      "menu_aria": "Abrir menú",
+      "cart_aria": "Carrito ({{ count }})"
     }
   }
 }
