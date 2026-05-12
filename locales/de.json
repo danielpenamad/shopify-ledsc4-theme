@@ -557,6 +557,14 @@
       "form": {
         "comentario_hint": ""
       }
+    },
+    "common": {
+      "cta": {
+        "catalogo": "Catálogo"
+      }
+    },
+    "header": {
+      "menu_aria": "Abrir menú"
     }
   }
 }

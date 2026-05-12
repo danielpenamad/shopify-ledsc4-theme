@@ -1,0 +1,235 @@
+{% comment %}
+  Header unificado para customer aprobado (B2B). Sustituye al doble flujo
+  anterior:
+    - snippets/b2b-header-aprobado.liquid (solo home)
+    - sections/header.liquid via header-group (resto de rutas, Dawn negro)
+
+  Mismo header en todas las rutas: logo + Catálogo / Mis solicitudes /
+  Cerrar sesión. Sin search, cart, account dropdown, country/language ni
+  announcement bar (no aplican al flujo B2B con catálogo cerrado).
+
+  Se invoca desde layout/theme.liquid con `{% section 'b2b-header' %}`
+  cuando customer.tags contains 'aprobado'. NO se inserta como bloque
+  editable en theme editor.
+{% endcomment %}
+
+{%- liquid
+  # locale_prefix: '' en home, '/fr' en /fr.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+
+  assign current_path = request.path
+  assign is_catalogo = false
+  if current_path contains '/collections' or current_path contains '/products/'
+    assign is_catalogo = true
+  endif
+  assign is_mis_solicitudes = false
+  if current_path contains '/pages/mis-solicitudes'
+    assign is_mis_solicitudes = true
+  endif
+-%}
+
+<header class="b2b-header" role="banner">
+  <div class="b2b-header__inner">
+    <a href="{{ routes.root_url }}" class="b2b-header__brand" aria-label="{{ 'ledsc4.header.brand_aria_inicio' | t }}">
+      <img
+        src="{{ 'logo-ledsc4.svg' | asset_url }}"
+        alt="LedsC4"
+        width="140"
+        height="auto"
+        loading="eager"
+      >
+    </a>
+
+    <details class="b2b-header__menu">
+      <summary class="b2b-header__toggle" aria-label="{{ 'ledsc4.header.menu_aria' | t }}">
+        <span class="b2b-header__toggle-bar" aria-hidden="true"></span>
+        <span class="b2b-header__toggle-bar" aria-hidden="true"></span>
+        <span class="b2b-header__toggle-bar" aria-hidden="true"></span>
+      </summary>
+
+      <nav class="b2b-header__nav" aria-label="{{ 'customer.account_fallback' | t }}">
+        <a
+          href="{{ locale_prefix }}/collections/all"
+          class="b2b-header__link{% if is_catalogo %} b2b-header__link--active{% endif %}"
+          {% if is_catalogo %}aria-current="page"{% endif %}
+        >
+          {{ 'ledsc4.common.cta.catalogo' | t }}
+        </a>
+        <a
+          href="{{ locale_prefix }}/pages/mis-solicitudes"
+          class="b2b-header__link{% if is_mis_solicitudes %} b2b-header__link--active{% endif %}"
+          {% if is_mis_solicitudes %}aria-current="page"{% endif %}
+        >
+          {{ 'ledsc4.common.cta.mis_solicitudes' | t }}
+        </a>
+        <a
+          href="{{ routes.account_logout_url }}"
+          class="b2b-header__link b2b-header__link--ghost"
+        >
+          {{ 'customer.log_out' | t }}
+        </a>
+      </nav>
+    </details>
+  </div>
+</header>
+
+{% style %}
+  .b2b-header {
+    background: #ffffff;
+    border-bottom: 1px solid rgba(var(--color-foreground), 0.08);
+    padding: 1rem 1.5rem;
+    font-family: var(--font-ledsc4-ui);
+  }
+  .b2b-header *,
+  .b2b-header *::before,
+  .b2b-header *::after {
+    box-sizing: border-box;
+  }
+  .b2b-header__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .b2b-header__brand {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    flex-shrink: 0;
+  }
+  .b2b-header__brand img {
+    display: block;
+    width: 140px;
+    height: auto;
+  }
+
+  .b2b-header__menu {
+    /* Reset details default styles */
+  }
+  .b2b-header__menu > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .b2b-header__menu > summary::-webkit-details-marker {
+    display: none;
+  }
+  .b2b-header__toggle {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 36px;
+    height: 36px;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.15s ease;
+  }
+  .b2b-header__toggle:hover {
+    background: rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-header__toggle-bar {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: rgb(var(--color-foreground));
+    border-radius: 1px;
+  }
+
+  .b2b-header__nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .b2b-header__link {
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: rgb(var(--color-foreground));
+    padding: 0.5rem 0.875rem;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    white-space: nowrap;
+  }
+  .b2b-header__link:hover {
+    background: rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-header__link--active {
+    color: var(--color-ledsc4-accent);
+    border-bottom: 2px solid currentColor;
+  }
+  .b2b-header__link--ghost {
+    color: rgba(var(--color-foreground), 0.65);
+    margin-left: 0.5rem;
+  }
+
+  /* Desktop (>=720px): hide hamburger, force nav visible regardless of <details open>. */
+  @media (min-width: 720px) {
+    .b2b-header__toggle {
+      display: none;
+    }
+    .b2b-header__nav {
+      display: flex !important;
+    }
+  }
+
+  /* Mobile (<720px): show hamburger; <details> handles nav visibility. */
+  @media (max-width: 719px) {
+    .b2b-header {
+      padding: 0.75rem 1rem;
+    }
+    .b2b-header__brand img {
+      width: 110px;
+    }
+    .b2b-header__menu {
+      position: relative;
+    }
+    .b2b-header__menu:not([open]) .b2b-header__nav {
+      display: none;
+    }
+    .b2b-header__nav {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      right: 0;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      min-width: 220px;
+      padding: 0.5rem 0;
+      background: #ffffff;
+      border: 1px solid rgba(var(--color-foreground), 0.08);
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(var(--color-foreground), 0.12);
+      z-index: 10;
+    }
+    .b2b-header__link {
+      padding: 0.75rem 1rem;
+      border-bottom: none;
+      font-size: 0.95rem;
+    }
+    .b2b-header__link--active {
+      background: rgba(var(--color-foreground), 0.04);
+      border-bottom: none;
+    }
+    .b2b-header__link--ghost {
+      margin-left: 0;
+      border-top: 1px solid rgba(var(--color-foreground), 0.08);
+      margin-top: 0.25rem;
+      padding-top: 0.75rem;
+    }
+  }
+{% endstyle %}
+
+{% schema %}
+{
+  "name": "B2B Header",
+  "tag": "section",
+  "settings": []
+}
+{% endschema %}

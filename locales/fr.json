@@ -726,6 +726,7 @@
         "login_existente": "J'ai déjà un compte · Se connecter",
         "solicitar_acceso": "Demander l'accès",
         "mis_solicitudes": "Mes demandes",
+        "catalogo": "Catalogue",
         "mas_informacion_arrow": "Plus d'informations →",
         "ver_estado_arrow": "Voir le statut →"
       },
@@ -887,6 +888,10 @@
     "cart": {
       "cta_solicitud": "Envoyer une demande de commande",
       "disclaimer": "Les prix indiqués sont indicatifs · hors TVA et frais de port · sous réserve de confirmation par notre équipe commerciale"
+    },
+    "header": {
+      "brand_aria_inicio": "Accueil",
+      "menu_aria": "Ouvrir le menu"
     }
   }
 }

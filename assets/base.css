@@ -28,6 +28,7 @@
   --font-ledsc4-body: 'Maison Neue', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
   --font-ledsc4-heading: 'Gliko Modern L', Georgia, 'Times New Roman', serif;
   --font-ledsc4-ui: 'Maison Neue', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --color-ledsc4-accent: #0051FF;
 }
 
 .product-card-wrapper .card,

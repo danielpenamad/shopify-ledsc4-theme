@@ -806,6 +806,7 @@
         "login_existente": "Already have an account · Log in",
         "solicitar_acceso": "Request Access",
         "mis_solicitudes": "My applications",
+        "catalogo": "Catalog",
         "mas_informacion_arrow": "More information →",
         "ver_estado_arrow": "See status →"
       },
@@ -906,7 +907,8 @@
       }
     },
     "header": {
-      "brand_aria_inicio": "Home"
+      "brand_aria_inicio": "Home",
+      "menu_aria": "Open menu"
     }
   },
   "shopify": {
