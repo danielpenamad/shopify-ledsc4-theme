@@ -593,3 +593,23 @@
     clip-path: polygon(var(--shape--blob-5));
   }
 }
+
+.card__stock {
+  display: inline-block;
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.3rem;
+}
+
+.card__stock--ok {
+  color: #0f7a3e;
+  background: #e6f4ec;
+}
+
+.card__stock--low {
+  color: #a85c00;
+  background: #fdf1e1;
+}

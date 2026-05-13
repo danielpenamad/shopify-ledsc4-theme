@@ -30,6 +30,15 @@
 {%- endunless -%}
 {%- if card_product and card_product != empty -%}
   {%- liquid
+    assign card_variant = card_product.selected_or_first_available_variant
+    assign tracks_inventory = false
+    if card_variant.inventory_management != blank
+      assign tracks_inventory = true
+    endif
+    assign stock_qty = card_variant.inventory_quantity | default: 0
+  -%}
+  {%- unless tracks_inventory and stock_qty <= 0 -%}
+  {%- liquid
     assign ratio = 1
     if card_product.featured_media and media_aspect_ratio == 'portrait'
       assign ratio = 0.8
@@ -205,6 +214,17 @@
             {%- endif -%}
 
             {% render 'price', product: card_product, price_class: '', show_compare_at_price: true %}
+            {%- if tracks_inventory -%}
+              {%- if stock_qty <= 10 -%}
+                <span class="card__stock card__stock--low">
+                  {{ 'products.card.stock_low' | t: count: stock_qty }}
+                </span>
+              {%- else -%}
+                <span class="card__stock card__stock--ok">
+                  {{ 'products.card.stock_ok' | t: count: stock_qty }}
+                </span>
+              {%- endif -%}
+            {%- endif -%}
             {%- if card_product.quantity_price_breaks_configured? -%}
               {% if card_product.variants_count == 1 and quick_add == 'bulk' %}
                 {% liquid
@@ -568,6 +588,7 @@
       </div>
     </div>
   </div>
+  {%- endunless -%}
 {%- else -%}
   {%- liquid
     assign ratio = 1

@@ -231,6 +231,16 @@
       "show_more": "Afficher plus",
       "show_less": "Afficher moins",
       "filter_and_operator_subtitle": "Tout associer"
+    },
+    "card": {
+      "stock_ok": {
+        "one": "{{ count }} unité disponible",
+        "other": "{{ count }} unités disponibles"
+      },
+      "stock_low": {
+        "one": "Plus que {{ count }} unité",
+        "other": "Plus que {{ count }} unités"
+      }
     }
   },
   "templates": {
