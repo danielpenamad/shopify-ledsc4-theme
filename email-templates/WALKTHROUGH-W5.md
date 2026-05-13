@@ -67,7 +67,13 @@ export default function main({ draftOrder }) {
     customerEmail:
       (customer.defaultEmailAddress && customer.defaultEmailAddress.emailAddress) || '',
     customerPhone:
-      (customer.defaultPhoneNumber && customer.defaultPhoneNumber.phoneNumber) || ''
+      (customer.defaultPhoneNumber && customer.defaultPhoneNumber.phoneNumber) || '',
+    // PR-CURRENCY-C: divisa que el cliente vio en el switcher al enviar.
+    // Persiste como customAttribute desde submit-order-request (PR-CURRENCY-B).
+    // Si el draft es previo a PR-CURRENCY-B, getAttr devuelve '' → el email
+    // backoffice renderiza "no registrada".
+    monedaMostrada: getAttr('Moneda mostrada'),
+    simboloMoneda: getAttr('Símbolo moneda')
   };
 }
 ```
@@ -110,6 +116,8 @@ type Output {
   note: String!
   customerEmail: String!
   customerPhone: String!
+  monedaMostrada: String!
+  simboloMoneda: String!
 }
 ```
 
@@ -161,6 +169,47 @@ Tras el Send marketing mail, añadir `Send internal email`:
 4. El email al backoffice llega (dev plan OK).
 5. El marketing mail al cliente queda como draft en
    Marketing → Messaging (se enviará al pasar a Grow).
+
+## Multi-divisa fase 1 (PR-CURRENCY-A + B + C)
+
+Desde mayo 2026 LedsC4 Outlet opera con 3 monedas visibles en el switcher
+de cabecera: **EUR (primaria), USD y GBP (referencia visual)**. La
+implementación está en 3 piezas:
+
+- **PR-CURRENCY-A v2** — Markets UK y USA activados con
+  `localCurrencies = true` y `currencySettings.rateSource = AUTO`. Sin
+  Shopify Payments. Las conversiones EUR→GBP y EUR→USD las aplica
+  Shopify automáticamente usando los rates oficiales del día. Setup
+  one-shot ejecutado vía `scripts/activate-market-currencies.mjs`.
+- **PR-CURRENCY-B** — switcher EUR/USD/GBP en `b2b-header` y
+  `b2b-header-simple`. Cookie `ledsc4_currency` (30 días) persiste la
+  elección. La sección `b2b-solicitud-form` envía `cart.currency.iso_code`
+  en el payload a `submit-order-request`, que lo persiste como
+  customAttributes `Moneda mostrada` (e.g. `USD`) y `Símbolo moneda`
+  (e.g. `$`) en el draft order.
+- **PR-CURRENCY-C** (este PR) — los emails W5 leen esos customAttributes:
+  - **Email cliente (07)** SOLO muestra el aviso si la divisa es USD o
+    GBP. En EUR no se renderiza nada porque la divisa de facturación
+    coincide con lo que el cliente vio. En USD/GBP se muestra un bloque
+    azul (#f0f5ff fondo + #0051FF acento) con el disclaimer "La moneda
+    oficial de la operación es EUR. Las conversiones se muestran como
+    referencia visual y no constituyen el precio de facturación".
+  - **Email backoffice (07b)** SIEMPRE muestra `Moneda mostrada al
+    cliente: XXX (Y)` junto al CBM total, en la tabla de metadatos de
+    la solicitud. En EUR: `EUR (€)`. En USD/GBP: `USD ($) — referencia
+    visual, facturación en EUR`. Si el customAttribute no existe
+    (solicitudes anteriores a PR-CURRENCY-B): `no registrada`.
+
+**Importante**: la factura final SIEMPRE se emite en EUR
+independientemente de la divisa que viera el cliente. USD y GBP son
+exclusivamente referencia visual mientras navega y solicita; el rate
+numérico NO se persiste en el draft order (decisión Dani) porque la
+operación se cierra a precio EUR negociado por el comercial.
+
+Si en el futuro se quiere mostrar el rate numérico aplicado en el
+momento de la solicitud (e.g. "1 EUR = 0.84 GBP"), habría que añadir
+una tercera customAttribute en `submit-order-request` y consumirla aquí.
+Por ahora se omite.
 
 ## Gotchas conocidas de Flow (lecciones Fase A/B/D)
 

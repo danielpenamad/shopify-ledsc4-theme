@@ -36,6 +36,9 @@
     <tr><td style="color:#666;padding-right:16px;">Fecha:</td><td>{{ draftOrder.createdAt | date: '%d/%m/%Y %H:%M' }}</td></tr>
     <tr><td style="color:#666;padding-right:16px;">Importe estimado:</td><td><strong>{{ draftOrder.totalPrice }}</strong> <span style="color:#888;">(sin IVA ni portes)</span></td></tr>
     <tr><td style="color:#666;padding-right:16px;">CBM total:</td><td><strong>{{ runCode.cbmTotal }} m³</strong></td></tr>
+    <tr><td style="color:#666;padding-right:16px;">Moneda mostrada al cliente:</td><td>
+      {% if runCode.monedaMostrada == blank %}<strong>no registrada</strong> <span style="color:#888;">(solicitud previa a PR-CURRENCY-B)</span>{% elsif runCode.monedaMostrada == 'EUR' %}<strong>EUR (€)</strong>{% else %}<strong>{{ runCode.monedaMostrada }} ({{ runCode.simboloMoneda }})</strong> <span style="color:#888;">— referencia visual, facturación en EUR</span>{% endif %}
+    </td></tr>
   </table>
 
   <!-- LINEAS -->
