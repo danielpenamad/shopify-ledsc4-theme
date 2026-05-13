@@ -68,3 +68,11 @@ verify_jwt = false
 # pg_cron (I4.3) o por Dani manualmente con anon/service key. NO público.
 [functions.sftp-sync]
 verify_jwt = true
+
+# --- Currency rates (Currency-A) ---
+# Refresca diariamente los manualRate de los Markets UK (GBP) y USA (USD)
+# vs Open Exchange Rates (base=EUR). Invocada por pg_cron
+# `leds_currency_rates_daily` (06:00 UTC) con with_auth=true. JWT
+# obligatorio — no es público.
+[functions.update-currency-rates]
+verify_jwt = true
