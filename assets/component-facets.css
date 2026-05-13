@@ -1261,13 +1261,18 @@ input.mobile-facets__checkbox {
 }
 
 .facets__stock-min-input {
-  width: 100%;
-  padding: 0.8rem 1rem;
+  width: 6.5rem;
+  padding: 0.6rem 0.8rem;
   border: 0.1rem solid rgba(var(--color-foreground), 0.2);
   border-radius: 0.4rem;
   font-size: 1.4rem;
   background: rgb(var(--color-background));
   color: rgb(var(--color-foreground));
+}
+
+.facets__stock-min-input::-webkit-outer-spin-button,
+.facets__stock-min-input::-webkit-inner-spin-button {
+  margin: 0;
 }
 
 .facets__stock-min-input:focus {
