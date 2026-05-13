@@ -138,37 +138,6 @@ Respuesta:
 { "error": "...", ... }
 ```
 
-### 6. `update-currency-rates` (Currency-A)
-
-Refresca diariamente los `manualRate` de los Markets UK (GBP) y USA (USD)
-contra Open Exchange Rates. Invocada por `pg_cron`
-`leds_currency_rates_daily` a las 06:00 UTC. Log de cada ejecución en
-`private.currency_rate_log`.
-
-- **URL**: `https://<project-ref>.supabase.co/functions/v1/update-currency-rates`
-- **Auth**: `verify_jwt = true`. El cron inyecta `Authorization: Bearer <anon_key>`
-  vía `private.invoke_edge_function(..., true)`.
-- **Secrets requeridos**: los 3 Shopify + `OPEN_EXCHANGE_RATES_APP_ID`.
-- **Scopes Shopify**: `read_markets`, `write_markets`.
-- **Plan OXR**: el código asume **plan free**. En free la base es USD
-  obligatoria (`?base=EUR` devuelve 401). El edge function pide
-  `symbols=EUR,USD,GBP` con base USD implícita y recalcula los rates
-  EUR-base con `usdPerEur = 1 / rates.EUR` y `gbpPerEur = rates.GBP /
-  rates.EUR`, sin redondeo (Number preserva ~15 dígitos significativos;
-  Shopify redondea a 2 decimales sólo en el render del precio
-  storefront). Si en el futuro se contrata plan paid, se puede
-  simplificar a `?base=EUR&symbols=USD,GBP` y usar `rates.USD` /
-  `rates.GBP` directos — basta con sustituir el cuerpo de `fetchRates`
-  en el edge function (y `fetchInitialRates` en el script one-shot)
-  para devolver `json.rates` tal cual.
-- **One-shot inicial**: tras el merge correr `node scripts/activate-market-currencies.mjs`
-  para activar `localCurrencies + baseCurrency + manualRate` en UK/USA. Idempotente.
-- **Verificación post-deploy**:
-  1. `curl -X POST -H "Authorization: Bearer <anon_key>" https://<project-ref>.supabase.co/functions/v1/update-currency-rates`
-  2. Admin Shopify → Markets → UK → debe mostrar GBP con manualRate; idem USA con USD.
-  3. `select * from private.currency_rate_log order by id desc limit 1;` → fila con `status_usa='ok'` y `status_uk='ok'`.
-  4. `supabase functions logs update-currency-rates` → línea con `OXR rates USD-base (raw): {...} | EUR-base (computed): {...}` para trazabilidad.
-
 ## Por qué dos functions en vez de una
 
 Separación por trigger:
@@ -205,7 +174,6 @@ Dashboard → **Project Settings → Edge Functions → Secrets**. Añade:
 | `ORDER_REQUEST_HMAC_SECRET` | mismo valor que `settings.order_request_hmac_secret` en `config/settings_data.json`. |
 | `REGISTER_B2B_HMAC_SECRET` | generar con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. **MISMO valor** debe ponerse en theme settings → Endpoints B2B → "HMAC secret · register-b2b" (Online Store → Themes → Customize). |
 | `STOREFRONT_ORIGIN` (opcional) | dominio del storefront (`https://ledsc4-b2b-outlet.myshopify.com` o el custom domain) para CORS estricto en prod. Default `*`. |
-| `OPEN_EXCHANGE_RATES_APP_ID` | App ID de https://openexchangerates.org/account/app-ids. Usado por `update-currency-rates`. |
 
 Alternativa CLI: `supabase secrets set NAME=value`.
 
@@ -234,8 +202,7 @@ supabase functions deploy \
   create-company-for-customer \
   submit-order-request \
   list-order-requests \
-  register-b2b-customer \
-  update-currency-rates
+  register-b2b-customer
 ```
 
 ### 7. Actualizar el `Send HTTP request` de W1 y W2 en Shopify Flow
