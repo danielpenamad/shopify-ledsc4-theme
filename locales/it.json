@@ -549,6 +549,11 @@
     }
   },
   "ledsc4": {
+    "common": {
+      "currency": {
+        "switcher_label": "Cambia valuta"
+      }
+    },
     "checkout": {
       "disclaimers": {
         "body_html": ""

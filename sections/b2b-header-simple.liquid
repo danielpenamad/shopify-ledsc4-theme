@@ -47,6 +47,25 @@
     </a>
 
     <nav class="b2b-header-simple__nav" aria-label="{{ 'customer.account_fallback' | t }}">
+      {%- comment -%}
+        Currency-B — switcher visible para anónimos en la landing
+        /pages/acceso-profesional (pueden pre-elegir antes de loguear).
+        Se OCULTA en las pantallas terminales de estado (cuenta-en-revision,
+        cuenta-rechazada) porque el usuario no puede ver catálogo desde ahí
+        y el switcher carecería de función. El check vía template.suffix
+        no necesita un mapeo manual: Shopify pone 'b2b-cuenta-en-revision'
+        / 'b2b-cuenta-rechazada' tomando del nombre del JSON template.
+      {%- endcomment -%}
+      {%- liquid
+        assign hide_currency = false
+        if template.suffix == 'b2b-cuenta-en-revision' or template.suffix == 'b2b-cuenta-rechazada'
+          assign hide_currency = true
+        endif
+      -%}
+      {%- unless hide_currency -%}
+        {%- render 'currency-switcher' -%}
+      {%- endunless -%}
+
       {%- if customer -%}
         <span class="b2b-header-simple__email" title="{{ customer.email }}">
           {{ customer.first_name | default: customer.email | truncate: 24 }}

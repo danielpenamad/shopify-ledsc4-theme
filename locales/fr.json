@@ -740,6 +740,9 @@
         "ad": "Andorre",
         "ma": "Maroc"
       },
+      "currency": {
+        "switcher_label": "Changer de devise"
+      },
       "footer": {
         "aria_legal": "Mentions légales",
         "aviso_legal": "Mention légale",

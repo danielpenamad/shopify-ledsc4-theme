@@ -1,0 +1,286 @@
+{%- comment -%}
+  Currency-B — switcher de divisa público para LedsC4 multi-currency.
+
+  3 opciones expuestas al usuario: EUR (€), USD ($), GBP (£). El usuario
+  no ve "Market" — sólo divisa. Mapping fijado en JS:
+    EUR → country_code=ES  → Market ES
+    USD → country_code=US  → Market USA
+    GBP → country_code=GB  → Market UK
+
+  Mecanismo nativo Shopify: {% form 'localization' %} con
+  <input name="country_code"> + <input name="return_to">. Submit hace
+  POST a /localization, que cambia el @inContext del Market activo y
+  redirige a return_to. El propio Shopify gestiona el cookie de Market;
+  nuestro `ledsc4_currency` (30 días) es solo memoria local para volver
+  a la elección del usuario si el cookie de Market expira o se pierde.
+
+  Persistencia + redirect 1-vez:
+    - Al cargar, JS lee ledsc4_currency. Si no existe → setea 'EUR'.
+    - Si la divisa de la cookie != localization.country.currency.iso_code
+      activa → submit silencioso del form con country_code mapeado para
+      forzar el Market correcto. Anti-bucle vía sessionStorage flag con
+      la divisa intentada — si tras el redirect Shopify no aplicó el
+      Market (e.g. country no soportado), el flag impide reintentar la
+      misma divisa en esta sesión.
+    - Al click en una opción: setea la cookie + limpia el flag de
+      sessionStorage + submit del form. Esa elección manual sustituye
+      cualquier estado previo.
+
+  Sin auto-detect por IP (decisión Dani): por defecto EUR. Si la cookie
+  vence o el navegador la borra, el usuario vuelve a aterrizar en EUR.
+
+  Aria/HTML:
+    Botón dropdown con aria-expanded, panel <ul> oculto por defecto.
+    JS minimal autocontenido (no depende del JS del header).
+    Outside-click + Escape cierran el panel.
+
+  Render:
+    Llamado desde b2b-header.liquid y b2b-header-simple.liquid junto al
+    selector de idioma. Visible para todos los visitantes (no gated).
+{%- endcomment -%}
+
+{%- liquid
+  # Divisa actualmente activa según el Market en contexto.
+  # localization.country.currency.iso_code devuelve 'EUR' | 'USD' | 'GBP'
+  # según el Market vigente. Defensive: si el path resuelve nil (e.g.
+  # Markets aún sin configurar en una instalación nueva), caemos a 'EUR'
+  # para evitar que JS reciba `null` y compare contra `desired` → bucle.
+  assign active_currency = localization.country.currency.iso_code | default: 'EUR'
+  assign active_symbol = '€'
+  if active_currency == 'USD'
+    assign active_symbol = '$'
+  elsif active_currency == 'GBP'
+    assign active_symbol = '£'
+  endif
+
+  # return_to: misma URL (path + query) para que el redirect tras
+  # /localization conserve la página donde estaba el usuario.
+  assign return_path = request.path
+  if request.query_string != blank
+    assign return_path = return_path | append: '?' | append: request.query_string
+  endif
+-%}
+
+<div class="ledsc4-currency-switcher" data-ledsc4-currency-switcher>
+  {%- form 'localization', class: 'ledsc4-currency-switcher__form' -%}
+    <input type="hidden" name="country_code" value="{{ localization.country.iso_code }}" data-ledsc4-currency-country>
+    <input type="hidden" name="return_to" value="{{ return_path | escape }}">
+
+    <button
+      type="button"
+      class="ledsc4-currency-switcher__toggle"
+      aria-expanded="false"
+      aria-controls="ledsc4-currency-panel"
+      aria-label="{{ 'ledsc4.common.currency.switcher_label' | t }}"
+      data-ledsc4-currency-toggle
+    >
+      <span aria-hidden="true">{{ active_symbol }}</span>
+      <span>{{ active_currency }}</span>
+      <span class="ledsc4-currency-switcher__caret" aria-hidden="true">▾</span>
+    </button>
+
+    <ul
+      id="ledsc4-currency-panel"
+      class="ledsc4-currency-switcher__panel"
+      role="list"
+      data-ledsc4-currency-panel
+    >
+      <li>
+        <button
+          type="button"
+          class="ledsc4-currency-switcher__option{% if active_currency == 'EUR' %} ledsc4-currency-switcher__option--active{% endif %}"
+          data-ledsc4-currency="EUR"
+          data-country="ES"
+          {% if active_currency == 'EUR' %}aria-current="true"{% endif %}
+        >
+          <span aria-hidden="true">€</span> EUR
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="ledsc4-currency-switcher__option{% if active_currency == 'USD' %} ledsc4-currency-switcher__option--active{% endif %}"
+          data-ledsc4-currency="USD"
+          data-country="US"
+          {% if active_currency == 'USD' %}aria-current="true"{% endif %}
+        >
+          <span aria-hidden="true">$</span> USD
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="ledsc4-currency-switcher__option{% if active_currency == 'GBP' %} ledsc4-currency-switcher__option--active{% endif %}"
+          data-ledsc4-currency="GBP"
+          data-country="GB"
+          {% if active_currency == 'GBP' %}aria-current="true"{% endif %}
+        >
+          <span aria-hidden="true">£</span> GBP
+        </button>
+      </li>
+    </ul>
+  {%- endform -%}
+</div>
+
+<style>
+  .ledsc4-currency-switcher {
+    position: relative;
+    font-family: inherit;
+  }
+  .ledsc4-currency-switcher__form { margin: 0; }
+  .ledsc4-currency-switcher__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: inherit;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: rgb(var(--color-foreground, 15 18 23));
+    background: transparent;
+    border: 1px solid rgba(15, 18, 23, 0.15);
+    border-radius: 4px;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    white-space: nowrap;
+  }
+  .ledsc4-currency-switcher__toggle:hover {
+    border-color: rgba(15, 18, 23, 0.3);
+    background: rgba(15, 18, 23, 0.04);
+  }
+  .ledsc4-currency-switcher__caret {
+    font-size: 0.7em;
+    line-height: 1;
+    transition: transform 0.15s ease;
+  }
+  .ledsc4-currency-switcher__toggle[aria-expanded="true"] .ledsc4-currency-switcher__caret {
+    transform: rotate(180deg);
+  }
+  .ledsc4-currency-switcher__panel {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0;
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    right: 0;
+    min-width: 140px;
+    background: #ffffff;
+    border: 1px solid rgba(15, 18, 23, 0.08);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(15, 18, 23, 0.10);
+    z-index: 60;
+  }
+  .ledsc4-currency-switcher__panel.ledsc4-currency-switcher__panel--open {
+    display: block;
+  }
+  .ledsc4-currency-switcher__option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    color: rgb(var(--color-foreground, 15 18 23));
+    font-family: inherit;
+    font-size: 1.6rem;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .ledsc4-currency-switcher__option:hover {
+    background: rgba(15, 18, 23, 0.06);
+  }
+  .ledsc4-currency-switcher__option--active {
+    color: var(--color-ledsc4-accent, #1a1f27);
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  (function () {
+    var COOKIE_NAME = 'ledsc4_currency';
+    var COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 días
+    var COUNTRY_BY_CURRENCY = { EUR: 'ES', USD: 'US', GBP: 'GB' };
+    var ACTIVE_CURRENCY = {{ active_currency | json }};
+    var FLAG_KEY = 'ledsc4_currency_redirected';
+
+    function getCookie(name) {
+      var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+    function setCookie(name, value) {
+      var secure = location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie =
+        name + '=' + encodeURIComponent(value) +
+        '; Path=/; Max-Age=' + COOKIE_MAX_AGE +
+        '; SameSite=Lax' + secure;
+    }
+
+    var switcher = document.querySelector('[data-ledsc4-currency-switcher]');
+    if (!switcher) return;
+    var form = switcher.querySelector('form');
+    var countryInput = switcher.querySelector('[data-ledsc4-currency-country]');
+    var toggle = switcher.querySelector('[data-ledsc4-currency-toggle]');
+    var panel = switcher.querySelector('[data-ledsc4-currency-panel]');
+
+    // --- Persistencia 30 días + redirect 1-vez si la cookie diverge ---
+    var desired = getCookie(COOKIE_NAME);
+    if (!desired || !COUNTRY_BY_CURRENCY[desired]) {
+      desired = 'EUR';
+      setCookie(COOKIE_NAME, desired);
+    }
+    if (desired !== ACTIVE_CURRENCY) {
+      // Anti-bucle: si ya intentamos esta divisa en esta sesión y aún
+      // no se aplicó (ACTIVE_CURRENCY no cambió), no reintentar.
+      var lastRedirect;
+      try { lastRedirect = sessionStorage.getItem(FLAG_KEY); } catch (e) { lastRedirect = null; }
+      if (lastRedirect !== desired && form && countryInput && COUNTRY_BY_CURRENCY[desired]) {
+        try { sessionStorage.setItem(FLAG_KEY, desired); } catch (e) {}
+        countryInput.value = COUNTRY_BY_CURRENCY[desired];
+        form.submit();
+        return;
+      }
+    } else {
+      // El Market activo coincide con la cookie: limpia el flag para que
+      // futuras divergencias puedan reintentar el redirect.
+      try { sessionStorage.removeItem(FLAG_KEY); } catch (e) {}
+    }
+
+    // --- Click en opción → set cookie + submit form ---
+    switcher.querySelectorAll('[data-ledsc4-currency]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var cur = btn.getAttribute('data-ledsc4-currency');
+        var country = btn.getAttribute('data-country');
+        if (!cur || !country || !form || !countryInput) return;
+        setCookie(COOKIE_NAME, cur);
+        try { sessionStorage.removeItem(FLAG_KEY); } catch (e2) {}
+        countryInput.value = country;
+        form.submit();
+      });
+    });
+
+    // --- Dropdown open/close ---
+    function closePanel() {
+      if (!toggle || !panel) return;
+      toggle.setAttribute('aria-expanded', 'false');
+      panel.classList.remove('ledsc4-currency-switcher__panel--open');
+    }
+    if (toggle && panel) {
+      toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!expanded));
+        panel.classList.toggle('ledsc4-currency-switcher__panel--open', !expanded);
+      });
+      document.addEventListener('click', function (e) {
+        if (switcher.contains(e.target)) return;
+        closePanel();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closePanel();
+      });
+    }
+  })();
+</script>

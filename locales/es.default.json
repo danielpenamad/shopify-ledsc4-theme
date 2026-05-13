@@ -587,6 +587,9 @@
         "ad": "Andorra",
         "ma": "Marruecos"
       },
+      "currency": {
+        "switcher_label": "Cambiar divisa"
+      },
       "footer": {
         "aria_legal": "Enlaces legales",
         "aviso_legal": "Aviso legal",
