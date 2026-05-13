@@ -2,7 +2,7 @@
 // Unit tests for scripts/import-map.mjs.
 // Zero dependencies. Run: node scripts/import-map.test.mjs
 
-import { buildTitle, coerce, parsePrice } from './import-map.mjs';
+import { buildTitle, coerce, parsePrice, buildShopifyModel } from './import-map.mjs';
 
 let passed = 0;
 let failed = 0;
@@ -210,6 +210,163 @@ function testParsePriceCurrencyCodeSuffix() {
   assertPrice('15,00 EUR', 15, false, '"15,00 EUR"');
 }
 
+// ---- buildShopifyModel SKU-override tests (PR-CAT-RESTRUCTURE) ----
+//
+// These tests exercise the post-coerce override path added in import-map.mjs.
+// Fixture: 4 SKUs covering Bucket A / B / C and a control (not in overrides).
+// Minimal mapping with sku, tipo, familia, catalogo columns. Translations
+// are provided for EN (one of the 5 secondary locales) to verify that the
+// override propagates to translations too.
+
+function makeTestFixture() {
+  // Column indexes: 0=sku, 3=tipo, 5=familia, 6=catalogo.
+  const mapping = {
+    files: { surtido: { primary_locale: 'ES' } },
+    columns: {
+      "0": { column_name_es: 'Referencia', destination: 'variant.sku', translatable: false, type: 'string', key: true },
+      "3": { column_name_es: 'Tipo', destination: 'metafield', namespace: 'product', key: 'tipo', translatable: true, filterable: true, type: 'single_line_text_field' },
+      "5": { column_name_es: 'Familia', destination: 'metafield', namespace: 'product', key: 'familia', translatable: true, type: 'single_line_text_field' },
+      "6": { column_name_es: 'Catálogo', destination: 'metafield', namespace: 'product', key: 'catalogo', translatable: true, type: 'single_line_text_field' },
+    },
+  };
+
+  // raw[i] indexed by column position. Sparse arrays are fine — buildShopifyModel
+  // only reads the column positions declared in mapping.columns.
+  function row(sku, tipo, familia, catalogo) {
+    const r = [];
+    r[0] = sku;
+    r[3] = tipo;
+    r[5] = familia;
+    r[6] = catalogo;
+    return r;
+  }
+
+  // CSV says DIY for all DIY SKUs' catalogo (per audit). The override should
+  // transform A/B/C; control stays as-is.
+  // For Bucket B (Flexo), use distinct CSV translations of "Flexo" per locale
+  // to verify the override REPLACES them with the canonical "Sobremesa"
+  // translation in each locale.
+  const recordsES = [
+    { sku: 'DE-0055-NEG', raw: row('DE-0055-NEG', 'Sobremesa', 'Tress', 'DIY') },         // Bucket A
+    { sku: 'DE-0148-BLA', raw: row('DE-0148-BLA', 'Flexo', 'Pomo', 'DIY') },               // Bucket B
+    { sku: 'PX-0555-ANT', raw: row('PX-0555-ANT', 'Farola', 'PALE', 'DIY') },              // Bucket C
+    { sku: 'ZZ-0000-CTL', raw: row('ZZ-0000-CTL', 'Colgante', 'Control', 'Decorative') },  // Control (not in overrides)
+  ];
+
+  // Non-ES locales: distinct translated 'tipo' values so we can verify the
+  // override actually replaces them (Bucket B) or leaves them intact (others).
+  // For tipo we simulate what the CSV would carry in each locale: "Flexo"
+  // typically translates to "Desk lamp"/"Lampe articulée"/etc. — but the
+  // override should set "Table lamp"/"Lampe de table"/etc.
+  function makeLocaleRecords(tipoFlexo) {
+    return [
+      { sku: 'DE-0055-NEG', raw: row('DE-0055-NEG', 'Table lamp_NATIVE', 'Tress', 'DIY') }, // tipo translation natural; Bucket A doesn't override tipo so this stays
+      { sku: 'DE-0148-BLA', raw: row('DE-0148-BLA', tipoFlexo, 'Pomo', 'DIY') },             // distinct per locale
+      { sku: 'PX-0555-ANT', raw: row('PX-0555-ANT', 'Streetlight_NATIVE', 'PALE', 'DIY') },  // Bucket C doesn't override tipo
+      { sku: 'ZZ-0000-CTL', raw: row('ZZ-0000-CTL', 'Pendant_NATIVE', 'Control', 'Decorative') },
+    ];
+  }
+
+  const surtidoByLocale = new Map([
+    ['ES', { records: recordsES }],
+    ['EN', { records: makeLocaleRecords('Desk lamp_CSV') }],
+    ['FR', { records: makeLocaleRecords('Lampe articulée_CSV') }],
+    ['DE', { records: makeLocaleRecords('Schreibtischleuchte_CSV') }],
+    ['IT', { records: makeLocaleRecords('Lampada da scrivania_CSV') }],
+    ['PT', { records: makeLocaleRecords('Candeeiro de secretária_CSV') }],
+  ]);
+  const stock = { records: recordsES.map((r) => ({ sku: r.sku, inventario: 10 })) };
+  const precios = { records: recordsES.map((r) => ({ sku: r.sku, tarifa: '15,00€' })) };
+
+  return { surtidoByLocale, stock, precios, mapping };
+}
+
+function getMfValue(metafields, key) {
+  const m = metafields.find((x) => x.key === key);
+  return m ? m.value : null;
+}
+
+function getTrMfValue(translations, locale, key) {
+  const t = translations?.[locale];
+  if (!t) return null;
+  const m = (t.metafields ?? []).find((x) => x.key === key);
+  return m ? m.value : null;
+}
+
+function testOverrideBucketA() {
+  console.log('Test 30 (override A): DE-0055-NEG → catalogo "DIY" overrideado a "Forlight", tipo intacto (traducción natural del CSV se preserva en EN)');
+  const fx = makeTestFixture();
+  const { products } = buildShopifyModel(fx);
+  const m = products.get('DE-0055-NEG');
+  assert(m != null, 'DE-0055-NEG present in model');
+  assertEq(getMfValue(m.product.metafields, 'catalogo'), 'Forlight', 'primary catalogo overridden');
+  assertEq(getMfValue(m.product.metafields, 'tipo'), 'Sobremesa', 'primary tipo intact (from CSV)');
+  assertEq(getTrMfValue(m.translations, 'en', 'catalogo'), 'Forlight', 'EN translation catalogo overridden (flat string)');
+  // Bucket A doesn't override tipo, so the EN translation comes from the CSV directly.
+  assertEq(getTrMfValue(m.translations, 'en', 'tipo'), 'Table lamp_NATIVE', 'EN translation tipo intact from CSV');
+}
+
+function testOverrideBucketB_metafieldAndTitle() {
+  console.log('Test 31 (override B): DE-0148-BLA → catalogo "DIY"→"Forlight" (flat), tipo "Flexo"→"Sobremesa" en ES y traducción canónica en EN, title sigue diciendo "Pomo Flexo"');
+  const fx = makeTestFixture();
+  const { products } = buildShopifyModel(fx);
+  const m = products.get('DE-0148-BLA');
+  assert(m != null, 'DE-0148-BLA present in model');
+  assertEq(getMfValue(m.product.metafields, 'catalogo'), 'Forlight', 'primary catalogo overridden');
+  assertEq(getMfValue(m.product.metafields, 'tipo'), 'Sobremesa', 'primary tipo overridden Flexo→Sobremesa');
+  // Title must keep the commercial "Flexo" — buildTitle reads the raw tipoVal
+  // from the CSV before the override is applied.
+  assertEq(m.product.title, 'Pomo Flexo', 'product title keeps "Flexo" (commercial name)');
+  assertEq(getTrMfValue(m.translations, 'en', 'catalogo'), 'Forlight', 'EN catalogo overridden (flat)');
+  // KEY: tipo in EN must be the canonical "Table lamp" (per-locale override),
+  // NOT the CSV's "Desk lamp_CSV" and NOT the ES literal "Sobremesa".
+  assertEq(getTrMfValue(m.translations, 'en', 'tipo'), 'Table lamp', 'EN tipo = canonical translation, not CSV value, not ES literal');
+}
+
+function testOverrideBucketB_multilocale() {
+  console.log('Test 31b (override B multi-locale): tipo en EN/FR/DE/IT/PT-PT es la traducción canónica del CSV (no la traducción natural de Flexo, no Sobremesa literal)');
+  const fx = makeTestFixture();
+  const { products } = buildShopifyModel(fx);
+  const m = products.get('DE-0148-BLA');
+  assert(m != null, 'DE-0148-BLA present');
+  const expected = {
+    'en': 'Table lamp',
+    'fr': 'Lampe de table',
+    'de': 'Tischleuchten',
+    'it': 'Lampade da tavolo',
+    'pt-PT': 'Candeeiro de mesa',
+  };
+  for (const [locale, val] of Object.entries(expected)) {
+    assertEq(getTrMfValue(m.translations, locale, 'tipo'), val, `${locale} tipo = "${val}"`);
+    // catalogo is flat ("Forlight"); must be identical in every locale.
+    assertEq(getTrMfValue(m.translations, locale, 'catalogo'), 'Forlight', `${locale} catalogo = "Forlight" (flat)`);
+  }
+}
+
+function testOverrideBucketC() {
+  console.log('Test 32 (override C): PX-0555-ANT → catalogo "DIY"→"Outdoor", tipo "Farola" intacto en ES y EN');
+  const fx = makeTestFixture();
+  const { products } = buildShopifyModel(fx);
+  const m = products.get('PX-0555-ANT');
+  assert(m != null, 'PX-0555-ANT present in model');
+  assertEq(getMfValue(m.product.metafields, 'catalogo'), 'Outdoor', 'primary catalogo overridden');
+  assertEq(getMfValue(m.product.metafields, 'tipo'), 'Farola', 'primary tipo intact');
+  assertEq(getTrMfValue(m.translations, 'en', 'catalogo'), 'Outdoor', 'EN catalogo overridden (flat)');
+  assertEq(getTrMfValue(m.translations, 'en', 'tipo'), 'Streetlight_NATIVE', 'EN tipo intact from CSV (no tipo override in Bucket C)');
+}
+
+function testOverrideControl_skuNotInTable() {
+  console.log('Test 33 (control): ZZ-0000-CTL no en overrides → catalogo y tipo del CSV sin tocar');
+  const fx = makeTestFixture();
+  const { products } = buildShopifyModel(fx);
+  const m = products.get('ZZ-0000-CTL');
+  assert(m != null, 'ZZ-0000-CTL present in model');
+  assertEq(getMfValue(m.product.metafields, 'catalogo'), 'Decorative', 'catalogo preserved from CSV');
+  assertEq(getMfValue(m.product.metafields, 'tipo'), 'Colgante', 'tipo preserved from CSV');
+  assertEq(getTrMfValue(m.translations, 'en', 'catalogo'), 'Decorative', 'EN catalogo preserved');
+  assertEq(getTrMfValue(m.translations, 'en', 'tipo'), 'Pendant_NATIVE', 'EN tipo preserved');
+}
+
 function main() {
   testCleanIdempotent();
   testDoubleSpaceCollapsed();
@@ -240,6 +397,11 @@ function main() {
   testParsePriceNbspBeforeEuro();
   testParsePriceNullInput();
   testParsePriceCurrencyCodeSuffix();
+  testOverrideBucketA();
+  testOverrideBucketB_metafieldAndTitle();
+  testOverrideBucketB_multilocale();
+  testOverrideBucketC();
+  testOverrideControl_skuNotInTable();
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     console.error('\nFailures:');

@@ -1,0 +1,46 @@
+{
+  "$comment": "Override post-coerce de metafields product.catalogo y product.tipo por SKU. Aplicado tras coerce() y antes del productSet() del writer, tanto al valor primario (ES) como a las 5 traducciones (en/fr/de/it/pt-PT). El override es necesario porque el cron full 02:00 UTC reescribe estos metafields desde la columna 'Catálogo' del CSV SFTP en cada run; cambiar el valor en Shopify Admin sin tocar el pipeline se revertiría esa misma noche. Aplicar el override también a translations garantiza consistencia con PR-PIPELINE-A (writer reescribe traducciones aunque coincidan con ES). Shape: cada key dentro de overrides puede ser un string (aplica en los 6 locales) o un objeto {es,en,fr,de,it,pt-PT} para override-por-locale. Lo segundo se usa cuando el valor SÍ debe traducirse (ej. Bucket B 'tipo': el filtro lateral de Shopify Search & Discovery muestra el valor traducido del metafield, así que mezclar 'Sobremesa' literal con 'Table lamp' nativo crearía dos checkboxes para el mismo concepto). Greppable por SKU: `grep <sku> scripts/sku-overrides.json`. Reversible: vaciar rules:[] o borrar el fichero → getOverride() devuelve null → comportamiento idéntico al pre-PR; el siguiente cron full restaura los valores SFTP-canónicos. Notar que esta tabla NO toca product.title: buildTitle() usa el tipoVal crudo del CSV antes del override, así que SKUs Bucket B mantienen 'Flexo' en su title comercial aunque su metafield tipo pase a 'Sobremesa' (intencional para que cumplan la rule de cat-forlight-sobremesa).",
+  "version": "1.0.0",
+  "updated": "2026-05-13",
+  "rules": [
+    {
+      "id": "cat-restructure-2026-05-A-diy-to-forlight",
+      "description": "PR-CAT-RESTRUCTURE: 50 SKUs DIY pasan a catalogo=Forlight, tipo intacto. Decisión cliente (2026-05): eliminar cat-diy como padre del menú; los SKUs se subsumen en cat-forlight (padre) y sus hijos cat-forlight-{tipo} cuando existen. Tipos del bucket: Superficie de Techo (16), Serie de focos (8), Colgante (6), Superficie de Pared (5), Sobremesa (5), Ventilador (3), Baliza (2), Proyector (2), Chillout (1), Pie (1), Baño (1). El origen SFTP seguirá diciendo 'DIY' en columna Catálogo hasta que el cliente lo cambie en origen; esta regla lo pisa post-coerce.",
+      "overrides": { "catalogo": "Forlight" },
+      "skus": [
+        "DE-0055-NEG", "DE-0044-NEG", "DE-0052-SAT", "DE-0430-CRO", "DE-0158-NEG",
+        "PX-0553-ANT", "PX-0552-ANT", "PX-0506-ANT", "PX-0548-NEG", "PX-0462-ANT",
+        "DE-0107-VRD", "DE-0063-SAT", "PX-0547-MAD", "DE-0083-NEG", "DE-0070-NEG",
+        "DE-0060-SAT", "DE-0066-SAT", "DE-0056-NEG", "DE-0057-NEG", "DE-0058-NEG",
+        "DE-0064-SAT", "DE-0032-MAD", "DE-0029-MAD", "PX-0685-ANT", "DE-0170-NEG",
+        "DE-0170-BLA", "DE-0169-NEG", "DE-0169-BLA", "DE-0160-NEG", "DE-0159-NEG",
+        "PX-0616-NEG", "DE-0142-NEG", "DE-0142-BLA", "VE-0029-MAD", "VE-0031-MAD",
+        "VE-0032-MAD", "PX-0509-NEG", "PX-0463-ANT", "PX-0460-ANT", "DE-0077-NEG",
+        "DE-0059-NEG", "DE-0068-GRI", "DE-0069-GRI", "DE-0034-MAD", "DE-0033-MAD",
+        "DE-0038-MAD", "DE-0037-MAD", "DE-0265-CEM", "DE-0198-BLA", "DE-0196-CRO"
+      ]
+    },
+    {
+      "id": "cat-restructure-2026-05-B-flexo-to-forlight-sobremesa",
+      "description": "PR-CAT-RESTRUCTURE: 4 SKUs tipo Flexo (2 de cat-diy + 2 de cat-otros/Ecommerce) se reclasifican como catalogo=Forlight y tipo=Sobremesa para que caigan en cat-forlight-sobremesa (rule AND catalogo=Forlight + tipo=Sobremesa). Evita crear cat-forlight-flexo (solo 2 productos en su set, sub-umbral del cliente de >=3). El title primario y traducido del producto mantiene 'Flexo' (nombre comercial); solo el metafield tipo cambia. El override de 'tipo' usa shape por-locale (Opción 2) con las traducciones canónicas del CSV (extraídas de los 16 SKUs Sobremesa nativos: idénticas en los 16, sin variantes) para mantener consistencia con los vecinos en cat-forlight-sobremesa cuando el filtro lateral de Search & Discovery muestra el metafield traducido.",
+      "overrides": {
+        "catalogo": "Forlight",
+        "tipo": {
+          "es": "Sobremesa",
+          "en": "Table lamp",
+          "fr": "Lampe de table",
+          "de": "Tischleuchten",
+          "it": "Lampade da tavolo",
+          "pt-PT": "Candeeiro de mesa"
+        }
+      },
+      "skus": ["DE-0148-BLA", "DE-0148-NEG", "DE-0147-BLA", "DE-0147-NEG"]
+    },
+    {
+      "id": "cat-restructure-2026-05-C-farola-diy-to-outdoor",
+      "description": "PR-CAT-RESTRUCTURE: 1 SKU tipo Farola pasa de catalogo=DIY a catalogo=Outdoor. Tipo intacto. Cae automáticamente en cat-outdoor (padre) y cat-outdoor-farola (hijo, rule AND catalogo=Outdoor + tipo=Farola, que sube de 3 a 4 productos).",
+      "overrides": { "catalogo": "Outdoor" },
+      "skus": ["PX-0555-ANT"]
+    }
+  ]
+}
