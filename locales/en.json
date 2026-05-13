@@ -819,6 +819,9 @@
         "be": "Belgium",
         "ma": "Morocco"
       },
+      "currency": {
+        "switcher_label": "Change currency"
+      },
       "footer": {
         "aria_legal": "Legal links",
         "aviso_legal": "Legal notice",

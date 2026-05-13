@@ -131,6 +131,26 @@
         // LOCALE_PREFIX: '' en home, '/fr' en /fr (ver hotfix doc).
         // Usos: LOCALE_PREFIX + '/path/X' (con slash inicial).
         const LOCALE_PREFIX = {{ locale_prefix | json }};
+        // Currency-B — divisa visible en el momento del envío. Se inyecta en
+        // el payload para que submit-order-request la guarde como
+        // note_attribute en el draft order ("Moneda mostrada" / "Símbolo
+        // moneda"). El símbolo se deriva server-side; aquí mandamos solo el
+        // código (EUR/USD/GBP).
+        //
+        // Path: cart.currency.iso_code, NO localization.country.currency.iso_code.
+        // Razón: en Markets con localCurrencies=true (UK/USA en LedsC4),
+        // el cart se renderiza en la divisa real elegida por el visitante,
+        // que es exactamente lo que queremos guardar en el draft. El path
+        // localization.country.currency.iso_code refleja la divisa "del país
+        // activo del Market", que coincide en el caso simple pero puede
+        // divergir si Shopify presenta una local currency distinta a la base
+        // del Market. cart.currency es la fuente de verdad en el momento
+        // del envío.
+        //
+        // Defensive fallback a 'EUR' si el path resuelve nil (cart vacío,
+        // Markets sin configurar). El edge function tiene su propia
+        // whitelist EUR/USD/GBP → cualquier otro valor → 'EUR'.
+        const CURRENCY_CODE = {{ cart.currency.iso_code | default: 'EUR' | json }};
 
         const T = {
           submit: {{ 'ledsc4.solicitudes.form.submit' | t | json }},
@@ -195,6 +215,7 @@
             signature: SIGNATURE,
             note: comentarioEl.value || '',
             items: items,
+            currencyCode: CURRENCY_CODE,
             force: !!force,
           };
 

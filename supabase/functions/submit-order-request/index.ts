@@ -26,6 +26,11 @@
 //       { variantId: "gid://shopify/ProductVariant/456", quantity: 2 },
 //       ...
 //     ],
+//     currencyCode: "EUR" | "USD" | "GBP", // opcional, Currency-B. Si llega
+//                                          //   inválido o ausente → 'EUR'.
+//                                          //   Persiste como note_attributes
+//                                          //   "Moneda mostrada" + "Símbolo
+//                                          //   moneda" en el draft order.
 //     force: true                      // opcional, bypass de warning de duplicado
 //   }
 //
@@ -135,6 +140,18 @@ Deno.serve(async (req) => {
     const note = (body.note as string | undefined)?.slice(0, 1000) ?? "";
     const force = body.force === true;
     const items = (body.items as Array<{ variantId: string; quantity: number }> | undefined) ?? [];
+
+    // Currency-B — divisa mostrada al usuario al enviar (EUR/USD/GBP).
+    // Si el client no la manda o manda un código fuera del set, caemos
+    // a EUR. No es de confianza (client-side), pero es informativa para
+    // el backoffice — el rate real se aplica en checkout vía Markets.
+    const ALLOWED_CURRENCIES = ["EUR", "USD", "GBP"] as const;
+    const SYMBOL_BY_CURRENCY: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
+    const rawCurrency = (body.currencyCode as string | undefined)?.toUpperCase();
+    const currencyCode = (ALLOWED_CURRENCIES as readonly string[]).includes(rawCurrency ?? "")
+      ? (rawCurrency as string)
+      : "EUR";
+    const currencySymbol = SYMBOL_BY_CURRENCY[currencyCode];
 
     if (!customerId || !customerId.startsWith("gid://shopify/Customer/")) {
       return jsonResponse({ startedAt, error: "invalid_customerId" }, 400);
@@ -304,6 +321,11 @@ Deno.serve(async (req) => {
             { key: "fuente", value: "solicitud-b2b-frontend" },
             { key: "cbm_total", value: cbmTotal.toString() },
             { key: "fecha_solicitud", value: new Date().toISOString() },
+            // Currency-B — divisa mostrada al usuario en el momento del envío.
+            // Sin rate numérico por decisión (Dani): el email no muestra rate;
+            // el comercial usa la moneda como referencia, no para recalcular.
+            { key: "Moneda mostrada", value: currencyCode },
+            { key: "Símbolo moneda", value: currencySymbol },
           ],
         },
       },

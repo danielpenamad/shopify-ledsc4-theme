@@ -152,6 +152,15 @@
         {%- endif -%}
       </a>
 
+      {%- comment -%}
+        Currency-B — switcher de divisa público (EUR/USD/GBP). Renderizado
+        antes del selector de idioma. Mecanismo nativo Markets vía
+        {% form 'localization' %} con country_code mapeado por divisa.
+      {%- endcomment -%}
+      <div class="b2b-header__currency">
+        {%- render 'currency-switcher' -%}
+      </div>
+
       {%- if show_locale -%}
         <div class="b2b-header__locale">
           {%- form 'localization', class: 'b2b-header__locale-form' -%}
@@ -407,6 +416,11 @@
     font-weight: 600;
     line-height: 1;
     border-radius: 9px;
+  }
+
+  /* Currency picker (snippet currency-switcher) — pegado al locale */
+  .b2b-header__currency {
+    display: inline-flex;
   }
 
   /* Locale picker */
