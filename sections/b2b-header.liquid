@@ -71,8 +71,14 @@
     <nav class="b2b-header__nav" id="b2b-header-nav" aria-label="{{ 'customer.account_fallback' | t }}">
       {%- if main_menu.links.size > 0 -%}
         <ul class="b2b-header__menu" role="list">
+          {%- comment %}<locksmith:0640>{% endcomment -%}
+            {%- assign locksmith_04fc_forloop__size = 0 %}{%- for link in main_menu.links -%}{% capture var %}{% render 'locksmith-variables', scope: 'subject', subject: link, subject_parent: main_menu, variable: 'transparent' %}{% endcapture %}{% if var == 'true' %}{% assign locksmith_04fc_forloop__size = locksmith_04fc_forloop__size | plus: 1 %}{% endif %}{% endfor %}{% assign locksmith_04fc_forloop__index = nil -%}
+          {%- comment %}</locksmith:0640>{% endcomment -%}
           {%- for link in main_menu.links -%}
-            {%- assign panel_id = 'b2b-submenu-' | append: forloop.index -%}
+            {%- comment %}<locksmith:8b81>{% endcomment -%}
+              {%- capture var %}{% render 'locksmith-variables', scope: 'subject', subject: link, subject_parent: main_menu, variable: 'transparent' %}{% endcapture %}{% if var == "true" %}{% if locksmith_04fc_forloop__index == nil %}{% assign locksmith_04fc_forloop__index = 1 %}{% assign locksmith_04fc_forloop__index0 = 0 %}{% else %}{% assign locksmith_04fc_forloop__index = locksmith_04fc_forloop__index | plus: 1 %}{% assign locksmith_04fc_forloop__index0 = locksmith_04fc_forloop__index0 | plus: 1 %}{% endif %}{% if locksmith_04fc_forloop__index == 1 %}{% assign locksmith_04fc_forloop__first = true %}{% else %}{% assign locksmith_04fc_forloop__first = false %}{% endif %}{% if locksmith_04fc_forloop__index == locksmith_04fc_forloop__size %}{% assign locksmith_04fc_forloop__last = true %}{% else %}{% assign locksmith_04fc_forloop__last = false %}{% endif %}{% assign locksmith_04fc_forloop__rindex = locksmith_04fc_forloop__size | minus: locksmith_04fc_forloop__index | minus: 1 %}{% assign locksmith_04fc_forloop__rindex0 = locksmith_04fc_forloop__size | minus: locksmith_04fc_forloop__index0 | minus: 1 %}{% else %}{% continue %}{% endif -%}
+            {%- comment %}</locksmith:8b81>{% endcomment -%}
+            {%- assign panel_id = 'b2b-submenu-' | append: locksmith_04fc_forloop__index -%}
             <li class="b2b-header__menu-li">
               {%- if link.links != blank -%}
                 <button
@@ -92,6 +98,9 @@
                   data-b2b-dropdown-panel
                 >
                   {%- for child in link.links -%}
+                    {%- comment %}<locksmith:ebbe>{% endcomment -%}
+                      {%- capture var %}{% render 'locksmith-variables', scope: 'subject', subject: child, subject_parent: link, variable: 'transparent' %}{% endcapture %}{% if var == "true" %}{% else %}{% continue %}{% endif -%}
+                    {%- comment %}</locksmith:ebbe>{% endcomment -%}
                     {%- assign child_title = child.object.title | default: child.title -%}
                     {%- assign child_segments = child_title | split: ' — ' -%}
                     <li>
