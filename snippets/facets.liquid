@@ -113,14 +113,18 @@
             <script src="{{ 'show-more.js' | asset_url }}" defer="defer"></script>
             <script src="{{ 'stock-filter.js' | asset_url }}" defer="defer"></script>
             {% comment %} Stock minimum filter (client-side, current page) {% endcomment %}
-            <details class="disclosure-has-popup facets__disclosure js-filter" data-index="stock-min" open>
+            <details
+              class="{% if filter_type == 'horizontal' %}disclosure-has-popup facets__disclosure{% else %} facets__disclosure-vertical{% endif %} js-filter"
+              data-index="stock-min"
+              open
+            >
               <summary class="facets__summary caption-large focus-offset">
                 <div>
                   <span>{{ 'ledsc4.facets.stock_min.label' | t }}</span>
                   {{- 'icon-caret.svg' | inline_asset_content -}}
                 </div>
               </summary>
-              <div class="facets__display facets__display--stock-min">
+              <div class="parent-display {% if filter_type == 'horizontal' %}facets__display{% else %}facets__display-vertical{% endif %} facets__display--stock-min">
                 <label for="StockMinInput" class="visually-hidden">
                   {{ 'ledsc4.facets.stock_min.label' | t }}
                 </label>
@@ -129,7 +133,9 @@
                   id="StockMinInput"
                   class="facets__stock-min-input"
                   min="1"
+                  max="999"
                   step="1"
+                  maxlength="3"
                   placeholder="{{ 'ledsc4.facets.stock_min.placeholder' | t }}"
                   inputmode="numeric"
                   autocomplete="off"
