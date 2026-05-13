@@ -231,6 +231,16 @@
       "show_more": "Mostrar más",
       "show_less": "Mostrar menos",
       "filter_and_operator_subtitle": "Seleccionar todos"
+    },
+    "card": {
+      "stock_ok": {
+        "one": "{{ count }} ud disponible",
+        "other": "{{ count }} uds disponibles"
+      },
+      "stock_low": {
+        "one": "Solo {{ count }} ud",
+        "other": "Solo {{ count }} uds"
+      }
     }
   },
   "templates": {

@@ -230,6 +230,16 @@
       "sort_by_label": "Sort by:",
       "to": "To",
       "clear_filter": "Remove filter"
+    },
+    "card": {
+      "stock_ok": {
+        "one": "{{ count }} unit available",
+        "other": "{{ count }} units available"
+      },
+      "stock_low": {
+        "one": "Only {{ count }} unit left",
+        "other": "Only {{ count }} units left"
+      }
     }
   },
   "templates": {
