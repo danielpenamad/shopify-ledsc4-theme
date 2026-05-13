@@ -111,6 +111,40 @@
             {%- endif -%}
 
             <script src="{{ 'show-more.js' | asset_url }}" defer="defer"></script>
+            <script src="{{ 'stock-filter.js' | asset_url }}" defer="defer"></script>
+            {% comment %} Stock minimum filter (client-side, current page) {% endcomment %}
+            <details class="disclosure-has-popup facets__disclosure js-filter" data-index="stock-min" open>
+              <summary class="facets__summary caption-large focus-offset">
+                <div>
+                  <span>{{ 'ledsc4.facets.stock_min.label' | t }}</span>
+                  {% render 'icon-caret' %}
+                </div>
+              </summary>
+              <div class="facets__display facets__display--stock-min">
+                <label for="StockMinInput" class="visually-hidden">
+                  {{ 'ledsc4.facets.stock_min.label' | t }}
+                </label>
+                <input
+                  type="number"
+                  id="StockMinInput"
+                  class="facets__stock-min-input"
+                  min="1"
+                  step="1"
+                  placeholder="{{ 'ledsc4.facets.stock_min.placeholder' | t }}"
+                  inputmode="numeric"
+                  autocomplete="off"
+                >
+                <p class="facets__stock-min-hint caption">
+                  {{ 'ledsc4.facets.stock_min.hint' | t }}
+                </p>
+                <p
+                  class="facets__stock-min-status caption"
+                  aria-live="polite"
+                  hidden
+                  data-template="{{ 'ledsc4.facets.stock_min.status_html' | t }}"
+                ></p>
+              </div>
+            </details>
             {% comment %} Filters for both horizontal and vertical filter {% endcomment %}
             {%- for filter in results.filters -%}
               {% liquid

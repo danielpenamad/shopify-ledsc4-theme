@@ -576,6 +576,14 @@
     }
   },
   "ledsc4": {
+    "facets": {
+      "stock_min": {
+        "label": "Stock mínimo",
+        "placeholder": "Ej. 5",
+        "hint": "Filtra solo los productos visibles en esta página.",
+        "status_html": "{{ visible }} de {{ total }} productos en esta página"
+      }
+    },
     "common": {
       "cta": {
         "login": "Iniciar sesión",
