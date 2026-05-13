@@ -575,6 +575,14 @@
     }
   },
   "ledsc4": {
+    "facets": {
+      "stock_min": {
+        "label": "Stock minimum",
+        "placeholder": "Ex. 5",
+        "hint": "Filtre uniquement les produits visibles sur cette page.",
+        "status_html": "{{ visible }} sur {{ total }} produits sur cette page"
+      }
+    },
     "acceso": {
       "como": {
         "step2_desc": "Approuvé automatiquement en quelques minutes ou examen manuel sous 24 à 48 heures ouvrées.",
