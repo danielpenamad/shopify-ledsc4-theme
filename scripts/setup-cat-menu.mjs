@@ -2,13 +2,16 @@
 // Idempotente: configura el main-menu del outlet B2B con la jerarquía
 // cat-*. Diseñado para correr DESPUÉS de scripts/setup-cat-collections.mjs.
 //
-// Estructura (cerrada en Paso 1):
+// Estructura (PR-CAT-RESTRUCTURE 2026-05):
 //   1. Forlight       → cat-forlight       (con hijos ordenados por count desc)
 //   2. Architectural  → cat-architectural  ( "" )
 //   3. Decorative     → cat-decorative     ( "" )
-//   4. DIY            → cat-diy            ( "" )
-//   5. Outdoor        → cat-outdoor        ( "" )
-//   6. Otros          → cat-otros          (sin hijos)
+//   4. Outdoor        → cat-outdoor        ( "" )
+//   5. Emergency      → cat-emergency      (sin hijos, padre suelto)
+//
+// Estructura previa (pre-2026-05, retirada): incluía cat-diy (con 5 hijos)
+// y cat-otros (custom, sin hijos). Sustituidos por cat-emergency tras la
+// reasignación de catalogo/tipo vía scripts/sku-overrides.json.
 //
 // Idempotencia: compara normalizado el menú actual vs el target. Si igual,
 // skip. Si distinto, menuUpdate (preserva el id; no se borra ni recrea).
@@ -35,14 +38,17 @@ const DRY_RUN = process.argv.includes('--dry-run');
 // API/credencial está rota, el dry-run debe explotar igual que el real.
 requireEnv();
 
-// Orden cerrado. cat-otros al final, sin hijos.
+// Orden cerrado (PR-CAT-RESTRUCTURE 2026-05). cat-emergency al final, sin
+// hijos (3 productos, sub-umbral del cliente de >=3 para crear hijos por
+// tipo). Orden comercial: marcas principales primero, líneas residuales al
+// final. cat-diy y cat-otros retirados — sus productos se reasignaron a
+// cat-forlight/cat-outdoor/cat-emergency vía scripts/sku-overrides.json.
 const PADRE_ORDER = [
   { title: 'Forlight',      handle: 'cat-forlight',      withChildren: true  },
   { title: 'Architectural', handle: 'cat-architectural', withChildren: true  },
   { title: 'Decorative',    handle: 'cat-decorative',    withChildren: true  },
-  { title: 'DIY',           handle: 'cat-diy',           withChildren: true  },
   { title: 'Outdoor',       handle: 'cat-outdoor',       withChildren: true  },
-  { title: 'Otros',         handle: 'cat-otros',         withChildren: false },
+  { title: 'Emergency',     handle: 'cat-emergency',     withChildren: false },
 ];
 
 async function fetchAllCatCollections() {

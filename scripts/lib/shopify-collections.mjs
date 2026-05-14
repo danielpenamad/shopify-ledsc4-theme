@@ -38,11 +38,6 @@ export const CATALOG_PUBLICATION_TITLE = 'Outlet general';
 export const META_DEF_CATALOGO_GID = 'gid://shopify/MetafieldDefinition/379919106375';
 export const META_DEF_TIPO_GID     = 'gid://shopify/MetafieldDefinition/382763630919';
 
-// Catálogos que caen al bucket "Otros" (smart-collection no permite OR
-// mixto con AND-tag, así que cat-otros se crea como CUSTOM y se popula
-// añadiendo productos manualmente).
-export const OTROS_CATALOGOS = new Set(['Emergency', 'Ecommerce']);
-
 // ─── Utilidades ────────────────────────────────────────────────────────────
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -172,8 +167,7 @@ export async function collectionUpdate({ id, title, ruleSet }) {
  * mutation NO es idempotente — añadir un producto que ya está devuelve un
  * error genérico "Error adding <gid> to collection".
  *
- * Pagina por si la collection crece (250 por página). Para cat-otros (5
- * productos) basta con una página.
+ * Pagina por si la collection crece (250 por página).
  */
 export async function getCollectionProductIds(collectionId) {
   const ids = new Set();
@@ -355,7 +349,7 @@ export async function ensurePublished(collectionId, publicationId) {
   return true;
 }
 
-// ─── Producto iteration (para cat-otros y verificación) ────────────────────
+// ─── Producto iteration (para verificación / scripts ad-hoc) ──────────────
 
 // Pagina TODOS los productos con el tag del outlet, devolviendo
 // { id, handle, title, catalogo, tipo } (los metafields como strings o null).

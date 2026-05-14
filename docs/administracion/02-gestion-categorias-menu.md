@@ -12,27 +12,22 @@ Las categorías del portal B2B (lo que el cliente ve en el menú del header como
 
 ## Cómo está organizado el catálogo
 
-El menú del portal tiene una **estructura cerrada de 6 categorías padre**, cada una con sus categorías hijo (excepto la última):
+El menú del portal tiene una **estructura cerrada de 5 categorías padre**, cada una con sus categorías hijo (excepto la última, que es un padre suelto):
 
 | Padre | Handle de colección | Tiene hijos |
 | --- | --- | --- |
 | Forlight | `cat-forlight` | Sí |
 | Architectural | `cat-architectural` | Sí |
 | Decorative | `cat-decorative` | Sí |
-| DIY | `cat-diy` | Sí |
 | Outdoor | `cat-outdoor` | Sí |
-| Otros | `cat-otros` | No |
+| Emergency | `cat-emergency` | No |
 
-Los **6 padres son fijos**: no se añaden, no se quitan, no se renombran. El número y nombre de los **hijos** dentro de cada padre lo define el equipo técnico desde código. En total el portal tiene del orden de 40 colecciones con handle `cat-*` (los 6 padres más los hijos).
+Los **5 padres son fijos**: no se añaden, no se quitan, no se renombran. El número y nombre de los **hijos** dentro de cada padre lo define el equipo técnico desde código. En total el portal tiene del orden de 38 colecciones con handle `cat-*` (los 5 padres más los hijos).
 
 ### Cómo se ve desde fuera y desde dentro
 
-- **Desde el portal** (lo que ve el cliente logado): los 6 padres aparecen en el header como un menú de navegación. Al pasar el ratón por encima de un padre con hijos, se despliega su submenú con los hijos. `Otros` aparece como enlace plano sin dropdown.
+- **Desde el portal** (lo que ve el cliente logado): los 5 padres aparecen en el header como un menú de navegación. Al pasar el ratón por encima de un padre con hijos, se despliega su submenú con los hijos. `Emergency` aparece como enlace plano sin dropdown (3 productos, no llega al umbral para tener sub-categorías por tipo).
 - **Desde Shopify Admin → Products → Collections**: verás todas las colecciones `cat-*` listadas. Son **smart collections** definidas por reglas (no las pueblas tú a mano: los productos entran o salen automáticamente según sus campos del CSV de surtido).
-
-### Sobre `cat-otros`
-
-`cat-otros` es un **cajón temporal**. Recoge los productos que el importador no ha podido encuadrar en uno de los 5 padres principales. Su contenido depende del importador: si todos los productos del catálogo tienen categoría asignable, `cat-otros` queda vacío y deja de mostrarse en el menú. Si ves productos en `cat-otros`, no es un error visual — es que el importador no supo a dónde mandarlos. La corrección se hace en origen (mejorando la categorización en el CSV), no en Shopify.
 
 ### Sobre el orden dentro de los dropdowns
 
@@ -61,7 +56,7 @@ La documentación técnica de estos scripts vendrá en el eje [Desarrollo](../de
 ## Si algo va mal
 
 - **Un producto no aparece en la categoría que esperaba:** comprueba primero en el portal logado como cliente aprobado, no desde Shopify Admin (la vista pública aplica los filtros de Locksmith y las traducciones, que pueden diferir de lo que ves en el admin). Si en el portal sigue sin aparecer, el problema es de **categorización del producto en el CSV de origen**, no del menú. Avisa al equipo comercial responsable del CSV.
-- **Hay productos en `cat-otros` que deberían estar en una de las categorías principales:** mismo caso. El importador no ha podido categorizarlos. La corrección se hace en origen.
+- **Un producto aparece en una categoría que no encaja con su nombre comercial (ej. una lámpara titulada "Flexo" aparece en cat-forlight-sobremesa):** el metafield `tipo` no siempre coincide con la palabra del título — la pertenencia a la sub-categoría se decide por el metafield, no por el título. Si crees que es un error de catalogación, avisa al equipo técnico para revisar la regla.
 - **El menú del portal no refleja una categoría que el equipo técnico me dijo que ya existe:** puede que el script de menú no se haya ejecutado todavía tras añadir la categoría. Avisa al equipo técnico para que lo confirmen.
 - **He tocado una colección `cat-*` o el menú por error:** no intentes deshacerlo a mano. Avisa al equipo técnico y describe qué tocaste — los scripts restaurarán la estructura correcta en su próxima ejecución.
 - **Un comercial me pide crear una categoría nueva o cambiar la jerarquía:** no es una tarea que puedas resolver. Traslada la petición al equipo técnico con el detalle del cambio que pide el negocio (qué categoría, dentro de qué padre, qué productos debería contener).
