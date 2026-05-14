@@ -2553,6 +2553,14 @@ input[type='checkbox'] {
     justify-self: center;
     text-align: center;
   }
+
+  /* Breathing room between logo and main menu (desktop only) */
+  .header--middle-left .header__heading,
+  .header--middle-left > .header__heading-link,
+  .header--top-left .header__heading,
+  .header--top-left > .header__heading-link {
+    margin-right: 2rem;
+  }
 }
 
 /* Header icons */
