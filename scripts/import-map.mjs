@@ -10,6 +10,8 @@
 // Single export: buildShopifyModel({ surtidoByLocale, stock, precios, mapping })
 //   → { products: Map<sku, ProductModel>, orphans, warnings }
 
+import { getOverride } from './lib/sku-overrides.mjs';
+
 const VENDOR = 'LedsC4';
 const PRIMARY_LOCALE = 'ES';
 const SECONDARY_LOCALES = ['EN', 'IT', 'DE', 'FR', 'PT'];
@@ -361,11 +363,18 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
       const { value, warning } = coerce(rawVal, mc.type, sku, mc.idx, PRIMARY_LOCALE);
       if (warning) productWarnings.push(warning);
       if (value == null) continue;
+      // PR-CAT-RESTRUCTURE: post-coerce override por SKU (ver
+      // scripts/sku-overrides.json y scripts/lib/sku-overrides.mjs).
+      // Necesario porque el cron full reescribe estos metafields desde
+      // el CSV; el override se aplica aquí para que el productSet envíe
+      // el valor reasignado, no el del SFTP. Locale 'es' = valor primario.
+      const override = getOverride(sku, mc.key, 'es');
+      const finalValue = override != null ? override : value;
       // GraphQL Admin expects metafield values as serialized strings.
       let serialized;
-      if (typeof value === 'boolean') serialized = value ? 'true' : 'false';
-      else if (typeof value === 'number') serialized = String(value);
-      else serialized = String(value);
+      if (typeof finalValue === 'boolean') serialized = finalValue ? 'true' : 'false';
+      else if (typeof finalValue === 'number') serialized = String(finalValue);
+      else serialized = String(finalValue);
       metafields.push({
         namespace: mc.namespace,
         key: mc.key,
@@ -392,13 +401,28 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
         continue;
       }
 
+      // Resolve the Shopify locale code up-front so it's available to the
+      // metafield override lookup below (Opción 2: override-per-locale).
+      const shopifyLocale = FILE_SUFFIX_TO_SHOPIFY_LOCALE[loc];
+      if (!shopifyLocale) {
+        throw new Error(`buildShopifyModel: no Shopify locale mapping for file suffix "${loc}". Update FILE_SUFFIX_TO_SHOPIFY_LOCALE.`);
+      }
+
       const trMetafields = [];
       for (const mc of translatableMetafieldCols) {
         const rawVal = otherRaw[mc.idx];
         if (rawVal == null) continue;
         // For translations of text-typed metafields we keep them as string (no coerce).
         // Translatable metafields in our mapping are all string types.
-        trMetafields.push({ key: mc.key, value: String(rawVal) });
+        // PR-CAT-RESTRUCTURE: override aplica también a translations para
+        // mantener primary↔translation alineados (writer reescribe traducciones
+        // siempre tras PR-PIPELINE-A — si no overrideamos también las
+        // traducciones, queda "Forlight" en ES y "DIY" en EN/FR/DE/IT/PT).
+        // Pasa shopifyLocale para que overrides con shape por-locale (Bucket B
+        // 'tipo') devuelvan la traducción canónica en cada idioma.
+        const override = getOverride(sku, mc.key, shopifyLocale);
+        const finalValue = override != null ? override : rawVal;
+        trMetafields.push({ key: mc.key, value: String(finalValue) });
       }
 
       // body_html translation
@@ -425,10 +449,6 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
         });
       }
 
-      const shopifyLocale = FILE_SUFFIX_TO_SHOPIFY_LOCALE[loc];
-      if (!shopifyLocale) {
-        throw new Error(`buildShopifyModel: no Shopify locale mapping for file suffix "${loc}". Update FILE_SUFFIX_TO_SHOPIFY_LOCALE.`);
-      }
       translations[shopifyLocale] = {
         title: titleTranslated,
         body_html: otherBody ?? null,

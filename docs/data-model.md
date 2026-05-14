@@ -224,8 +224,10 @@ colección existe en el admin pero las URLs `/collections/<handle>` devuelven
   título: este store lo muestra como `Tienda online`). Ver
   [scripts/lib/shopify-collections.mjs](../scripts/lib/shopify-collections.mjs)
   → `resolveOnlineStorePublicationId()`.
-- Qué se publica aquí: las 44 colecciones `cat-*` (5 padres + 38 hijos + 1
-  custom `cat-otros`) y la smart `coleccion-2026`, vía
+- Qué se publica aquí: las 38 colecciones `cat-*` (5 padres smart +
+  33 hijos smart, sin custom collections — cat-emergency es padre smart
+  con rule AND `tag:Coleccion:2026 + catalogo=Emergency` y sin hijos) y
+  la smart `coleccion-2026`, vía
   [scripts/setup-cat-collections.mjs](../scripts/setup-cat-collections.mjs).
 
 ### Capa 3 — Gate por tag `aprobado` en `theme.liquid`
