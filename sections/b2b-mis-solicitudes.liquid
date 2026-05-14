@@ -72,6 +72,18 @@
     <h2 class="b2b-lista__subheading">{{ 'ledsc4.solicitudes.lista.subheading' | t }}</h2>
     <div id="b2b-lista-table-wrap"></div>
   </div>
+
+  {%- if customer -%}
+    <div class="mis-solicitudes__logout">
+      <a
+        href="{{ routes.account_logout_url }}"
+        class="button button--secondary mis-solicitudes__logout-link"
+        rel="nofollow"
+      >
+        {{ 'customer.log_out' | t }}
+      </a>
+    </div>
+  {%- endif -%}
 </section>
 
 {% style %}
@@ -203,6 +215,16 @@
       padding: 1rem 0;
     }
     .b2b-lista__table td { padding: 0.125rem 0; }
+  }
+
+  .mis-solicitudes__logout {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 0.1rem solid rgba(var(--color-foreground), 0.1);
+    text-align: center;
+  }
+  .mis-solicitudes__logout-link {
+    min-width: 18rem;
   }
 {% endstyle %}
 
