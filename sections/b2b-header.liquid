@@ -30,6 +30,13 @@
   editable en theme editor.
 {% endcomment %}
 
+<link
+  rel="stylesheet"
+  href="{{ 'component-search.css' | asset_url }}"
+  media="print"
+  onload="this.media='all'"
+>
+
 {%- liquid
   # locale_prefix: '' en home, '/fr' en /fr.
   assign locale_prefix = routes.root_url
@@ -138,6 +145,10 @@
     </nav>
 
     <div class="b2b-header__end">
+      <div class="b2b-header__search-wrapper">
+        {% render 'header-search', input_id: 'B2B-Header-Search' %}
+      </div>
+
       <a
         href="{{ routes.cart_url }}"
         class="b2b-header__cart{% if is_cart %} b2b-header__cart--active{% endif %}"
@@ -368,6 +379,66 @@
     align-items: center;
     gap: 0.5rem;
     flex-shrink: 0;
+  }
+
+  /* Search icon — usa el snippet 'header-search' de Dawn (details-modal +
+     predictive-search) y lo redimensiona para encajar con el resto del
+     b2b-header (mismo box 36x36 que el carrito). */
+  .b2b-header__search-wrapper {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .b2b-header__search-wrapper .header__search {
+    display: inline-flex;
+    line-height: 0;
+  }
+  .b2b-header__search-wrapper .header__icon--search {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    color: rgb(var(--color-foreground));
+    cursor: pointer;
+    list-style: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .b2b-header__search-wrapper .header__icon--search::-webkit-details-marker {
+    display: none;
+  }
+  .b2b-header__search-wrapper .header__icon--search:hover {
+    background: rgba(var(--color-foreground), 0.06);
+  }
+  .b2b-header__search-wrapper .header__icon--search > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+  }
+  .b2b-header__search-wrapper .header__icon--search .svg-wrapper {
+    width: 22px;
+    height: 22px;
+  }
+  .b2b-header__search-wrapper .header__icon--search .svg-wrapper svg {
+    width: 100%;
+    height: 100%;
+  }
+  /* Cuando el modal está abierto, mostramos el icono close en vez del search */
+  .b2b-header__search-wrapper details[open] .header__icon--search .svg-wrapper:not(.header__icon-close) {
+    display: none;
+  }
+  .b2b-header__search-wrapper .header__icon-close {
+    display: none;
+  }
+  .b2b-header__search-wrapper details[open] .header__icon-close {
+    display: inline-flex;
   }
 
   /* Cart icon + badge */
