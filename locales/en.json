@@ -216,6 +216,7 @@
       "show_more": "Show more",
       "show_less": "Show less",
       "max_price": "The highest price is {{ price }}",
+      "price": "Price",
       "product_count": {
         "one": "{{ product_count }} of {{ count }} product",
         "other": "{{ product_count }} of {{ count }} products"
