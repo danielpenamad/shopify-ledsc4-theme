@@ -212,6 +212,7 @@
         "many": "{{ count }} sélectionnés"
       },
       "max_price": "Le prix le plus élevé est de {{ price }}",
+      "price": "Prix",
       "product_count": {
         "one": "{{ product_count }} produit sur {{ count }}",
         "other": "{{ product_count }} produits sur {{ count }}",
