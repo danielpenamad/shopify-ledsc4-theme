@@ -1,8 +1,8 @@
 # ADRs · Architecture Decision Records
 
 !!! info "Estado del documento"
-    **Versión:** 0.9 · 15-may-2026
-    **Estado:** ⚠️ en construcción
+    **Versión:** 1.0 · 15-may-2026
+    **Estado:** ✅ sección completa
     **Audiencia:** Equipo de desarrollo
 
 ## Qué es esto
@@ -24,11 +24,11 @@ Las decisiones se numeran de forma estable (`D1`, `D2`, …) y se referencian de
 | [D7](d07-backoffice-page.md) | Página backoffice con tag `backoffice` | ✅ aceptada |
 | [D8](d08-predeterminado.md) | Columna `Predeterminado`: importar sin exponer | ⚠️ provisional |
 | [D9](d09-metafields-ampliados.md) | Modelo de metafields ampliado | ✅ aceptada |
-| D10 | 3 CSVs SFTP separados (importer) | 🚧 esqueleto |
-| D11 | Pre-upload de imágenes a Shopify Files | 🚧 esqueleto |
-| D12 | Pipeline split sftp-sync (Edge) → GHA | 🚧 esqueleto |
-| D13 | Multidivisa con auto-rates de Shopify Markets | 🚧 esqueleto |
-| D14 | Fingerprint cache en `private.sku_state` | 🚧 esqueleto |
+| [D10](d10-3-csvs-sftp.md) | 3 CSVs SFTP separados (importer) | ✅ aceptada |
+| [D11](d11-image-pre-upload.md) | Pre-upload de imágenes a Shopify Files | ✅ aceptada |
+| [D12](d12-pipeline-split.md) | Pipeline split sftp-sync (Edge) → GHA | ✅ aceptada |
+| [D13](d13-multicurrency.md) | Multidivisa con auto-rates de Shopify Markets | ✅ aceptada |
+| [D14](d14-sku-state-fingerprint.md) | Fingerprint cache en `private.sku_state` | ⚠️ parcial |
 
 Leyenda: ✅ completo · ⚠️ parcial / provisional · 🚧 esqueleto · ❌ obsoleta · ♻️ superseded por otra.
 

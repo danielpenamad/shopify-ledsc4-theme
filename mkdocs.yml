@@ -72,6 +72,11 @@ nav:
           - D7 · Página backoffice: desarrollo/adrs/d07-backoffice-page.md
           - D8 · Predeterminado: desarrollo/adrs/d08-predeterminado.md
           - D9 · Metafields ampliados: desarrollo/adrs/d09-metafields-ampliados.md
+          - D10 · 3 CSVs SFTP: desarrollo/adrs/d10-3-csvs-sftp.md
+          - D11 · Image pre-upload: desarrollo/adrs/d11-image-pre-upload.md
+          - D12 · Pipeline split: desarrollo/adrs/d12-pipeline-split.md
+          - D13 · Multicurrency: desarrollo/adrs/d13-multicurrency.md
+          - D14 · sku_state fingerprint: desarrollo/adrs/d14-sku-state-fingerprint.md
   - Administración:
       - administracion/index.md
       - Visión general: administracion/00-vision-general.md
