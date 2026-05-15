@@ -1,7 +1,7 @@
 # ADRs · Architecture Decision Records
 
 !!! info "Estado del documento"
-    **Versión:** 0.2 · 15-may-2026
+    **Versión:** 0.3 · 15-may-2026
     **Estado:** ⚠️ en construcción
     **Audiencia:** Equipo de desarrollo
 
@@ -17,7 +17,7 @@ Las decisiones se numeran de forma estable (`D1`, `D2`, …) y se referencian de
 |---|---|---|
 | [D1](d01-plan-grow.md) | Plan Grow de Shopify | ✅ aceptada |
 | [D2](d02-b2b-nativo.md) | B2B nativo (Companies/Catalogs/Price Lists) | ✅ aceptada |
-| D3 | Shopify Flow + Supabase Edge Functions | 🚧 esqueleto |
+| [D3](d03-flow-supabase.md) | Shopify Flow + Supabase Edge Functions | ✅ aceptada |
 | D4 | Gate híbrido (Locksmith + Liquid) | 🚧 esqueleto |
 | D5 | New customer accounts | 🚧 esqueleto |
 | D6 | Catálogo único multi-ready | 🚧 esqueleto |
