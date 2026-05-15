@@ -61,6 +61,9 @@ nav:
       - GitHub (repo): desarrollo/05-github-repo.md
       - GitHub Actions: desarrollo/06-github-actions.md
       - Supabase: desarrollo/07-supabase.md
+      - ADRs:
+          - desarrollo/adrs/index.md
+          - D1 · Plan Grow: desarrollo/adrs/d01-plan-grow.md
   - Administración:
       - administracion/index.md
       - Visión general: administracion/00-vision-general.md
