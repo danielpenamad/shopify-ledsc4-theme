@@ -10,25 +10,24 @@ Lo que **no** está aquí: los emails nativos que Shopify envía sin pasar por F
 
 ## 2. Inventario de workflows
 
-Los workflows están versionados en `flows/` del repo. Convención: cada workflow tiene tres archivos:
+Los workflows viven en Shopify Flow y **no son editables externamente**. No hay API pública (estado mayo 2026) para crear, modificar o desplegar workflows programáticamente — solo la UI del admin. El repo contiene material de apoyo en `flows/`:
 
 - `Wx-<slug>.md` — diseño conceptual original (Fase A)
-- `Wx-walkthrough.md` — config real tal como quedó (Fase B en adelante)
-- `Wx-<slug>.flow.json` — export del workflow desde Shopify Admin (fuente de verdad implementacional)
+- `Wx-walkthrough.md` — guía de configuración manual paso a paso, **fuente de verdad para reconfigurar**
 
-El walkthrough es la guía a seguir si hay que reconfigurar. El `.flow.json` es el estado actual. Contradice la creencia frecuente de que los flows no son editables externamente: lo son, lo que no es es replayable por API hasta que Shopify abra Flow API pública (sigue sin existir en mayo 2026).
+Cualquier `.flow.json` que veas en `flows/` es un snapshot histórico de Fase B y no refleja el estado actual de los flows en producción. La fuente de verdad implementacional es el workflow vivo en Shopify Admin; el walkthrough es la guía para reconstruirlo a mano si hace falta.
 
-| Workflow | Trigger | Activo | Estado en repo |
+| Workflow | Trigger | Activo | Doc en repo |
 | --- | --- | --- | --- |
-| W1 — Registro B2B | `customer_created` | Sí | `W1-walkthrough.md` (sin `.flow.json` aún) |
-| W2 — Aprobación manual | `customer_tags_added` | Sí | `W2-walkthrough.md` + `W2-aprobacion-manual.flow.json` |
-| W3 — Rechazo manual | `customer_tags_added` | Sí | `W3-walkthrough.md` + `W3-rechazo-manual.flow.json` |
+| W1 — Registro B2B | `customer_created` | Sí | `W1-walkthrough.md` |
+| W2 — Aprobación manual | `customer_tags_added` | Sí | `W2-walkthrough.md` |
+| W3 — Rechazo manual | `customer_tags_added` | Sí | `W3-walkthrough.md` |
 | W4 — Whitelist re-eval | — | **MOVIDO A SUPABASE** (no es flow) | `W4-walkthrough.md` deprecated |
-| W5 — Solicitud B2B creada | `draft_order_created` | Sí | sin walkthrough ni `.flow.json` aún |
+| W5 — Solicitud B2B creada | `draft_order_created` | Sí | sin walkthrough aún |
 
 W4 fue movido a Supabase (edge function `promote-whitelist-matches`) porque la re-evaluación de whitelist sobre customers existentes no encaja en triggers de Flow. Su `.md` queda como contexto histórico — no es un flow vivo.
 
-W5 está operativo en producción pero falta su documentación en `flows/`. Es deuda menor (un `W5-walkthrough.md` + export del JSON).
+W5 está operativo en producción pero falta su `W5-walkthrough.md`. Es deuda menor.
 
 Patrón común a los 4 workflows activos:
 
@@ -236,10 +235,10 @@ Lista exhaustiva de límites técnicos que afectan al diseño:
 
 - **Campo `address` de `Send internal email` no acepta variables ni liquid**. Único motivo del hardcoded de emails backoffice.
 - **`Send marketing email` solo entrega a clientes suscritos**. Sin opt-in → fallo silencioso, sin error en run history. Ver §7.
-- **No hay API pública para crear/editar workflows programáticamente** (estado mayo 2026). Los `.flow.json` son editables a mano pero re-importarlos en otro tenant requiere reasignar GIDs de templates y customer fields.
+- **No hay forma de editar workflows desde fuera de la UI** (estado mayo 2026). Sin API pública, sin formato editable. Cualquier cambio se hace a mano en Shopify Admin → Apps → Flow. Esto convierte a los walkthroughs en `flows/` en la única vía documental para reconstruir un workflow desde cero.
 - **Conditions de Flow son binarias**. No hay if/elif/else en un nodo. El ramificado por idioma requiere conditions encadenadas (§5).
 - **`customer.locale` incluye sufijos regionales**. `es-ES`, `en-GB`, `fr-CA`. Por eso `start_with?` y no `==`.
-- **Marketing activity IDs no son portables**. Export/import entre tiendas requiere reasignar 15 GIDs a mano.
+- **Marketing activity IDs no son portables entre tiendas**. Reconstruir un workflow en otra tienda requiere recrear los 15 templates en Shopify Email destino y reasignar los GIDs a mano en cada `Send marketing email`.
 - **`Run code` tiene timeout corto** (segundos). Llamadas síncronas a APIs externas pesadas no encajan — para eso `Send HTTP request` y procesado asíncrono en la edge destino (ej. `create-company-for-customer`).
 - **Variables del customer en Shopify Email son limitadas**. Solo first/last name interpolables (§6).
 - **No hay reintentos automáticos** en `Send HTTP request` ante 5xx transitorios. La edge destino debe ser idempotente y el flow asume entrega; fallos quedan en run history sin alerta.
@@ -288,18 +287,19 @@ Recordatorio: si añades `de` como idioma, el currency switcher y el resto del t
 
 ### Reconstruir un workflow en otra tienda
 
-1. Export del `.flow.json` desde Shopify Admin (botón ⋯ → Export) en la tienda origen
-2. Import en la tienda destino — fallarán las referencias a:
-   - Marketing activity IDs (templates) → recrear los 15 templates en la tienda destino, anotar GIDs nuevos, reasignar en cada `Send marketing email`
-   - Customer metafield definitions → recrear desde `scripts/metafield-definitions.json` antes (ver 01-data-model)
-   - Edge function URLs si están hardcoded → reasignar settings_data.json
-3. Activar workflow uno por uno y testear con un customer dummy
+No hay export/import operativo entre tiendas: el formato no se preserva ni es editable, y los GIDs de templates y customer fields son específicos por tenant. Reconstrucción siempre manual:
+
+1. Crear las 15 templates en Shopify Email destino (anotar los GIDs nuevos)
+2. Recrear las customer metafield definitions desde `scripts/metafield-definitions.json` antes (ver 01-data-model)
+3. Configurar las edge function URLs en `settings_data.json` y los HMAC secrets
+4. Construir cada workflow a mano siguiendo el `Wx-walkthrough.md` correspondiente, asignando los GIDs de los nuevos templates en cada `Send marketing email`
+5. Activar workflow uno por uno y testear con un customer dummy
 
 ## 11. Pendientes
 
 - **`register-b2b-customer` no suscribe al cliente a marketing — bloqueante**. Estado actual: ninguno de los 5 emails marketing (W1-acuse, W1-bienvenida, W2-aprobacion, W3-rechazo, W5-acuse) llega a clientes recién registrados. Fix: añadir `emailMarketingConsent: { marketingState: "SUBSCRIBED", marketingOptInLevel: "CONFIRMED_OPT_IN", consentUpdatedAt: ... }` al `customerCreate`. Pre-requisito legal: validar que el formulario `/pages/acceso-profesional#registro` ofrece opt-in explícito o que las condiciones aceptadas lo cubren bajo LOPDGDD/RGPD. Ver §7.
 
-- **W5 sin walkthrough ni `.flow.json` en repo**. W5 está operativo en producción pero `flows/` no tiene `W5-walkthrough.md` ni `W5-solicitud-b2b.flow.json`. Reconstruir desde el workflow vivo. Deuda menor.
+- **W5 sin walkthrough en repo**. W5 está operativo en producción pero `flows/` no tiene `W5-walkthrough.md`. Documentar a mano siguiendo la configuración viva en Shopify Admin. Deuda menor.
 
 - **Refactor del contrato edge↔W1**. La edge `register-b2b-customer` deja los datos B2B en `customer.note` y el paso 1 de W1 los parsea para volcarlos a metafields. Más limpio: edge escribe metafields directos y W1 solo gestiona whitelist + emails. Cambio implica versionar contrato edge↔flow.
 
@@ -307,4 +307,6 @@ Recordatorio: si añades `de` como idioma, el currency switcher y el resto del t
 
 - **Sin alertas en fallos del flow**. Si `Send HTTP request` a `create-company-for-customer` falla, el customer queda como `aprobado` sin Company asignada — visible solo entrando al run history de Flow. Falta una alerta proactiva (Sentry, email, Slack). Tratado como deuda operacional, no del sistema de emails per se.
 
-- **Templates antiguos en `email-templates/*.liquid`**. Quedaron como referencia tras la migración de `Send internal email` a `Send marketing email` (§4). Verificar si pueden eliminarse del repo sin perder valor histórico (probablemente sí, los `.flow.json` y la config viva en Shopify Email son la verdad).
+- **Templates antiguos en `email-templates/*.liquid`**. Quedaron como referencia tras la migración de `Send internal email` a `Send marketing email` (§4). Verificar si pueden eliminarse del repo sin perder valor histórico (probablemente sí, la config viva en Shopify Email es la verdad).
+
+- **Limpiar `.flow.json` viejos en `flows/`**. Hay snapshots de Fase B (`W2-aprobacion-manual.flow.json`, `W3-rechazo-manual.flow.json`) que no reflejan el estado actual. No tienen valor documental — los walkthroughs son la guía actual y el formato no es replayable. PR de limpieza pendiente.
