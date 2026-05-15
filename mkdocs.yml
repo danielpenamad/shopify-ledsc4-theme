@@ -64,6 +64,7 @@ nav:
       - ADRs:
           - desarrollo/adrs/index.md
           - D1 · Plan Grow: desarrollo/adrs/d01-plan-grow.md
+          - D2 · B2B nativo: desarrollo/adrs/d02-b2b-nativo.md
   - Administración:
       - administracion/index.md
       - Visión general: administracion/00-vision-general.md
