@@ -67,6 +67,11 @@ nav:
           - D2 · B2B nativo: desarrollo/adrs/d02-b2b-nativo.md
           - D3 · Flow + Supabase: desarrollo/adrs/d03-flow-supabase.md
           - D4 · Gate híbrido: desarrollo/adrs/d04-gate-hibrido.md
+          - D5 · Customer accounts: desarrollo/adrs/d05-customer-accounts.md
+          - D6 · Catálogo único: desarrollo/adrs/d06-catalogo-unico.md
+          - D7 · Página backoffice: desarrollo/adrs/d07-backoffice-page.md
+          - D8 · Predeterminado: desarrollo/adrs/d08-predeterminado.md
+          - D9 · Metafields ampliados: desarrollo/adrs/d09-metafields-ampliados.md
   - Administración:
       - administracion/index.md
       - Visión general: administracion/00-vision-general.md
