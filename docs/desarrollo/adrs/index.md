@@ -1,7 +1,7 @@
 # ADRs · Architecture Decision Records
 
 !!! info "Estado del documento"
-    **Versión:** 0.4 · 15-may-2026
+    **Versión:** 0.5 · 15-may-2026
     **Estado:** ⚠️ en construcción
     **Audiencia:** Equipo de desarrollo
 
@@ -19,7 +19,7 @@ Las decisiones se numeran de forma estable (`D1`, `D2`, …) y se referencian de
 | [D2](d02-b2b-nativo.md) | B2B nativo (Companies/Catalogs/Price Lists) | ✅ aceptada |
 | [D3](d03-flow-supabase.md) | Shopify Flow + Supabase Edge Functions | ✅ aceptada |
 | [D4](d04-gate-hibrido.md) | Gate híbrido (Liquid + Locksmith) | ✅ aceptada |
-| D5 | New customer accounts | 🚧 esqueleto |
+| [D5](d05-customer-accounts.md) | New customer accounts | ✅ aceptada (impuesta) |
 | D6 | Catálogo único multi-ready | 🚧 esqueleto |
 | D7 | Página backoffice con tag `backoffice` | 🚧 esqueleto |
 | D8 | Mapping CSV `Predeterminado` pendiente | 🚧 esqueleto |
