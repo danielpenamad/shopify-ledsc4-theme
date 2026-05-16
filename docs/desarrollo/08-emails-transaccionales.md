@@ -181,15 +181,11 @@ Shopify Email **rechaza al guardar** cualquier template marketing sin `{{ unsubs
 
 Otras variables del customer (metafields B2B, tags, fecha de registro) **no están disponibles** en el contexto de Shopify Email — solo first/last name. Si el copy del email necesitase el nombre de la empresa o el sector, habría que pasarlo desde el workflow a un metafield del customer que Shopify Email sí pueda interpolar, o aceptar que ese dato no aparece en el email.
 
-## 7. Suscripción a marketing — gap crítico
+## 7. Suscripción a marketing
 
 Los 5 templates al cliente se envían con la acción `Send marketing email`. Esta action **solo entrega el email a clientes con opt-in a marketing**. Sin opt-in, Shopify silenciosamente descarta el envío — no hay error en el run history del flow, el email simplemente no llega.
 
-**Estado actual (mayo 2026): la edge `register-b2b-customer` NO suscribe al cliente a marketing al crearlo.** Inspección del código (`supabase/functions/register-b2b-customer/index.ts`, mutación `customerCreate`): el input no incluye `emailMarketingConsent` ni hay llamada posterior a `customerEmailMarketingConsentUpdate`. Resultado: todos los registros nuevos quedan en `Marketing → Not subscribed` por defecto.
-
-**Implicación**: hoy ninguno de los 5 emails marketing (W1-acuse, W1-bienvenida, W2-aprobacion, W3-rechazo, W5-acuse) llega a clientes recién registrados, a menos que el backoffice esté suscribiéndolos manualmente desde la ficha del customer cada vez. Los emails al backoffice (W1 standard, W1 auto-aprobado, W5) sí llegan, porque usan `Send internal email`.
-
-Camino de fix: añadir al input de `customerCreate` en la edge:
+**Estado actual: la edge `register-b2b-customer` suscribe al cliente a marketing en el momento de crearlo.** El input de la mutación `customerCreate` (`supabase/functions/register-b2b-customer/index.ts`) incluye:
 
 ```typescript
 emailMarketingConsent: {
@@ -199,9 +195,9 @@ emailMarketingConsent: {
 },
 ```
 
-Requisito legal: el formulario `/pages/acceso-profesional#registro` debe incluir checkbox explícito de opt-in marketing (o documentar el opt-in como parte de las condiciones aceptadas, según el régimen LOPDGDD/RGPD aplicable). Si el checkbox `condiciones` actual cubre marketing o no es decisión de negocio + legal — ver pendientes.
+Resultado: todo registro nuevo queda en `Marketing → Subscribed` con nivel `CONFIRMED_OPT_IN`, y los 5 emails marketing (W1-acuse, W1-bienvenida, W2-aprobacion, W3-rechazo, W5-acuse) se entregan sin intervención manual del backoffice. Los emails al backoffice (W1 standard, W1 auto-aprobado, W5) llegan por otra vía (`Send internal email`), independiente del opt-in.
 
-Tratado como pendiente bloqueante en §11. Documentado aquí para que el siguiente PR de fix tenga contexto completo.
+**Base legal del consentimiento**: el checkbox `condiciones` del formulario `/pages/acceso-profesional#registro` es obligatorio y se valida en la edge (`index.ts`, bloque de validación: rechaza el registro con `VALIDATION_ERROR` si `condiciones !== true`). Esa aceptación obligatoria de las condiciones constituye el opt-in documentado bajo el régimen LOPDGDD/RGPD aplicable — no se usa un checkbox de marketing separado. Cualquier cambio que vuelva opcional el checkbox `condiciones` invalida esta base legal y debe revisarse con negocio + legal antes de mergear.
 
 ## 8. Inventario de elementos hardcoded
 
@@ -297,7 +293,7 @@ No hay export/import operativo entre tiendas: el formato no se preserva ni es ed
 
 ## 11. Pendientes
 
-- **`register-b2b-customer` no suscribe al cliente a marketing — bloqueante**. Estado actual: ninguno de los 5 emails marketing (W1-acuse, W1-bienvenida, W2-aprobacion, W3-rechazo, W5-acuse) llega a clientes recién registrados. Fix: añadir `emailMarketingConsent: { marketingState: "SUBSCRIBED", marketingOptInLevel: "CONFIRMED_OPT_IN", consentUpdatedAt: ... }` al `customerCreate`. Pre-requisito legal: validar que el formulario `/pages/acceso-profesional#registro` ofrece opt-in explícito o que las condiciones aceptadas lo cubren bajo LOPDGDD/RGPD. Ver §7.
+- ~~**`register-b2b-customer` no suscribe al cliente a marketing — bloqueante**~~. **Resuelto**: el `customerCreate` ya incluye `emailMarketingConsent` (`SUBSCRIBED` / `CONFIRMED_OPT_IN`). Base legal: checkbox `condiciones` obligatorio. Ver §7.
 
 - **W5 sin walkthrough en repo**. W5 está operativo en producción pero `flows/` no tiene `W5-walkthrough.md`. Documentar a mano siguiendo la configuración viva en Shopify Admin. Deuda menor.
 
