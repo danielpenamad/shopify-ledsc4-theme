@@ -70,11 +70,18 @@ Cada workflow debe ser **idempotente** (re-ejecutar sin duplicar efectos):
 - Antes de enviar email, comprobar que no se haya enviado ya (usar un
   metafield `b2b.email_enviado_<id>` o el log de Flow si tiene dedupe).
 
-## Cómo exportar los workflows a este repo
+## Ficheros de esta carpeta — cuál es la fuente de verdad
 
-Cuando termines de configurar en el admin, **exporta cada workflow como JSON**
-(botón "..." → "Export") y guárdalo como `flows/Wx-<slug>.flow.json`. Esto
-permite versionarlos y reconstruirlos en otro tenant.
+Esta carpeta contiene tres tipos de fichero. **La fuente de verdad viva es el walkthrough.**
 
-El pseudocódigo en los `.md` es la **fuente de verdad conceptual**; el
-`.flow.json` es la implementación actual.
+| Tipo | Fichero | Estado |
+|---|---|---|
+| Walkthrough | `Wx-walkthrough.md` | **Fuente de verdad.** Refleja la config real tal como está hoy en el admin de Flow. Es lo que hay que seguir para configurar o reconstruir un workflow. |
+| Spec conceptual | `W1-registro.md` … `W4-whitelist-reeval.md` | Diseño conceptual original. Histórico — la implementación real divergió tras descubrir las limitaciones de Flow en Fase B. |
+| Export JSON | `Wx-<slug>.flow.json` | **Snapshot de Fase B, desactualizado.** Captura de un momento del workflow en el admin; los workflows han evolucionado después (ver historial de PRs). NO reconstruir un workflow desde el `.flow.json` sin contrastar con el walkthrough. |
+
+Solo W2 y W3 tienen `.flow.json` commiteado, y ambos son de Fase B. No reflejan los cambios posteriores (semántica de transiciones, limpieza de vestigios). Si se necesita un export al día, regenerarlo desde el admin y contrastarlo con el walkthrough antes de confiar en él.
+
+## Cómo exportar un workflow (opcional)
+
+Flow permite exportar un workflow como JSON desde el admin (botón "..." → "Export"). Es útil para inspeccionar o comparar, pero **el export no sustituye al walkthrough**: el JSON es una captura puntual y no documenta el porqué de cada paso. Si se exporta un workflow actualizado, guardarlo como `flows/Wx-<slug>.flow.json` y actualizar también el walkthrough correspondiente en el mismo commit, para que no vuelvan a divergir.
