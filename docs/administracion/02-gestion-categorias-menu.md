@@ -1,7 +1,7 @@
 # Categorías y menú
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 12-may-2026
+    **Versión:** 0.2 · 16-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Administrador del negocio
     **Bloqueado por:** —
@@ -22,7 +22,7 @@ El menú del portal tiene una **estructura cerrada de 5 categorías padre**, cad
 | Outdoor | `cat-outdoor` | Sí |
 | Emergency | `cat-emergency` | No |
 
-Los **5 padres son fijos**: no se añaden, no se quitan, no se renombran. El número y nombre de los **hijos** dentro de cada padre lo define el equipo técnico desde código. En total el portal tiene del orden de 38 colecciones con handle `cat-*` (los 5 padres más los hijos).
+Los **5 padres son fijos**: no se añaden, no se quitan, no se renombran. El número y nombre de los **hijos** dentro de cada padre lo define el equipo técnico desde código. En total el portal tiene del orden de 38 colecciones con handle `cat-*` (los 5 padres más los 33 hijos).
 
 ### Cómo se ve desde fuera y desde dentro
 
@@ -37,12 +37,12 @@ Dentro de cada padre, los hijos del submenú aparecen **ordenados automáticamen
 
 El equipo técnico mantiene dos scripts que se encargan de toda la estructura:
 
-- Un script crea y actualiza las **colecciones** `cat-*` (los 6 padres y sus hijos). Es idempotente: si la estructura ya está bien, no hace nada.
+- Un script crea y actualiza las **colecciones** `cat-*` (los 5 padres y sus hijos). Es idempotente: si la estructura ya está bien, no hace nada.
 - Otro script reconstruye el **menú del header** para que refleje la jerarquía actual, ordenando los hijos por cantidad de productos.
 
 Los scripts se ejecutan cuando el equipo técnico añade, quita o renombra categorías. Como administrador no los ejecutas tú y, en general, ni te enteras: el resultado lo ves en el portal y en Shopify Admin → Collections / Online Store → Navigation.
 
-La documentación técnica de estos scripts vendrá en el eje [Desarrollo](../desarrollo/index.md).
+La documentación técnica de estos scripts está en el eje [Desarrollo](../desarrollo/index.md) (docs de scripts y de operaciones).
 
 ## Lo que NO debes hacer
 
@@ -63,4 +63,5 @@ La documentación técnica de estos scripts vendrá en el eje [Desarrollo](../de
 
 ## Cambios
 
+- **v0.2** (16-may-2026): corregida una incongruencia interna — el cuerpo decía "los 6 padres" mientras la tabla lista 5. Son 5 (Forlight, Architectural, Decorative, Outdoor, Emergency). Precisado el conteo de colecciones (5 padres + 33 hijos). El eje Desarrollo, antes pendiente, ya está publicado.
 - **v0.1** (12-may-2026): primera publicación
