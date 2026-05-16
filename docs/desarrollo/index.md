@@ -1,13 +1,13 @@
 # Desarrollo
 
 !!! info "Estado del documento"
-    **Versión:** 0.5 · 16-may-2026
+    **Versión:** 1.0 · 16-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
 ## Resumen
 
-Sección dirigida al equipo técnico. Cubre la arquitectura del proyecto, el modelo de datos, el pipeline de importación, la customización del theme Shopify, el gate del storefront, el registro y aprobación de clientes B2B, el backoffice, las solicitudes de pedido, los emails transaccionales, la internacionalización, la multidivisa, el proyecto Supabase, el repositorio GitHub, los workflows de GitHub Actions, el inventario de secrets y el catálogo de scripts.
+Sección dirigida al equipo técnico. Cubre la arquitectura del proyecto, el modelo de datos, el pipeline de importación, la customización del theme Shopify, el gate del storefront, el registro y aprobación de clientes B2B, el backoffice, las solicitudes de pedido, los emails transaccionales, la internacionalización, la multidivisa, el proyecto Supabase, el repositorio GitHub, los workflows de GitHub Actions, el inventario de secrets, el catálogo de scripts y el runbook operacional.
 
 ## Contenido
 
@@ -32,14 +32,16 @@ Leyenda: ✅ completo · ⚠️ parcial · 🚧 esqueleto.
 | [13 · GitHub Actions](13-github-actions.md) | ✅ completo |
 | [14 · Secrets](14-secrets.md) | ✅ completo |
 | [15 · Scripts](15-scripts.md) | ✅ completo |
+| [16 · Operations runbook](16-operations-runbook.md) | ✅ completo |
 | [ADRs · Architecture Decision Records](adrs/index.md) | ✅ completo (D1–D14) |
 
-Documentos planificados, aún no escritos: 16 · Operations runbook.
+El eje de Desarrollo está completo: 17 documentos (00–16) más los 14 ADRs.
 
 ---
 
 ## Cambios
 
+- **v1.0** (16-may-2026): añadido 16 · Operations runbook. El eje de Desarrollo queda completo.
 - **v0.5** (16-may-2026): añadido 15 · Scripts.
 - **v0.4** (16-may-2026): añadido 14 · Secrets.
 - **v0.3** (16-may-2026): añadido 13 · GitHub Actions.
