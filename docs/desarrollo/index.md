@@ -1,13 +1,13 @@
 # Desarrollo
 
 !!! info "Estado del documento"
-    **Versión:** 0.2 · 16-may-2026
+    **Versión:** 0.3 · 16-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
 ## Resumen
 
-Sección dirigida al equipo técnico. Cubre la arquitectura del proyecto, el modelo de datos, el pipeline de importación, la customización del theme Shopify, el gate del storefront, el registro y aprobación de clientes B2B, el backoffice, las solicitudes de pedido, los emails transaccionales, la internacionalización, la multidivisa, el proyecto Supabase y el repositorio GitHub.
+Sección dirigida al equipo técnico. Cubre la arquitectura del proyecto, el modelo de datos, el pipeline de importación, la customización del theme Shopify, el gate del storefront, el registro y aprobación de clientes B2B, el backoffice, las solicitudes de pedido, los emails transaccionales, la internacionalización, la multidivisa, el proyecto Supabase, el repositorio GitHub y los workflows de GitHub Actions.
 
 ## Contenido
 
@@ -29,13 +29,15 @@ Leyenda: ✅ completo · ⚠️ parcial · 🚧 esqueleto.
 | [10 · Multidivisa](10-multicurrency.md) | ✅ completo |
 | [11 · Proyecto Supabase](11-supabase.md) | ✅ completo |
 | [12 · Repositorio GitHub](12-github-repo.md) | ✅ completo |
+| [13 · GitHub Actions](13-github-actions.md) | ✅ completo |
 | [ADRs · Architecture Decision Records](adrs/index.md) | ✅ completo (D1–D14) |
 
-Documentos planificados, aún no escritos: 13 · GitHub Actions, 14 · Secrets, 15 · Scripts, 16 · Operations runbook.
+Documentos planificados, aún no escritos: 14 · Secrets, 15 · Scripts, 16 · Operations runbook.
 
 ---
 
 ## Cambios
 
+- **v0.3** (16-may-2026): añadido 13 · GitHub Actions.
 - **v0.2** (16-may-2026): tabla de contenido resincronizada con los docs reales del eje. Eliminados los esqueletos v0.1.
 - **v0.1** (12-may-2026): primera publicación · estructura inicial.
