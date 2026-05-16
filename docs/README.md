@@ -1,6 +1,6 @@
 # Documentación LedsC4 B2B
 
-> **v0.3** · actualizada el 16-may-2026 · documentación en construcción.
+> **v0.4** · actualizada el 16-may-2026 · documentación en construcción.
 
 Este directorio contiene la documentación del proyecto **LedsC4 B2B**. Se publica automáticamente como sitio web con MkDocs Material en GitHub Pages tras cada merge en `main` que afecte a `docs/`, `mkdocs.yml` o el workflow de docs.
 
@@ -10,7 +10,7 @@ Este directorio contiene la documentación del proyecto **LedsC4 B2B**. Se publi
 
 | Carpeta | Para quién |
 | --- | --- |
-| [`desarrollo/`](desarrollo/) | Equipo técnico. Arquitectura, modelo de datos, importer, theme Shopify, gate, registro B2B, backoffice, solicitudes, emails, i18n, multidivisa, Supabase, repositorio, GitHub Actions. |
+| [`desarrollo/`](desarrollo/) | Equipo técnico. Arquitectura, modelo de datos, importer, theme Shopify, gate, registro B2B, backoffice, solicitudes, emails, i18n, multidivisa, Supabase, repositorio, GitHub Actions, secrets. |
 | [`administracion/`](administracion/) | Administrador del negocio. Gestión de catálogo, categorías, emails y traducciones. |
 | [`operador/`](operador/) | Operador de back-office. Flujo diario, aprobar altas, whitelist e incidencias. |
 
@@ -37,9 +37,10 @@ Leyenda: ✅ completo · ⚠️ parcial · 🚧 esqueleto.
 | [`desarrollo/11-supabase.md`](desarrollo/11-supabase.md) | ✅ completo |
 | [`desarrollo/12-github-repo.md`](desarrollo/12-github-repo.md) | ✅ completo |
 | [`desarrollo/13-github-actions.md`](desarrollo/13-github-actions.md) | ✅ completo |
+| [`desarrollo/14-secrets.md`](desarrollo/14-secrets.md) | ✅ completo |
 | [`desarrollo/adrs/`](desarrollo/adrs/) | ✅ completo (D1–D14) |
 
-Planificados, aún no escritos: 14 · Secrets, 15 · Scripts, 16 · Operations runbook.
+Planificados, aún no escritos: 15 · Scripts, 16 · Operations runbook.
 
 ### Administración
 
@@ -71,5 +72,5 @@ mkdocs build     # genera site/
 
 ## Notas
 
-- Los archivos sueltos en la raíz de `docs/` (`arquitectura.md`, `import-pipeline.md`, `data-model.md`, `historia-decisiones.md`, etc.) son documentación histórica anterior a la estructura por ejes. Su contenido vivo se ha ido refundiendo en los docs de `desarrollo/`; quedan pendientes de archivar en `docs/_archive/`.
+- Los archivos sueltos en la raíz de `docs/` (`arquitectura.md`, `import-pipeline.md`, `data-model.md`, `historia-decisiones.md`, `secrets.md`, etc.) son documentación histórica anterior a la estructura por ejes. Su contenido vivo se ha ido refundiendo en los docs de `desarrollo/`; quedan pendientes de archivar en `docs/_archive/`.
 - Para añadir un documento nuevo: crearlo bajo la subcarpeta correspondiente, añadirlo a `nav` en `mkdocs.yml`, a `desarrollo/index.md` (u el índice del eje correspondiente) y a la tabla de estado de este README.
