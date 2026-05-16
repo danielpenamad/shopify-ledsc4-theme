@@ -1,6 +1,6 @@
 # Documentación LedsC4 B2B
 
-> **v0.4** · actualizada el 16-may-2026 · documentación en construcción.
+> **v0.5** · actualizada el 16-may-2026 · documentación en construcción.
 
 Este directorio contiene la documentación del proyecto **LedsC4 B2B**. Se publica automáticamente como sitio web con MkDocs Material en GitHub Pages tras cada merge en `main` que afecte a `docs/`, `mkdocs.yml` o el workflow de docs.
 
@@ -10,7 +10,7 @@ Este directorio contiene la documentación del proyecto **LedsC4 B2B**. Se publi
 
 | Carpeta | Para quién |
 | --- | --- |
-| [`desarrollo/`](desarrollo/) | Equipo técnico. Arquitectura, modelo de datos, importer, theme Shopify, gate, registro B2B, backoffice, solicitudes, emails, i18n, multidivisa, Supabase, repositorio, GitHub Actions, secrets. |
+| [`desarrollo/`](desarrollo/) | Equipo técnico. Arquitectura, modelo de datos, importer, theme Shopify, gate, registro B2B, backoffice, solicitudes, emails, i18n, multidivisa, Supabase, repositorio, GitHub Actions, secrets, scripts. |
 | [`administracion/`](administracion/) | Administrador del negocio. Gestión de catálogo, categorías, emails y traducciones. |
 | [`operador/`](operador/) | Operador de back-office. Flujo diario, aprobar altas, whitelist e incidencias. |
 
@@ -38,9 +38,10 @@ Leyenda: ✅ completo · ⚠️ parcial · 🚧 esqueleto.
 | [`desarrollo/12-github-repo.md`](desarrollo/12-github-repo.md) | ✅ completo |
 | [`desarrollo/13-github-actions.md`](desarrollo/13-github-actions.md) | ✅ completo |
 | [`desarrollo/14-secrets.md`](desarrollo/14-secrets.md) | ✅ completo |
+| [`desarrollo/15-scripts.md`](desarrollo/15-scripts.md) | ✅ completo |
 | [`desarrollo/adrs/`](desarrollo/adrs/) | ✅ completo (D1–D14) |
 
-Planificados, aún no escritos: 15 · Scripts, 16 · Operations runbook.
+Planificados, aún no escritos: 16 · Operations runbook.
 
 ### Administración
 
