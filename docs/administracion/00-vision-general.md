@@ -1,7 +1,7 @@
 # Visión general
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 12-may-2026
+    **Versión:** 0.2 · 16-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Administrador del negocio
     **Bloqueado por:** —
@@ -41,14 +41,14 @@ Estas son las tareas que entran dentro de tu rol y que están documentadas en es
 Hay varias partes del portal que **están automatizadas** o vienen de **sistemas externos**. Si las modificas a mano desde el admin de Shopify, los procesos automáticos revertirán tu cambio o lo dejarán en estado inconsistente. Si necesitas cambiar algo de esta lista, no lo hagas directamente: avisa al equipo técnico.
 
 - **Traducciones de productos y categorías.** Vienen ya traducidas desde la importación de catálogo. Si una traducción de producto o categoría está mal, hay que corregirla en origen (en el sistema que alimenta la importación), no en Shopify Admin. Editar las traducciones a mano en Shopify se perderá en la siguiente importación.
-- **Estructura del menú de navegación** (header del portal con Forlight, Architectural, Decorative, DIY, Outdoor, Otros). El menú se regenera por script.
+- **Estructura del menú de navegación** (header del portal con Forlight, Architectural, Decorative, Outdoor y Emergency). El menú se regenera por script.
 - **Alta de nuevas categorías** (colecciones con handle `cat-*`). Las categorías y su jerarquía padre/hijo están definidas en código.
 - **Plantillas del theme** (cualquier archivo `.liquid`, CSS o JS del theme). El theme se despliega desde el repo `shopify-ledsc4-theme`.
 - **Idiomas activos** del portal (alta o baja de locales).
 - **Definición de nuevos emails administrativos internos** (avisos al equipo de LedsC4 más allá de los transaccionales estándar de Shopify). Sigue pendiente de definir, ver [Emails](03-gestion-emails.md).
 - **Pipeline de importación** de productos, stock y traducciones (cualquier integración con ERP, proveedores o feeds externos).
 
-La documentación técnica de los scripts y del pipeline vendrá en el eje [Desarrollo](../desarrollo/index.md).
+La documentación técnica de los scripts y del pipeline está en el eje [Desarrollo](../desarrollo/index.md).
 
 ## Tareas habituales y su cadencia
 
@@ -73,4 +73,5 @@ Como referencia, este es el ritmo típico de trabajo del administrador. Ninguna 
 
 ## Cambios
 
+- **v0.2** (16-may-2026): corregida la estructura del menú — son 5 categorías (Forlight, Architectural, Decorative, Outdoor, Emergency), no las 6 antiguas con DIY y Otros (retiradas en la reestructuración de mayo 2026). El eje Desarrollo, antes pendiente, ya está publicado.
 - **v0.1** (12-may-2026): primera publicación
