@@ -1,6 +1,6 @@
 # Documentación LedsC4 B2B
 
-> **v0.6** · actualizada el 16-may-2026 · eje de Desarrollo completo.
+> **v0.7** · actualizada el 17-may-2026 · saneamiento docs/.
 
 Este directorio contiene la documentación del proyecto **LedsC4 B2B**. Se publica automáticamente como sitio web con MkDocs Material en GitHub Pages tras cada merge en `main` que afecte a `docs/`, `mkdocs.yml` o el workflow de docs.
 
@@ -48,10 +48,10 @@ El eje de Desarrollo está completo: 17 documentos (00–16) más los 14 ADRs.
 
 | Documento | Estado |
 | --- | --- |
-| [`administracion/00-vision-general.md`](administracion/00-vision-general.md) | ⚠️ parcial |
+| [`administracion/00-vision-general.md`](administracion/00-vision-general.md) | ✅ completo |
 | [`administracion/01-gestion-productos.md`](administracion/01-gestion-productos.md) | ✅ completo |
 | [`administracion/02-gestion-categorias-menu.md`](administracion/02-gestion-categorias-menu.md) | ✅ completo |
-| [`administracion/03-gestion-emails.md`](administracion/03-gestion-emails.md) | ⚠️ parcial |
+| [`administracion/03-gestion-emails.md`](administracion/03-gestion-emails.md) | ✅ completo |
 | [`administracion/04-traducciones.md`](administracion/04-traducciones.md) | ✅ completo |
 
 ### Operador
@@ -62,7 +62,7 @@ El eje de Desarrollo está completo: 17 documentos (00–16) más los 14 ADRs.
 | [`operador/01-aprobar-altas.md`](operador/01-aprobar-altas.md) | ✅ completo |
 | [`operador/02-gestionar-whitelist.md`](operador/02-gestionar-whitelist.md) | ✅ completo |
 | [`operador/03-quitar-acceso.md`](operador/03-quitar-acceso.md) | ✅ completo |
-| [`operador/04-resolucion-incidencias.md`](operador/04-resolucion-incidencias.md) | 🚧 esqueleto |
+| [`operador/04-resolucion-incidencias.md`](operador/04-resolucion-incidencias.md) | ✅ completo |
 
 ## Build local
 
@@ -74,5 +74,5 @@ mkdocs build     # genera site/
 
 ## Notas
 
-- Los archivos sueltos en la raíz de `docs/` (`arquitectura.md`, `import-pipeline.md`, `data-model.md`, `historia-decisiones.md`, `secrets.md`, `operations-runbook.md`, `locksmith-rules.md`, `pendientes.md`, etc.) son documentación histórica anterior a la estructura por ejes. Su contenido vivo se ha ido refundiendo en los docs de `desarrollo/`; quedan pendientes de archivar en `docs/_archive/`.
+- La documentación histórica anterior a la estructura por ejes está archivada en `docs/_archive/` (excluida del build). Ver `docs/_archive/README.md`.
 - Para añadir un documento nuevo: crearlo bajo la subcarpeta correspondiente, añadirlo a `nav` en `mkdocs.yml`, a `desarrollo/index.md` (u el índice del eje correspondiente) y a la tabla de estado de este README.
