@@ -6,7 +6,8 @@
 //
 // Llamada desde el storefront (form /pages/acceso-profesional#registro)
 // al pulsar "Enviar solicitud". Crea el customer en Shopify con tag
-// 'pendiente' + metafields b2b.* completos, y envía el invite por email
+// 'pendiente' + metafields b2b.* completos + opt-in marketing (necesario
+// para que los emails de Flow lleguen), y envía el invite por email
 // para que active la cuenta. Cuando el usuario activa el invite, ya
 // existe un customer con todos los datos B2B → Flow W1 puede decidir
 // auto-aprobación por whitelist o pendiente revisión normalmente.
@@ -402,6 +403,16 @@ Deno.serve(async (req: Request) => {
             firstName: nombre,
             lastName: apellidos,
             phone: telefonoRaw || null,
+            // Sin opt-in, la action `Send marketing email` de Flow descarta
+            // el envío en silencio (no hay error en el run history): los 5
+            // emails al cliente —W1-acuse, W1-bienvenida, W2-aprobacion,
+            // W3-rechazo, W5-acuse— nunca llegarían. Base legal del consent:
+            // checkbox `condiciones` obligatorio (validado arriba).
+            emailMarketingConsent: {
+              marketingState: "SUBSCRIBED",
+              marketingOptInLevel: "CONFIRMED_OPT_IN",
+              consentUpdatedAt: new Date().toISOString(),
+            },
             metafields: [
               { namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa },
               { namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized! },
