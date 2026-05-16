@@ -54,13 +54,19 @@ nav:
   - Desarrollo:
       - desarrollo/index.md
       - Arquitectura: desarrollo/00-arquitectura.md
-      - Pipeline de datos: desarrollo/01-pipeline-datos.md
-      - Emails transaccionales: desarrollo/02-emails-transaccionales.md
+      - Modelo de datos: desarrollo/01-data-model.md
+      - Importer: desarrollo/02-importer.md
+      - Importer · despliegue: desarrollo/02b-importer-deploy.md
       - Theme y customizaciones: desarrollo/03-theme-customizaciones.md
-      - Currency e i18n: desarrollo/04-currency-i18n.md
-      - GitHub (repo): desarrollo/05-github-repo.md
-      - GitHub Actions: desarrollo/06-github-actions.md
-      - Supabase: desarrollo/07-supabase.md
+      - Storefront gate: desarrollo/04-storefront-gate.md
+      - Registro B2B: desarrollo/05-registro-b2b.md
+      - Backoffice: desarrollo/06-backoffice.md
+      - Solicitudes de pedido: desarrollo/07-solicitudes-pedido.md
+      - Emails transaccionales: desarrollo/08-emails-transaccionales.md
+      - Internacionalización (i18n): desarrollo/09-i18n.md
+      - Multidivisa: desarrollo/10-multicurrency.md
+      - Proyecto Supabase: desarrollo/11-supabase.md
+      - Repositorio GitHub: desarrollo/12-github-repo.md
       - ADRs:
           - desarrollo/adrs/index.md
           - D1 · Plan Grow: desarrollo/adrs/d01-plan-grow.md
