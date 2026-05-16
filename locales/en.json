@@ -631,7 +631,9 @@
           "email": "Invalid email.",
           "nif": "Invalid NIF / CIF / NIE (check format and control digit).",
           "terms": "You must accept the terms to continue."
-        }
+        },
+        "label_email": "Email",
+        "label_sector": "Sector"
       },
       "hero": {
         "eyebrow": "Professional access",
@@ -659,7 +661,7 @@
       "como": {
         "heading": "How access works",
         "intro_html": "There are <strong>two ways</strong> depending on whether LEDS C4 already knows you:",
-        "fast_tag": "Express lane",
+        "fast_tag": "Fast track",
         "fast_title": "Pre-approved",
         "fast_desc": "If your email is on the LEDS C4 pre-approved professionals list, your account will be activated automatically upon registration. You'll gain access to the catalog in minutes, without any waiting.",
         "std_tag": "Standard track",
@@ -704,7 +706,7 @@
     },
     "collection": {
       "sidebar": {
-        "categories_label": ""
+        "categories_label": "Categories"
       }
     },
     "portal": {
@@ -747,9 +749,10 @@
       },
       "table": {
         "th_producto": "Product",
-        "th_uds": "You (formal, plural)",
+        "th_uds": "Qty",
         "th_precio_unit": "Unit price",
-        "importe_estimado": "Estimated amount (excluding VAT and shipping)"
+        "importe_estimado": "Estimated amount (excluding VAT and shipping)",
+        "th_subtotal": "Subtotal"
       },
       "form": {
         "heading": "Purchase order",
@@ -758,7 +761,7 @@
         "warn": "* The sales team will confirm final pricing after reviewing availability and volume adjustments.",
         "comentario_label": "Comment or proposal (optional)",
         "comentario_placeholder": "I need to receive the order before May 15th. Ask me about a volume discount if I reach X units.",
-        "comentario_hint": "",
+        "comentario_hint": "Include the shipping address for your order",
         "aviso": "I have read that the amount shown is indicative and does not include VAT or shipping costs, which will be confirmed by the sales team before processing the order.",
         "submit": "Confirm and submit application",
         "submit_loading": "Sending…",
@@ -781,8 +784,10 @@
         "th_importe_est": "Estimated amount",
         "th_estado": "State",
         "js_errors": {
-          "load": "Error loading requests: {message}"
-        }
+          "load": "Error loading requests: {message}",
+          "api": "Error: {error}"
+        },
+        "th_ref": "Ref"
       },
       "detalle": {
         "back": "← My requests",
@@ -794,7 +799,8 @@
         "js_errors": {
           "missing_ref": "The ref parameter is missing from the URL.",
           "load": "Error loading request: {message}",
-          "not_found": "Request not found or not yours."
+          "not_found": "Request not found or not yours.",
+          "api": "Error: {error}"
         }
       },
       "enviada": {
@@ -836,7 +842,9 @@
         "gb": "United Kingdom",
         "nl": "Netherlands",
         "be": "Belgium",
-        "ma": "Morocco"
+        "ma": "Morocco",
+        "pt": "Portugal",
+        "ad": "Andorra"
       },
       "currency": {
         "switcher_label": "Change currency"
@@ -881,10 +889,13 @@
         "lumenes": "Lumens (lm)",
         "lumenes_reales": "Actual Lumens (lm)",
         "temperatura_color": "Color temperature",
-        "cri": "ICC",
+        "cri": "CRI",
         "angulo_haz": "Beam angle",
-        "regulacion": "Regulation",
-        "dimensiones": "Dimensions"
+        "regulacion": "Dimming",
+        "dimensiones": "Dimensions",
+        "material": "Material",
+        "ip": "IP",
+        "ik": "IK"
       },
       "documents": {
         "ficha": "Datasheet",

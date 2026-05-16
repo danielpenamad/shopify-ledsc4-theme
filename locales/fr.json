@@ -598,7 +598,7 @@
         "std_title": "Approbation manuelle",
         "std_desc_html": "Si votre e-mail n'est pas pré-approuvé, l'équipe LEDS C4 examinera votre demande manuellement. Délai de réponse estimé : <strong>24 à 48 heures ouvrables</strong>. Vous recevrez un e-mail une fois la demande traitée, qu'elle soit approuvée ou refusée.",
         "steps_aria": "Étapes du processus d'accès",
-        "step1_title": "Tu t'inscris",
+        "step1_title": "Vous vous inscrivez",
         "step1_desc": "Vous remplissez le formulaire avec les informations de votre entreprise, votre numéro d'identification fiscale et votre secteur d'activité.",
         "step2_title": "Nous validons vos données"
       },
@@ -624,7 +624,7 @@
         "q6_summary": "Comment modifier les données de mon entreprise ?",
         "q6_body": "Une fois approuvé, vous pouvez consulter vos données dans l'espace privé du portail. Pour les changements sensibles (raison sociale, NIF), veuillez écrire à l'équipe commerciale et nous les mettrons à jour manuellement."
       },
-      "ctas_lead": "Cela te convient ? Commence par demander l'accès. Si tu as déjà un compte, retourne à ton espace personnel.",
+      "ctas_lead": "Cela vous convient ? Commencez par demander l’accès. Si vous avez déjà un compte, retournez à votre espace personnel.",
       "form": {
         "heading": "Demander l'accès",
         "step1_html": "<strong>Remplissez vos coordonnées.</strong>",
@@ -672,7 +672,8 @@
           "service_unavailable_html": "Service temporairement indisponible. Veuillez réessayer dans quelques minutes. Si le problème persiste, veuillez écrire à <a href=\"mailto:soporte@ledsc4.com\">soporte@ledsc4.com</a>.",
           "generic_fallback": "Une erreur est survenue lors de l'envoi de la requête. Veuillez réessayer.",
           "network_error": "Nous n'avons pas pu nous connecter au serveur. Vérifiez votre connexion et réessayez."
-        }
+        },
+        "label_nif": "NIF / CIF / NIE"
       },
       "hero": {
         "eyebrow": "Accès professionnel",
@@ -700,22 +701,22 @@
     },
     "checkout": {
       "disclaimers": {
-        "body_html": ""
+        "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Les prix sont toujours un Sous-total qui ne comprend pas les taxes.</li><li>Les frais de port seront calculés et facturés selon la fiche de conditions client de LedsC4. Ils apparaîtront sur la confirmation de commande.</li><li>Les produits de la promotion ne sont pas échangeables ni remboursables. Une fois la demande de commande envoyée, notre équipe du service client confirmera les quantités finales disponibles ; il s’agit d’unités limitées pouvant faire l’objet de variations.</li></ol>"
       }
     },
     "collection": {
       "sidebar": {
-        "categories_label": ""
+        "categories_label": "Catégories"
       }
     },
     "portal": {
       "eyebrow": "Portail B2B · accès exclusif",
-      "heading_html": "",
-      "lead": "",
+      "heading_html": "Catalogue Outlet pour les professionnels",
+      "lead": "Accès limité aux clients professionnels de LedsC4.",
       "help_link": "Vous avez des doutes concernant l'accès ? Découvrez comment ça marche →",
       "scroll_hint": "Plus d'infos",
-      "f1_title": "",
-      "f1_desc": "",
+      "f1_title": "Plus de 745 références",
+      "f1_desc": "Stocks excédentaires, fin de série et déréférencés synchronisés quotidiennement.",
       "f2_title": "Activation en 24-48h",
       "f2_desc": "Vous remplissez le formulaire de demande et nous validons vos données professionnelles. Pas de minimums pour la première commande.",
       "f3_title": "Expédition en Espagne continentale 24-48h",
@@ -757,7 +758,8 @@
         "nl": "Pays-Bas",
         "be": "Belgique",
         "ad": "Andorre",
-        "ma": "Maroc"
+        "ma": "Maroc",
+        "pt": "Portugal"
       },
       "currency": {
         "switcher_label": "Changer de devise"
@@ -767,7 +769,8 @@
         "aviso_legal": "Mention légale",
         "privacidad": "Confidentialité",
         "condiciones": "Conditions générales",
-        "canal_etico": "Canal éthique"
+        "canal_etico": "Canal éthique",
+        "copyright_html": "© {{ year }} LEDS C4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
       },
       "form": {
         "option_select": "Sélectionner…",
@@ -787,7 +790,7 @@
         "catalogo": "Catalogue",
         "garantia": "Garantie",
         "garantia_value": "{{ value }} ans",
-        "material": "Matériel",
+        "material": "Matériau",
         "acabado": "Fini",
         "voltaje": "Tension",
         "ancho": "Largeur (mm)",
@@ -803,10 +806,11 @@
         "lumenes_reales": "Lumens réels (lm)",
         "temperatura_color": "Température de couleur",
         "angulo_haz": "Angle du faisceau",
-        "regulacion": "Réglementation",
-        "ip": "PI",
-        "ik": "OK",
-        "dimensiones": "Dimensions"
+        "regulacion": "Gradation",
+        "ip": "IP",
+        "ik": "IK",
+        "dimensiones": "Dimensions",
+        "cri": "CRI"
       },
       "documents": {
         "ficha": "Fiche technique",
@@ -831,7 +835,7 @@
         "warn": "* Les prix définitifs seront confirmés par l'équipe commerciale après vérification de la disponibilité et ajustement des volumes.",
         "comentario_label": "Commentaire ou proposition (facultatif)",
         "comentario_placeholder": "Ex: J'ai besoin de recevoir la commande avant le 15 mai. Renseignez-vous sur les remises de volume si j'atteins X unités.",
-        "comentario_hint": "",
+        "comentario_hint": "Indiquez l’adresse de livraison de votre commande",
         "aviso": "J'ai lu que le montant affiché est indicatif et ne comprend pas la TVA ni les frais de port, qui seront confirmés par l'équipe commerciale avant de traiter la commande.",
         "submit": "Confirmer et envoyer la demande",
         "cancel": "Retour au panier",
@@ -862,7 +866,7 @@
       },
       "table": {
         "th_producto": "Produit",
-        "th_uds": "Vous.",
+        "th_uds": "Qté",
         "th_precio_unit": "Prix unit.",
         "th_subtotal": "Sous-total",
         "importe_estimado": "Montant estimé (hors TVA et frais de port)"
@@ -891,7 +895,8 @@
           "load": "Erreur lors du chargement de la requête : {message}",
           "not_found": "Demande introuvable ou vous n'en êtes pas le propriétaire.",
           "api": "Erreur : {error}"
-        }
+        },
+        "cbm_total_label": "CBM total"
       },
       "dashboard_cards": {
         "producto": {
@@ -914,6 +919,29 @@
       "brand_aria_inicio": "Accueil",
       "menu_aria": "Ouvrir le menu",
       "cart_aria": "Panier ({{ count }})"
+    },
+    "account": {
+      "dashboard": {
+        "subheading": "Votre portail B2B LedsC4 Outlet.",
+        "card_catalogo_title": "Voir le catalogue",
+        "card_catalogo_desc": "Explorez la collection outlet 2026 avec vos prix B2B.",
+        "card_solicitudes_desc": "Consultez l’état de vos demandes de commande.",
+        "estado_rechazado_lead": "Votre demande d’accès B2B n’a pas pu être activée.",
+        "estado_revision_lead": "Votre demande est en cours d’examen par notre équipe.",
+        "session_email_html": "Connecté en tant que <strong>{{ email }}</strong>",
+        "volver_portal": "Retour au portail"
+      },
+      "revision": {
+        "heading": "Nous validons votre demande",
+        "datos_heading": "Données que vous nous avez transmises",
+        "correct_html": "Vous voyez une erreur ? Écrivez-nous à <a href=\"mailto:{{ email }}\">{{ email }}</a> avant que nous l’approuvions."
+      },
+      "rechazada": {
+        "badge": "Non activée",
+        "heading": "Votre compte n’a pas pu être activé",
+        "motivo_heading": "Motif",
+        "correct_html": "Si vous pensez qu’il s’agit d’une erreur ou souhaitez plus d’informations, écrivez-nous à <a href=\"mailto:{{ email }}\">{{ email }}</a>."
+      }
     }
   }
 }
