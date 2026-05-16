@@ -70,6 +70,7 @@ nav:
       - GitHub Actions: desarrollo/13-github-actions.md
       - Secrets: desarrollo/14-secrets.md
       - Scripts: desarrollo/15-scripts.md
+      - Operations runbook: desarrollo/16-operations-runbook.md
       - ADRs:
           - desarrollo/adrs/index.md
           - D1 · Plan Grow: desarrollo/adrs/d01-plan-grow.md
