@@ -38,7 +38,7 @@ supabase/
   .env.example                 Plantilla de secrets a setear.
   README.md                    Guía de setup operativa (este doc remite a ella).
   functions/                   10 edge functions (ver §4).
-  migrations/                  10 migrations SQL (ver §5).
+  migrations/                  10 migrations SQL (ver §7).
   .temp/                       Artefactos del CLI. No versionar contenido relevante.
 ```
 
@@ -46,7 +46,7 @@ supabase/
 
 ## 4. Edge functions
 
-**Hay 10 edge functions.** `config.toml` es la fuente de verdad del inventario — declara las 10. (Nota: `supabase/README.md` solo documenta 5; está desactualizado — ver §8.)
+**Hay 10 edge functions.** `config.toml` es la fuente de verdad del inventario — declara las 10. El inventario completo con URLs, secrets requeridos por función y respuestas está en `supabase/README.md §Funciones`; este doc da la vista agrupada con cross-links al doc de dominio de cada una.
 
 Agrupadas por fase y trigger:
 
@@ -206,8 +206,6 @@ Si se olvida el paso 2, los crons de `sftp-sync` fallan ruidosamente (excepción
 | Estado de los runs del importer | Tabla `private.import_runs` (vía SQL editor o Studio con `private` expuesto) |
 
 ## 9. Pendientes
-
-- **`supabase/README.md` desactualizado — prioridad alta**. El README dice "Cinco edge functions" y solo documenta `promote-whitelist-matches`, `create-company-for-customer`, `submit-order-request`, `list-order-requests`, `register-b2b-customer`. Faltan las 4 de backoffice (`list-pending-customers`, `update-whitelist`, `approve-customer`, `reject-customer`) y `sftp-sync`. También faltan las tablas `import_runs`, `sku_state`, `image_cache` y el bucket `ledsc4-imports` — el README solo menciona la migración `setup_cron`. El paso "Deploy de las cinco functions" del setup debe pasar a listar las 10. Actualizar el README para que sea fiel a `config.toml` y al contenido real de `migrations/`.
 
 - **`promote-whitelist-matches` sin auth**. Declarada `verify_jwt = false` y sin secret header — depende de que la URL no sea pública. `config.toml` ya tiene anotado el TODO de producción: añadir header `X-Cron-Secret` y validarlo en el handler. Pendiente de hardening.
 
