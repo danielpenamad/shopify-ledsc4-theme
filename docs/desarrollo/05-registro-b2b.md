@@ -1,7 +1,7 @@
 # 05 · Registro B2B
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 0.2 · 16-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
@@ -68,7 +68,8 @@ El registro **no genera login automático** — siempre pasa por el magic link, 
                                           | - Verifica HMAC + TTL 5min   |
                                           | - Valida NIF/NIE/CIF         |
                                           | - Sanea inputs               |
-                                          | - customerCreate (metafields)|
+                                          | - customerCreate (metafields |
+                                          |   + emailMarketingConsent)   |
                                           | - tagsAdd ['pendiente']      |
                                           | - sendAccountInviteEmail     |
                                           +-------------+----------------+
@@ -138,7 +139,7 @@ Section `main-acceso-profesional.liquid` (1199 líneas). Bloques:
 | `sector` | select | Requerido. Enum estricto (6 valores fijos — ver §6). |
 | `pais` | select | Requerido. ISO 3166-1 alpha-2 o nombre en español/inglés (mapeo server-side). |
 | `volumen_estimado` | select | Opcional. Slug de rango. |
-| `condiciones` | checkbox | Requerido. Aceptación de términos. |
+| `condiciones` | checkbox | Requerido. Aceptación de términos. Es además la base legal del opt-in de marketing — ver §5. |
 
 **Hidden inputs (HMAC)**:
 
@@ -234,9 +235,27 @@ Posibles warnings (combinables, separados por coma):
 
 1. **HMAC envelope**: valida formato de `timestamp` / `nonce` / `signature` → TTL → HMAC compare.
 2. **Field validation**: sanea cada campo (`sanitizeText` con max length por campo, strip HTML, control chars), valida obligatorios, valida NIF/NIE/CIF, valida enums (`sector`, `volumen_estimado`), normaliza `pais` a ISO alpha-2.
-3. **`customerCreate`** (mutation Admin API): con `email`, `firstName`, `lastName`, `phone?`, `metafields` (los 5-6 `b2b.*` según campos rellenados + `fecha_registro: today`).
+3. **`customerCreate`** (mutation Admin API): con `email`, `firstName`, `lastName`, `phone?`, `emailMarketingConsent` (opt-in a marketing — ver más abajo) y `metafields` (los 5-6 `b2b.*` según campos rellenados + `fecha_registro: today`).
 4. **`tagsAdd`** (mutation separada, ver gotcha): añade `pendiente` al Customer recién creado.
 5. **`customerSendAccountInviteEmail`** (mutation separada, best-effort): dispara el invite. Si falla, devuelve warning pero no error.
+
+#### Opt-in de marketing en el `customerCreate`
+
+El `customerCreate` incluye `emailMarketingConsent` para suscribir al cliente a marketing en el momento del alta:
+
+```typescript
+emailMarketingConsent: {
+  marketingState: "SUBSCRIBED",
+  marketingOptInLevel: "CONFIRMED_OPT_IN",
+  consentUpdatedAt: new Date().toISOString(),
+},
+```
+
+**Por qué es necesario**: los 5 emails al cliente del flujo B2B (W1-acuse, W1-bienvenida, W2-aprobacion, W3-rechazo, W5-acuse) se envían con la acción `Send marketing email` de Shopify Flow. Esa acción **solo entrega a clientes con opt-in a marketing** — sin opt-in, Flow descarta el envío en silencio, sin error en el run history. Si el `customerCreate` no suscribiera al cliente, ninguno de esos 5 emails llegaría.
+
+**Base legal del consentimiento**: el checkbox `condiciones` del formulario es obligatorio y se valida en la edge (rechaza el registro con `VALIDATION_ERROR` si `condiciones !== true`). Esa aceptación obligatoria constituye el opt-in bajo el régimen LOPDGDD/RGPD aplicable — no se usa un checkbox de marketing separado. Cualquier cambio que vuelva opcional el checkbox `condiciones` invalida esta base legal y debe revisarse con negocio + legal antes de mergear.
+
+Detalle completo del sistema de emails y de la suscripción a marketing en [08-emails-transaccionales](08-emails-transaccionales.md) §7.
 
 ### Validación NIF/NIE/CIF
 
@@ -352,7 +371,7 @@ Inventario completo en [14-secrets](14-secrets.md).
 
 La mutation `customerCreate` ya no acepta el campo `tags` en `CustomerInput`. La edge hace 2 mutations consecutivas:
 
-1. `customerCreate(input: { email, firstName, lastName, phone, metafields })` — sin tags.
+1. `customerCreate(input: { email, firstName, lastName, phone, emailMarketingConsent, metafields })` — sin tags.
 2. `tagsAdd(id: customer.id, tags: ["pendiente"])`.
 
 **Implicación**: si `tagsAdd` falla, el Customer existe sin tag `pendiente` → Flow W1 no dispara → backoffice debe taguear a mano. La edge devuelve `warning: "TAG_PENDIENTE_FAILED"` en ese caso, no error duro.
@@ -406,4 +425,5 @@ No es prioritario porque el volumen orgánico de la landing es bajo y el daño p
 
 ## Cambios
 
+- **v0.2** (16-may-2026): documentado el `emailMarketingConsent` del `customerCreate` (§5) — el doc no mencionaba el opt-in de marketing que la edge ya aplica. Sin este opt-in los 5 emails al cliente del flujo B2B no se entregarían. Coherente con 08-emails-transaccionales §7.
 - **v0.1** (15-may-2026): primera publicación.
