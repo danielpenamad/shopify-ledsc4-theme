@@ -1,7 +1,7 @@
 # Gestionar la whitelist
 
 !!! info "Estado del documento"
-    **Versión:** 1.0 · 17-may-2026
+    **Versión:** 1.1 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Operador back-office
     **Bloqueado por:** —
@@ -12,7 +12,7 @@ La **whitelist** es la lista de emails pre-aprobados. Cuando alguien con un emai
 
 ## Cuándo lo haces
 
-Solo cuando un comercial te pasa una lista de emails para añadir. No hace falta mantener la whitelist por iniciativa propia.
+Solo cuando un comercial te pasa una lista de emails para añadir, o cuando te piden retirar un email que ya no debe estar pre-aprobado. No hace falta mantener la whitelist por iniciativa propia.
 
 ## Cómo añadir emails
 
@@ -49,7 +49,30 @@ juan@empresa.com, maria@empresa.com, pedro@empresa.com
 
 ## Cómo ver qué hay en la whitelist
 
-En el mismo bloque, hay una opción para **desplegar la whitelist actual** y ver todos los emails que están cargados. Es solo de consulta, no se puede editar desde ahí (solo añadir desde el cuadro de pegado).
+En el mismo bloque, hay una opción para **desplegar la whitelist actual** y ver todos los emails que están cargados. Se muestran en una lista, un email por fila.
+
+## Cómo quitar un email
+
+Si te piden retirar un email de la whitelist, puedes hacerlo desde el mismo panel, sin avisar al administrador.
+
+1. **Despliega la whitelist actual** (ver sección anterior).
+
+2. **Busca el email que quieres retirar** en la lista.
+
+3. **Pulsa el botón "Quitar"** que aparece en esa fila.
+
+4. **Confirma.**
+   Aparece una ventana de confirmación con el email concreto. Pulsa aceptar para retirarlo, o cancelar si te has equivocado de fila. Esta confirmación está para evitar quitar un email por error — léela antes de aceptar.
+
+5. **Comprueba el resultado.**
+   El email desaparece de la lista y el número "Emails en whitelist" baja.
+
+Los emails se quitan **de uno en uno**. Si te pasan una lista larga para retirar, hazlo email por email.
+
+!!! note "Quitar un email no afecta a clientes ya aprobados"
+    Retirar un email de la whitelist **no des-aprueba a ningún cliente** que ya esté aprobado. El estado de un cliente aprobado es independiente de la whitelist: conserva su acceso con normalidad.
+
+    Lo único que cambia es el futuro: ese email ya no provocará una aprobación automática. Y es reversible — si te equivocas, basta con volver a añadirlo con el cuadro de pegado.
 
 ## Qué pasa después
 
@@ -60,9 +83,11 @@ En el mismo bloque, hay una opción para **desplegar la whitelist actual** y ver
 
 - **El sistema me dice que un email es inválido y estoy seguro de que está bien:** comprueba que no hay espacios al principio o al final, ni caracteres raros (acentos en la parte antes de la @, por ejemplo). Si sigue rechazándolo, avisa al administrador.
 - **He pegado una lista enorme y solo se han añadido algunos:** los que faltan probablemente ya estaban en la lista. Comprueba la lista actual desplegándola.
-- **No quiero que un email siga en la whitelist:** la whitelist solo permite añadir desde el panel. Para retirar un email, avisa al administrador.
+- **He quitado un email por error:** vuelve a añadirlo con el cuadro de pegado. Recuperar un email retirado no tiene ninguna consecuencia.
+- **No encuentro el botón "Quitar":** asegúrate de haber desplegado la whitelist actual; el botón aparece en cada fila de la lista, no en el cuadro de pegado.
 
 ## Cambios
 
+- **v1.1** (17-may-2026): añadida la sección "Cómo quitar un email" y la nota sobre clientes aprobados; actualizada la sección de consulta y el apartado "Si algo va mal" para reflejar que el operador ya puede retirar emails desde el panel.
 - **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (12-may-2026): primera publicación
