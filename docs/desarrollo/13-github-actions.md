@@ -67,7 +67,7 @@ Un job único: checkout, `denoland/setup-deno@v1` con `deno-version: v1.x`, y `d
 
 Las edge functions están escritas en Deno (no Node), de ahí el runtime Deno. `--allow-all` concede todos los permisos al runner de tests — aceptable en CI porque el código bajo test es el del propio repo.
 
-Detalle de operación: el workflow **no** es un check obligatorio configurado en branch protection (hoy no hay branch protection — ver 12-github-repo §8). Aparece en el PR pero no bloquea el merge si falla. Cuando se active branch protection en `main`, este workflow es el candidato natural a check requerido.
+Detalle de operación: el workflow **no** es un check obligatorio configurado en branch protection (hoy `main` se protege por disciplina, no por configuración — ver 12-github-repo §8, nota operativa). Aparece en el PR pero no bloquea el merge si falla. Si quien gobierne el repo activa branch protection en `main`, este workflow es el candidato natural a check requerido.
 
 ## 4. `dawn-sync.yml` — sync con Shopify/dawn upstream
 
@@ -229,7 +229,7 @@ Inventario de los secrets de repositorio que consumen los workflows. El inventar
 
 - **`docs.yml` instala MkDocs Material sin pin de versión**. `pip install mkdocs-material` resuelve a la última versión. Un cambio incompatible upstream podría romper el build del sitio sin que nada del repo haya cambiado. Conviene fijar la versión (`mkdocs-material==X.Y.Z`) o usar un `requirements.txt` para los docs.
 
-- **`test-edge-functions.yml` no es check obligatorio**. El workflow corre en cada PR que toca las edge functions, pero como no hay branch protection en `main` (ver 12-github-repo §8), un PR con tests en rojo se puede mergear igual. Al activar branch protection, marcar este workflow como check requerido.
+- **`test-edge-functions.yml` no es check obligatorio**. El workflow corre en cada PR que toca las edge functions, pero al protegerse `main` por disciplina y no por configuración (ver 12-github-repo §8, nota operativa), un PR con tests en rojo se puede mergear igual. Si se activa branch protection, marcar este workflow como check requerido.
 
 - **`dawn-sync.yml` puede acumular conflictos no resueltos**. Si un PR de sync sale con `status=conflicts` y no se atiende, el siguiente run semanal actualiza la misma rama `automated/dawn-sync` (`delete-branch: false`) y los conflictos se acumulan. Conviene atender cada PR de sync antes del siguiente lunes, o pausar el cron si no se va a mantener.
 

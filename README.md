@@ -46,7 +46,7 @@ segundos.
 
 ## Stack
 
-- **Shopify Plan Grow / Development** — tienda, B2B nativo, custom roles,
+- **Shopify Plan Grow** — tienda, B2B nativo, custom roles,
   Shopify Messaging. Ver [D1](docs/desarrollo/adrs/d01-plan-grow.md).
 - **Tema Dawn customizado** — fork del Dawn upstream con sync vía GitHub
   Actions (`.github/workflows/dawn-sync.yml`).
@@ -165,5 +165,5 @@ las decisiones técnicas que más definieron la arquitectura.
 - ✅ Branding de login (Customer Accounts Branding API)
 - ✅ Importer (pipeline SFTP → Supabase → Shopify)
 - ✅ Multidivisa Currency-B (presentación EUR/USD/GBP)
-- ⏳ Cutover Development → Grow
+- ✅ Cutover Development → Grow (13-may-2026)
 - ⏳ Conector ERP (Microsoft AX → Shopify)

@@ -144,7 +144,7 @@ Inventario de archivos en `assets/` que no vienen de Dawn:
 
 Los CSS de componentes Dawn (`component-*.css`, `section-*.css`) están sin tocar — cualquier override visual vive en estilos inline dentro de las sections custom B2B o en los CSS dedicados de arriba.
 
-Las fuentes corporativas (`Gliko`, `MaisonNeue`) están referenciadas vía `@font-face` cargado desde algún punto del head (revisar — punto a auditar si hay flash of unstyled text reportado).
+Las fuentes corporativas (`Gliko`, `MaisonNeue`) están cargadas vía `@font-face` con `font-display: swap` (verificado), de modo que no hay FOUT pendiente de auditar.
 
 ## 10. `settings_schema.json` — grupos custom B2B
 
@@ -232,8 +232,6 @@ Si en algún futuro PR se extrae un CSS B2B compartido (`b2b-shared.css`), deber
 ## 14. Pendientes
 
 - **Customer Account UI Extensions** — no implementadas. Serían la vía oficial moderna para inyectar UI custom en el /account hosteado (NCA). El sustituto actual (ocultar /account y redirigir todo a /pages/mis-solicitudes) funciona y está estable, pero es un workaround. Migrar a UI Extensions implicaría: app dedicada en Shopify Partners, target `customer-account.profile.block.render` o similar, redeploy de assets. Trade-off: ganaríamos integración nativa con /account; perderíamos control absoluto sobre el layout que tenemos con /pages/mis-solicitudes.
-
-- **Auditoría de carga de fuentes corporativas** — `Gliko` y `MaisonNeue` están en `assets/` pero la declaración `@font-face` debería verificarse para asegurar `font-display: swap` y evitar FOUT en la home.
 
 - **Extracción de CSS compartido** — `.b2b-status` está duplicado en 4 sections. Si se modifica el diseño de las pantallas de estado, hay que tocar las 4. Deuda menor, no urgente.
 

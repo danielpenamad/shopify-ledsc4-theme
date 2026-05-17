@@ -334,7 +334,7 @@ Cualquier Customer con tag `backoffice` opera la página. El script idempotente 
    - Tag `pendiente` fuera, `aprobado` dentro.
    - `b2b.fecha_aprobacion` rellenado por W2.
    - Company creada por `create-company-for-customer` (W2 la llama).
-   - Email 4 en draft (Development) o enviado (Grow).
+   - Email 4 enviado (la tienda corre en plan Grow desde el cutover del 13-may-2026).
 5. **Rechazar**: otro cliente nuevo → desde el backoffice → motivo `"test rejection"` → confirmar → verificar:
    - Tag flip + `b2b.fecha_rechazo` + `b2b.motivo_rechazo`.
    - W3 manda email 5 con el motivo.
