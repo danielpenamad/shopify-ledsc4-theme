@@ -172,11 +172,20 @@ La estructura objetivo organiza la documentación en tres ejes por audiencia:
 
 Cada eje tiene un `index.md`. La plantilla de ADR es: Estado · Contexto · Decisión · Alternativas · Consecuencias · Cambios.
 
-### Material legacy plano (pendiente de archivar)
+### Material legacy plano (archivado)
 
-Conviven en la raíz de `docs/` archivos planos anteriores a la reorganización por ejes: `arquitectura.md`, `data-model.md`, `historia-decisiones.md`, `import-pipeline.md`, `operations-runbook.md`, `locksmith-rules.md`, `secrets.md`, `backoffice-*.md`, `test-scenarios*.md`, `grow-migration-checklist.md`, `hardcoded-emails.md`, `pagina-acceso-profesional.md`, `pendientes.md`, `shopify-customer-accounts-branding.md`.
+Antes de la reorganización por ejes convivían en la raíz de `docs/`
+archivos planos: `arquitectura.md`, `data-model.md`,
+`historia-decisiones.md`, `import-pipeline.md`, `operations-runbook.md`,
+`locksmith-rules.md`, `secrets.md`, `backoffice-*.md`,
+`test-scenarios*.md`, `grow-migration-checklist.md`,
+`hardcoded-emails.md`, `pagina-acceso-profesional.md`, `pendientes.md`,
+`shopify-customer-accounts-branding.md`.
 
-Son la documentación v0.1 (mayo 2026), previa a la estructura por ejes. El contenido vivo de varios de ellos se ha ido refundiendo en los docs nuevos de `desarrollo/`. Pendiente de saneamiento — ver §8.
+Eran la documentación v0.1 (mayo 2026), previa a la estructura por
+ejes. Su contenido vivo se refundió en los docs de `desarrollo/` y los
+ficheros planos se archivaron en `docs/_archive/` (PR #120), excluida
+del build de MkDocs.
 
 ## 8. Pendientes
 
@@ -212,5 +221,5 @@ los README y de las cabeceras de estado— se completó en los PRs
 
 ## Cambios
 
-- **v1.1** (17-may-2026): eliminadas de §7 las subsecciones sobre esqueletos v0.1 y `nav` desincronizado, que describían deuda ya resuelta en los PRs #118–#124; §8 Pendientes reescrita dejando solo los pendientes de repo vigentes.
+- **v1.1** (17-may-2026): saneadas las secciones obsoletas de §7 (eliminadas las subsecciones sobre esqueletos v0.1 y `nav` desincronizado; la subsección de material legacy plano pasada a tiempo pasado) y §8 Pendientes reescrita — toda la deuda descrita estaba ya resuelta en los PRs #118–#124.
 - **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.
