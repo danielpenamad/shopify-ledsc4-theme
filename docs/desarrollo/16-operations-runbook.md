@@ -264,7 +264,6 @@ El proyecto mantiene un tracking de tareas no urgentes en `docs/pendientes.md` (
 - **Limpiar ~745 productos pre-existentes** con handle basado en título, huérfanos tras el importer. Bloquea el cutover. Script one-shot que los identifique y archive/borre.
 - **Custom App sin scope `read_locations`**: el importer hace fallback a "la primera location". Funciona con una sola location, romperá si se añade otra. Fix: añadir el scope y regenerar el token.
 - **Endurecer `promote-whitelist-matches` con `X-Cron-Secret`**: hoy la función no valida auth (ver 11-supabase §9).
-- **Activar los `Send email` de los flows W2/W3/W4** cuando el shop salga del plan Development — en Development las acciones de email están deshabilitadas.
 - **Limpiar emails de test de la whitelist** antes del cutover (`test-bo1@example.com` … `test-bo5@example.com`).
 
 ## 13. Material legacy y procedencia
@@ -285,4 +284,4 @@ Estos ficheros legacy quedan pendientes de archivar en `docs/_archive/` (ver 12-
 
 - **Sin procedimiento de rollback de un import**. §8 explica cómo diagnosticar un run colgado, pero no hay un procedimiento para deshacer un import que aplicó datos incorrectos a producción. El importer es incremental (fingerprint), así que un import malo se corrige con otro import corregido, pero conviene documentar el caso explícitamente.
 
-- **Branch protection en `main`**. Mientras no esté activa (ver 12-github-repo §8), el modelo de despliegue de §2 depende de disciplina. Un PR roto mergeado rompe producción sin que nada lo impida.
+- **Branch protection en `main` (nota operativa)**. Mientras no esté activa (ver 12-github-repo §8), el modelo de despliegue de §2 depende de disciplina: un PR roto mergeado rompe producción sin que nada lo impida. Activarla es una recomendación operativa estándar para el modelo `main`→deploy de Shopify, a aplicar por quien gobierne el repo — no un entregable de cierre del proyecto.

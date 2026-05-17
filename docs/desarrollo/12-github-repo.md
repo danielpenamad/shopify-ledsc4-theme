@@ -198,7 +198,7 @@ Esto es deuda de infraestructura de docs prioritaria: los docs se están escribi
 
 - **Actualizar `docs/README.md`**. Lista el eje desarrollo con la numeración vieja (00–07) y estados (🚧/⚠️/✅) que ya no se corresponden. Su tabla de estado debe reflejar los docs reales.
 
-- **Actualizar el `README.md` raíz**. Referencia la estructura plana vieja de `docs/` (`docs/arquitectura.md`, `docs/data-model.md`, `docs/historia-decisiones.md`, `docs/operations-runbook.md`) en su tabla "Documentos clave" y en enlaces inline. También dice "4 funciones Supabase" (son 10 — ver 11-supabase) y "Plan Development (actual)" (verificar estado del cutover a Grow). Actualizar enlaces y cifras.
+- **Actualizar el `README.md` raíz**. Referencia la estructura plana vieja de `docs/` (`docs/arquitectura.md`, `docs/data-model.md`, `docs/historia-decisiones.md`, `docs/operations-runbook.md`) en su tabla "Documentos clave" y en enlaces inline. También dice "4 funciones Supabase" (son 10 — ver 11-supabase). Actualizar enlaces y cifras.
 
 - **Archivar el material legacy plano de `docs/`**. Mover los `.md` planos pre-v0.1 a `docs/_archive/` con un README que explique que son históricos, una vez su contenido vivo esté refundido en los docs de `desarrollo/`. No borrar — tienen valor de trazabilidad.
 
@@ -206,6 +206,6 @@ Esto es deuda de infraestructura de docs prioritaria: los docs se están escribi
 
 - **Evaluar `pages/`**. El README raíz la marca como no usada activamente. Confirmar y eliminar si procede.
 
-- **Branch protection en `main`**. Hoy la protección de `main` es disciplina, no configuración. Dado que `main` deploya a producción sin staging, conviene activar branch protection real en GitHub: requerir PR, requerir que pasen los workflows de test (`test-edge-functions.yml`, y un futuro lint de theme), no permitir push directo. Cross-link a 13-github-actions.
+- **Branch protection en `main` (nota operativa, no pendiente del proyecto)**. Hoy la protección de `main` es disciplina, no configuración. Con el modelo `main`→deploy de Shopify (cada merge despliega a producción sin staging), activar branch protection real en GitHub —requerir PR, requerir que pasen los workflows de test (`test-edge-functions.yml`, y un futuro lint de theme), no permitir push directo— es una **recomendación operativa estándar** que aplica quien gobierne el repo en cada momento. No es un entregable de cierre del proyecto, sino una práctica de operación continua. Cross-link a 13-github-actions.
 
 - **CODEOWNERS**. No hay fichero `CODEOWNERS`. Para cuando el repo se transfiera al cliente o entren más manos, definir ownership por carpeta (theme, supabase, docs) ayudaría a enrutar reviews. Baja prioridad mientras el repo tenga un solo mantenedor.
