@@ -21,7 +21,7 @@ Describe el pipeline que sincroniza el catálogo LedsC4 desde el ERP del cliente
 No cubre:
 
 - Despliegue (GitHub Actions workflow, secrets, schedule de pg_cron) → [02b-importer-deploy](02b-importer-deploy.md).
-- Configuración inicial de Shopify (catálogo, smart collections, colecciones cat-*) → [administracion/02-categorias-y-menu](../administracion/02-categorias-y-menu.md).
+- Configuración inicial de Shopify (catálogo, smart collections, colecciones cat-*) → [administracion/02-gestion-categorias-menu](../administracion/02-gestion-categorias-menu.md).
 - Detalle exhaustivo del catálogo de metafields → [01-data-model](01-data-model.md).
 
 Decisiones arquitectónicas relevantes: [D6](adrs/d06-catalogo-unico.md) (catalog único), [D9](adrs/d09-metafields-ampliados.md) (Fase I1), [D10](adrs/d10-3-csvs-sftp.md) (3 CSVs), [D11](adrs/d11-image-pre-upload.md) (pre-upload), [D12](adrs/d12-pipeline-split.md) (split sftp-sync ↔ GHA), [D14](adrs/d14-sku-state-fingerprint.md) (sku_state).
@@ -293,7 +293,7 @@ ERP del cliente + scripts/sku-overrides.json (en este repo)  =  estado del porta
 Implicaciones operativas:
 
 - **Fuente de verdad dividida**: para saber qué categoría tiene un producto en el portal hay que consultar el ERP **y** el override. Si difieren, gana el override.
-- **Inconsistencias visibles deliberadas**: productos con título "Flexo" aparecen en la subcategoría Sobremesa. Un producto Chillout aparece como huérfano en Forlight porque no existe subcategoría Chillout. Detalle en el doc de cierre del PR ([`docs/proyectos/cierre-pr-cat-restructure.md`](../proyectos/cierre-pr-cat-restructure.md) §5.2 — pendiente de mover al repo).
+- **Inconsistencias visibles deliberadas**: productos con título "Flexo" aparecen en la subcategoría Sobremesa. Un producto Chillout aparece como huérfano en Forlight porque no existe subcategoría Chillout. Detalle en el documento de cierre del proyecto PR-CAT-RESTRUCTURE §5.2.
 - **Coste operativo permanente**: cada producto nuevo del ERP con un patrón similar a los 55 reclasificados exige decisión manual sobre si añadirlo al override o no.
 
 La forma correcta de resolver una reclasificación es **arreglar el ERP del cliente**. El override existe porque ese cambio en el ERP requería coordinación con un equipo externo y plazos no compatibles con la ventana solicitada. Es deuda asumida con los ojos abiertos, no una decisión arquitectónica.
@@ -311,7 +311,7 @@ Antes de añadir un SKU al fichero:
 
 Vaciar `sku-overrides.json` (dejar `{ "rules": [] }`) y esperar al siguiente cron de las 02:00 UTC devuelve el portal al estado dictado por el ERP. Es una salida limpia, sin pérdida de datos.
 
-Procedimiento completo de reversión del PR #85 documentado en el doc de cierre del proyecto ([`docs/proyectos/cierre-pr-cat-restructure.md`](../proyectos/cierre-pr-cat-restructure.md) §6 — pendiente de migrar al repo desde el archivo local).
+Procedimiento completo de reversión del PR #85 documentado en el documento de cierre del proyecto PR-CAT-RESTRUCTURE §6.
 
 #### 6.4.6 SKU presente en ES pero ausente en otro idioma
 
@@ -676,7 +676,7 @@ Documentado en §6.4. Para 55 SKUs el estado del portal no es deducible del ERP 
 ## 16. Pendientes y deuda
 
 - **Activar skip por fingerprint** ([D14](adrs/d14-sku-state-fingerprint.md) Fase B). Hoy el writer corre el pipeline completo en cada SKU; con fingerprint, saltaría ~95% en runs sin cambios.
-- **Migrar `cierre-pr-cat-restructure.md` al repo** (`docs/proyectos/`). Hoy vive solo en local. Cosechar de él la política Vía 1/2/3 + checklist + procedimiento de reversión hacia `16-operations-runbook.md` cuando se redacte.
+- **Trazabilidad del cierre de PR-CAT-RESTRUCTURE**. El documento de cierre del proyecto no está en el repo (era un entregable externo); su política Vía 1/2/3, el checklist y el procedimiento de reversión ya están refundidos en [16-operations-runbook](16-operations-runbook.md) §10. Si se quiere conservar el original para trazabilidad, incorporarlo a `docs/_archive/`, no a `docs/proyectos/`.
 - **Revisión trimestral de `sku-overrides.json`**. Para cada regla, verificar si el ERP ya refleja el estado deseado y, si es así, retirarla. La salida limpia siempre es preferible a la acumulación — el mecanismo de §6.4 no debería convertirse en un cementerio de excepciones permanentes.
 - **Cleanup de `product.accesorio` legacy** tras migrar todos los SKUs a `accesorio_url`.
 - **Eviction policy en `image_cache`**. Hoy ninguna. Si la tabla crece mucho (cambio de fotos masivo del cliente), añadir TTL o LRU.

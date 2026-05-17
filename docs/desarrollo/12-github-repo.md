@@ -172,11 +172,11 @@ La estructura objetivo organiza la documentación en tres ejes por audiencia:
 
 Cada eje tiene un `index.md`. La plantilla de ADR es: Estado · Contexto · Decisión · Alternativas · Consecuencias · Cambios.
 
-### Material legacy plano (pendiente de archivar)
+### Material legacy plano (archivado en docs/_archive/)
 
-Conviven en la raíz de `docs/` archivos planos anteriores a la reorganización por ejes: `arquitectura.md`, `data-model.md`, `historia-decisiones.md`, `import-pipeline.md`, `operations-runbook.md`, `locksmith-rules.md`, `secrets.md`, `backoffice-*.md`, `test-scenarios*.md`, `grow-migration-checklist.md`, `hardcoded-emails.md`, `pagina-acceso-profesional.md`, `pendientes.md`, `shopify-customer-accounts-branding.md`.
+Antes de la reorganización por ejes convivían en la raíz de `docs/` archivos planos: `arquitectura.md`, `data-model.md`, `historia-decisiones.md`, `import-pipeline.md`, `operations-runbook.md`, `locksmith-rules.md`, `secrets.md`, `backoffice-*.md`, `test-scenarios*.md`, `grow-migration-checklist.md`, `hardcoded-emails.md`, `pagina-acceso-profesional.md`, `pendientes.md`, `shopify-customer-accounts-branding.md`.
 
-Son la documentación v0.1 (mayo 2026), previa a la estructura por ejes. El contenido vivo de varios de ellos se ha ido refundiendo en los docs nuevos de `desarrollo/`. Pendiente de saneamiento — ver §8.
+Eran la documentación v0.1 (mayo 2026), previa a la estructura por ejes. Su contenido vivo se refundió en los docs nuevos de `desarrollo/` y los ficheros planos se archivaron en `docs/_archive/` (PR #120).
 
 ### Deuda estructural en `docs/desarrollo/` — colisión de numeración
 
