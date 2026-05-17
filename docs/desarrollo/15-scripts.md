@@ -1,5 +1,10 @@
 # 15 · Scripts
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 `scripts/` contiene los scripts Node.js del proyecto: el pipeline del importer, los scripts de setup B2B, los de categorías, branding, traducciones, auditoría y limpieza. Este doc es el **catálogo**: qué script hace qué, en qué orden se corren los que dependen entre sí, y las convenciones comunes.
@@ -150,3 +155,7 @@ Los scripts de setup, categorías, branding y auditoría **no tienen tests** —
 - **Scripts de setup sin tests**. Los scripts de setup/categorías/branding/auditoría no tienen cobertura de tests. No es crítico para one-shots, pero un `shopify theme check` o un smoke test en CI reduciría el riesgo de regresiones. Cross-link a 13-github-actions (pendiente de un workflow de lint).
 
 - **Catálogo de scripts sin índice en el repo**. No hay un `scripts/README.md`. Este doc cumple esa función, pero un README mínimo en `scripts/` que remita aquí ayudaría a quien navegue el repo directamente.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 17-may-2026.

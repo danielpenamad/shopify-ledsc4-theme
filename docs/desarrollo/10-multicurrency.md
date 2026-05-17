@@ -1,5 +1,10 @@
 # 10 · Multidivisa (Currency-B)
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 El portal B2B Outlet presenta precios al comprador en su divisa preferida (EUR, USD, GBP) mientras cierra todos los pedidos internamente en EUR. Esta separación entre **divisa de presentación** y **divisa de checkout** es la decisión de diseño central de Currency-B (mayo 2026), documentada como ADR en [D13](adrs/d13-multicurrency.md).
@@ -347,3 +352,7 @@ Estimación de coste: 2–4 semanas de implementación + setup contable + test E
 - **Detección de divisa del Market no coincidente con cookie en logs** — si el flag anti-bucle dispara (porque Shopify no aplicó el Market deseado), no hay logging server-side. El comprador queda con experiencia inconsistente (cookie GBP, precios EUR) sin que el equipo se entere. Posible mejora: enviar un beacon analytics al detectar el mismatch tras el redirect.
 
 - **D13 referencia `presentation_currency` como label semántico** — el código real usa `"Moneda mostrada"` y `"Símbolo moneda"` como keys de los `customAttributes`. Decidir si renombrar las keys del código (más estricto) o aclarar en D13 que `presentation_currency` es el rol conceptual, no el nombre literal del atributo. Recomendación: aclarar en D13, mantener las keys en español que ve el backoffice.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.

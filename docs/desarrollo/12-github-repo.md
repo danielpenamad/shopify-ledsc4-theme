@@ -1,5 +1,10 @@
 # 12 · Repositorio GitHub
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 `danielpenamad/shopify-ledsc4-theme` es el repositorio único del portal B2B Outlet. Contiene el theme Shopify, el pipeline de importación, las edge functions de Supabase, los walkthroughs de Shopify Flow, las plantillas de email y toda la documentación.
@@ -209,3 +214,7 @@ Esto es deuda de infraestructura de docs prioritaria: los docs se están escribi
 - **Branch protection en `main` (nota operativa, no pendiente del proyecto)**. Hoy la protección de `main` es disciplina, no configuración. Con el modelo `main`→deploy de Shopify (cada merge despliega a producción sin staging), activar branch protection real en GitHub —requerir PR, requerir que pasen los workflows de test (`test-edge-functions.yml`, y un futuro lint de theme), no permitir push directo— es una **recomendación operativa estándar** que aplica quien gobierne el repo en cada momento. No es un entregable de cierre del proyecto, sino una práctica de operación continua. Cross-link a 13-github-actions.
 
 - **CODEOWNERS**. No hay fichero `CODEOWNERS`. Para cuando el repo se transfiera al cliente o entren más manos, definir ownership por carpeta (theme, supabase, docs) ayudaría a enrutar reviews. Baja prioridad mientras el repo tenga un solo mantenedor.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.

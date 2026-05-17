@@ -1,5 +1,10 @@
 # `scripts/delete-outlet-collections.mjs`
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 Script one-shot, idempotente. Borra las colecciones **legacy `outlet-*`**
 del shop LedsC4 B2B Outlet, después de comprobar que ninguna superficie del
 theme o del admin las enlaza.
@@ -211,3 +216,7 @@ DRY_RUN=false node --env-file=shopify-ledsc4-theme.env scripts/delete-outlet-col
 
 - **2026-05-12** — Creado. Acompaña a `register-cat-translations.mjs` para
   cerrar el frente de migración outlet-* → cat-*.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 12-may-2026.

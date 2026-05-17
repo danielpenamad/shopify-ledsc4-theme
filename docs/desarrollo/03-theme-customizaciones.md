@@ -1,5 +1,10 @@
 # 03 · Theme customizaciones
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 El theme de LedsC4 B2B Outlet parte de **Dawn 15.4.1** sin fork. Sobre esa base hay un conjunto acotado de **desviaciones** —sections nuevas, snippets B2B, assets corporativos, settings adicionales, modificaciones a auth pages de Shopify— que conviven con el Dawn original. Cualquier dawn-sync futuro (ver `.github/workflows/dawn-sync.yml`) debe poder pasar sobre los archivos Dawn sin tocar nada del listado de este documento.
@@ -236,3 +241,7 @@ Si en algún futuro PR se extrae un CSS B2B compartido (`b2b-shared.css`), deber
 - **Extracción de CSS compartido** — `.b2b-status` está duplicado en 4 sections. Si se modifica el diseño de las pantallas de estado, hay que tocar las 4. Deuda menor, no urgente.
 
 - **Eliminar `feed_producto.xlsx` y `stock.csv` de `assets/`** — confirmado como legacy eliminable. El feed productivo viaja por SFTP (ver 02-importer §2) y nada en runtime referencia estos archivos. PR de limpieza pendiente — borra 1.25MB del repo y deja `assets/` enfocado en lo activo.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 12-may-2026.

@@ -1,5 +1,10 @@
 # 16 · Operations runbook
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 Runbook operacional del portal B2B Outlet: los procedimientos de mantenimiento, despliegue y resolución de incidencias una vez el portal está en producción. Es el documento de referencia para "algo hay que hacer/tocar/arreglar en el sistema vivo".
@@ -285,3 +290,7 @@ Estos ficheros legacy quedan pendientes de archivar en `docs/_archive/` (ver 12-
 - **Sin procedimiento de rollback de un import**. §8 explica cómo diagnosticar un run colgado, pero no hay un procedimiento para deshacer un import que aplicó datos incorrectos a producción. El importer es incremental (fingerprint), así que un import malo se corrige con otro import corregido, pero conviene documentar el caso explícitamente.
 
 - **Branch protection en `main` (nota operativa)**. Mientras no esté activa (ver 12-github-repo §8), el modelo de despliegue de §2 depende de disciplina: un PR roto mergeado rompe producción sin que nada lo impida. Activarla es una recomendación operativa estándar para el modelo `main`→deploy de Shopify, a aplicar por quien gobierne el repo — no un entregable de cierre del proyecto.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 17-may-2026.
