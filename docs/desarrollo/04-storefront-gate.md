@@ -1,7 +1,7 @@
 # 04 · Storefront gate
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
@@ -289,4 +289,5 @@ Hoy los crawlers pueden indexar `/products/...` aunque al cargarlas redirijan. B
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (15-may-2026): primera publicación.

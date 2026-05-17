@@ -1,7 +1,7 @@
 # D14 · Fingerprint cache en `private.sku_state`
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ⚠️ aceptada (skip incremental pendiente de implementar)
     **Audiencia:** Equipo de desarrollo
 
@@ -103,4 +103,5 @@ Hoy el writer **escribe la tabla pero no lee el fingerprint para skip**:
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1. El estado de decisión se mantiene en ⚠️ (skip incremental pendiente de implementar — estado real del ADR).
 - **v0.1** (15-may-2026): primera publicación.

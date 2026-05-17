@@ -1,7 +1,7 @@
 # D2 · B2B nativo de Shopify
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ aceptada
     **Audiencia:** Equipo de desarrollo
 
@@ -72,4 +72,5 @@ La creación de la Company se orquesta desde `supabase/functions/create-company-
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (15-may-2026): primera publicación.

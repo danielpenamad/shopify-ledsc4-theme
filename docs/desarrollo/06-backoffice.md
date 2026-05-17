@@ -1,7 +1,7 @@
 # 06 · Backoffice de aprobaciones
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
@@ -382,4 +382,5 @@ Ver §4. El `customerUpdate(input: { tags })` reemplaza el array atómicamente. 
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (15-may-2026): primera publicación.

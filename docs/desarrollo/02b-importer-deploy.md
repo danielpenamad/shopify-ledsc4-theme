@@ -1,7 +1,7 @@
 # 02b · Importer — despliegue y operación
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
@@ -499,4 +499,5 @@ Aunque el writer falle, el step 6 (`Upload reports to Storage`) corre. Esto es d
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (15-may-2026): primera publicación.

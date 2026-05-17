@@ -1,7 +1,7 @@
 # Cómo trabajas en el día a día
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 12-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Operador back-office
     **Bloqueado por:** —
@@ -61,4 +61,5 @@ Si un cliente ya no debe poder entrar al portal (cambio de proveedor, fin de rel
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (12-may-2026): primera publicación

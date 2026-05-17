@@ -1,7 +1,7 @@
 # D11 · Pre-upload de imágenes a Shopify Files
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ aceptada
     **Audiencia:** Equipo de desarrollo
 
@@ -71,4 +71,5 @@ Migración: [`supabase/migrations/20260510120000_image_cache.sql`](https://githu
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (15-may-2026): primera publicación.
