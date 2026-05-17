@@ -1,5 +1,10 @@
 # 14 · Secrets
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 Inventario maestro de todos los secrets y valores de configuración del portal B2B Outlet: qué secret existe, para qué sirve, quién lo lee, en qué plano vive, y cómo se rota.
@@ -198,3 +203,7 @@ El runbook de operaciones (16) cubrirá el checklist de cutover paso a paso y la
 - **HMAC sin cadencia de rotación definida**. Los 3 HMAC y el webhook secret no tienen una política de rotación periódica, solo "ante sospecha o en el cutover". Para producción a largo plazo conviene definir una cadencia.
 
 - **Cross-link al runbook (16)**. El checklist de cutover paso a paso y las fases del handover (acceso al repo, transfer de ownership, transfer del proyecto Supabase, transfer del shop) deben vivir en el runbook de operaciones. Este doc cubre la clasificación de secrets; 16 cubre el procedimiento completo.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.

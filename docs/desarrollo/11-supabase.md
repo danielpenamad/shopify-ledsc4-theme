@@ -1,5 +1,10 @@
 # 11 · Proyecto Supabase
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 El portal B2B Outlet usa un proyecto Supabase como capa de infraestructura que cubre todo lo que Shopify no puede hacer por sí mismo: edge functions que orquestan llamadas a la Admin API, una base de datos Postgres para estado operacional del importer, cron jobs, y un bucket de Storage para el staging de imports.
@@ -218,3 +223,7 @@ Si se olvida el paso 2, los crons de `sftp-sync` fallan ruidosamente (excepción
 - **`project_id` de desarrollo hardcoded**. `config.toml` lleva `project_id = "mbjvmhaglbhnxoccwyex"` y `setup_cron.sql` siembra esa URL. Al migrar al cliente hay que cambiar ambos sitios + el UPDATE de `private.config`. Documentado en `supabase/README.md §Setup`, pero es un punto frágil — cross-link a 14-secrets y al runbook de migración (16) cuando existan.
 
 - **Cross-link a 14-secrets**. El inventario completo de secrets (los 3 Shopify, los HMAC, los webhook secrets, `STOREFRONT_ORIGIN`) debe vivir en 14-secrets. Este doc los menciona por función; 14 debe ser la tabla maestra. Pendiente de crear 14.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.

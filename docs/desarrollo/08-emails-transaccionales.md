@@ -1,5 +1,10 @@
 # 08 · Emails transaccionales
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 Las comunicaciones automáticas del portal B2B Outlet con clientes y backoffice se gobiernan desde dos componentes nativos de Shopify: **Shopify Flow** (workflows que reaccionan a eventos) y **Shopify Email** (templates HTML). Hay 4 workflows operativos y 15 templates, distribuidos en 5 emails marketing × 3 idiomas (ES/FR/EN).
@@ -306,3 +311,7 @@ No hay export/import operativo entre tiendas: el formato no se preserva ni es ed
 - **Templates antiguos en `email-templates/*.liquid`**. Quedaron como referencia tras la migración de `Send internal email` a `Send marketing email` (§4). Verificar si pueden eliminarse del repo sin perder valor histórico (probablemente sí, la config viva en Shopify Email es la verdad).
 
 - **Limpiar `.flow.json` viejos en `flows/`**. Hay snapshots de Fase B (`W2-aprobacion-manual.flow.json`, `W3-rechazo-manual.flow.json`) que no reflejan el estado actual. No tienen valor documental — los walkthroughs son la guía actual y el formato no es replayable. PR de limpieza pendiente.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.

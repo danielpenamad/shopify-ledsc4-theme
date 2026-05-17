@@ -1,5 +1,10 @@
 # 13 · GitHub Actions
 
+!!! info "Estado del documento"
+    **Versión:** 1.0 · 17-may-2026
+    **Estado:** ✅ completo
+    **Audiencia:** Equipo de desarrollo
+
 ## 1. Para qué sirve este documento
 
 `.github/workflows/` contiene 4 workflows de GitHub Actions. Este doc explica qué hace cada uno, cuándo se dispara, qué permisos y secrets usa, y los detalles de operación que no son evidentes leyendo el YAML.
@@ -238,3 +243,7 @@ Inventario de los secrets de repositorio que consumen los workflows. El inventar
 - **Sin workflow de lint/validación del theme**. No hay ningún check automático sobre el código Liquid/CSS/JS del theme. Un commit con Liquid roto se deploya a producción sin que ningún workflow lo detecte. Evaluar añadir `shopify theme check` como workflow de PR.
 
 - **Cross-link a 14-secrets**. La tabla de §7 lista los secrets por workflow; el inventario maestro con rotación y origen de cada secret debe vivir en 14-secrets.
+
+## Cambios
+
+- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.
