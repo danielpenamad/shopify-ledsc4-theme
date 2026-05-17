@@ -279,13 +279,13 @@ Este runbook **cosecha y reorganiza** material que existía disperso antes de la
 - `cierre-pr-cat-restructure.md` — el documento de cierre del proyecto de reestructuración de categorías. Su política de reclasificación (Vía 1/2/3), el mecanismo de overrides y el procedimiento de reversión están refundidos en §10.
 - `docs/pendientes.md` — el tracking de tareas. Las entradas con relevancia operativa están resumidas en §12.
 
-Estos ficheros legacy quedan pendientes de archivar en `docs/_archive/` (ver 12-github-repo §8). Hasta entonces, **este doc 16 es la fuente de verdad operativa**; los ficheros planos son histórico.
+Estos ficheros legacy están archivados en `docs/_archive/` (PR #120, ver 12-github-repo §8). **Este doc 16 es la fuente de verdad operativa**; los ficheros planos son histórico.
 
 ## 14. Pendientes de este documento
 
-- **Archivar el material legacy**. Una vez confirmado que nada vivo se pierde, mover `docs/operations-runbook.md`, `docs/pendientes.md` y el resto del material plano a `docs/_archive/`. El `cierre-pr-cat-restructure.md` no está en el repo (era un documento de entrega) — valorar si se incorpora a `docs/_archive/` para trazabilidad.
+- **Material legacy archivado**. `docs/operations-runbook.md`, `docs/pendientes.md` y el resto del material plano están en `docs/_archive/` (PR #120). El `cierre-pr-cat-restructure.md` no está en el repo (era un documento de entrega externo); su contenido operativo ya está refundido en §10.
 
-- **El runbook no cubre incidencias del día a día del operador**. Este doc es el runbook técnico (deploy, secrets, importer, infra). La operativa diaria del back-office — aprobar altas, gestionar whitelist, atender una incidencia de un cliente — vive en el eje `operador/`. El doc `operador/04-resolucion-incidencias.md` está hoy en estado esqueleto; cuando se complete, este doc 16 debe cross-linkarlo.
+- **El runbook no cubre incidencias del día a día del operador**. Este doc es el runbook técnico (deploy, secrets, importer, infra). La operativa diaria del back-office — aprobar altas, gestionar whitelist, atender una incidencia de un cliente — vive en el eje `operador/`. Para esa operativa, ver [operador/04-resolucion-incidencias](../operador/04-resolucion-incidencias.md).
 
 - **Sin procedimiento de rollback de un import**. §8 explica cómo diagnosticar un run colgado, pero no hay un procedimiento para deshacer un import que aplicó datos incorrectos a producción. El importer es incremental (fingerprint), así que un import malo se corrige con otro import corregido, pero conviene documentar el caso explícitamente.
 
