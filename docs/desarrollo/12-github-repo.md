@@ -1,7 +1,7 @@
 # 12 · Repositorio GitHub
 
 !!! info "Estado del documento"
-    **Versión:** 1.0 · 17-may-2026
+    **Versión:** 1.1 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
@@ -9,7 +9,7 @@
 
 `danielpenamad/shopify-ledsc4-theme` es el repositorio único del portal B2B Outlet. Contiene el theme Shopify, el pipeline de importación, las edge functions de Supabase, los walkthroughs de Shopify Flow, las plantillas de email y toda la documentación.
 
-Este doc explica la **estructura del repo**: qué hay en cada carpeta, qué convenciones de ramas y commits se siguen, cuál es la política de lockfile y dependencias, cómo se organiza `docs/`, y qué deuda estructural está pendiente de saneamiento.
+Este doc explica la **estructura del repo**: qué hay en cada carpeta, qué convenciones de ramas y commits se siguen, cuál es la política de lockfile y dependencias, y cómo se organiza `docs/`.
 
 No se cubre aquí: los GitHub Actions workflows (ver 13-github-actions), el detalle del proyecto Supabase (ver 11-supabase), ni el pipeline del importer (ver 02-importer, 02b-importer-deploy). Este doc es sobre el repo como contenedor, no sobre lo que contiene.
 
@@ -178,43 +178,39 @@ Conviven en la raíz de `docs/` archivos planos anteriores a la reorganización 
 
 Son la documentación v0.1 (mayo 2026), previa a la estructura por ejes. El contenido vivo de varios de ellos se ha ido refundiendo en los docs nuevos de `desarrollo/`. Pendiente de saneamiento — ver §8.
 
-### Deuda estructural en `docs/desarrollo/` — colisión de numeración
-
-`docs/desarrollo/` tiene hoy **dos series numéricas solapadas**:
-
-| Serie | Archivos | Estado |
-| --- | --- | --- |
-| Real (en construcción activa) | `00-arquitectura`, `01-data-model`, `02-importer`, `02b-importer-deploy`, `03-theme-customizaciones`, `04-storefront-gate`, `05-registro-b2b`, `06-backoffice`, `07-solicitudes-pedido`, `08-emails-transaccionales`, `09-i18n`, `10-multicurrency`, `11-supabase` | Documentos completos, mergeados |
-| Esqueletos v0.1 abandonados | `01-pipeline-datos`, `02-emails-transaccionales`, `04-currency-i18n`, `05-github-repo`, `06-github-actions`, `07-supabase` | Placeholders sub-1KB, 🚧 esqueleto, sin contenido |
-
-Los 6 esqueletos colisionan en numeración con los docs reales (`04-currency-i18n` vs `04-storefront-gate`, `05-github-repo` vs `05-registro-b2b`, etc.). Son basura de la estructura v0.1 y deben eliminarse. Este doc (`12-github-repo.md`) es el sustituto real del esqueleto `05-github-repo.md`.
-
-### `mkdocs.yml nav` desincronizado
-
-El `nav` de `mkdocs.yml` lista la serie vieja de 8 entradas (`00-arquitectura`, `01-pipeline-datos`, `02-emails-transaccionales`, `03-theme-customizaciones`, `04-currency-i18n`, `05-github-repo`, `06-github-actions`, `07-supabase`). **Ninguno de los 13 docs reales del eje desarrollo —salvo `00-arquitectura` y `03-theme-customizaciones`, que comparten nombre por casualidad— aparece en la navegación del sitio publicado.** El sitio MkDocs en GitHub Pages solo muestra los esqueletos vacíos.
-
-Esto es deuda de infraestructura de docs prioritaria: los docs se están escribiendo pero no son visibles en el sitio. Pendiente de saneamiento — ver §8.
-
 ## 8. Pendientes
 
-- **Sanear `docs/desarrollo/` — prioridad alta**. Eliminar los 6 esqueletos v0.1 (`01-pipeline-datos.md`, `02-emails-transaccionales.md`, `04-currency-i18n.md`, `05-github-repo.md`, `06-github-actions.md`, `07-supabase.md`) que colisionan con los docs reales y no tienen contenido. PR de limpieza dedicado.
+Pendientes de infraestructura del repo. El saneamiento de la
+documentación —estructura por ejes, archivado del material legacy
+plano en `docs/_archive/`, sincronización del `nav`, actualización de
+los README y de las cabeceras de estado— se completó en los PRs
+#118–#124.
 
-- **Resincronizar `mkdocs.yml nav` — prioridad alta**. El `nav` debe reflejar los 13 docs reales del eje desarrollo (más los que falten por escribir: 12-github-repo, 13-github-actions, 14-secrets, 15-scripts, 16-operations-runbook) y los ADRs. Hasta que se haga, el sitio publicado no muestra la documentación real. Hacer junto con el saneamiento de esqueletos.
+- **Evaluar eliminación de `email-templates/`**. Tras la migración a
+  Shopify Email (08 §4) la fuente de verdad del copy de emails ya no
+  es el repo. Verificar que no se pierde nada y eliminar, o mover a
+  `docs/_archive/`.
 
-- **Actualizar `docs/README.md`**. Lista el eje desarrollo con la numeración vieja (00–07) y estados (🚧/⚠️/✅) que ya no se corresponden. Su tabla de estado debe reflejar los docs reales.
+- **Evaluar `pages/`**. El README raíz la marca como no usada
+  activamente. Confirmar y eliminar si procede.
 
-- **Actualizar el `README.md` raíz**. Referencia la estructura plana vieja de `docs/` (`docs/arquitectura.md`, `docs/data-model.md`, `docs/historia-decisiones.md`, `docs/operations-runbook.md`) en su tabla "Documentos clave" y en enlaces inline. También dice "4 funciones Supabase" (son 10 — ver 11-supabase). Actualizar enlaces y cifras.
+- **Branch protection en `main` (nota operativa, no pendiente del
+  proyecto)**. Hoy la protección de `main` es disciplina, no
+  configuración. Con el modelo `main`→deploy de Shopify (cada merge
+  despliega a producción sin staging), activar branch protection real
+  en GitHub —requerir PR, requerir que pasen los workflows de test
+  (`test-edge-functions.yml`, y un futuro lint de theme), no permitir
+  push directo— es una **recomendación operativa estándar** que aplica
+  quien gobierne el repo en cada momento. No es un entregable de cierre
+  del proyecto, sino una práctica de operación continua. Cross-link a
+  13-github-actions.
 
-- **Archivar el material legacy plano de `docs/`**. Mover los `.md` planos pre-v0.1 a `docs/_archive/` con un README que explique que son históricos, una vez su contenido vivo esté refundido en los docs de `desarrollo/`. No borrar — tienen valor de trazabilidad.
-
-- **Evaluar eliminación de `email-templates/`**. Tras la migración a Shopify Email (08 §4) la fuente de verdad del copy de emails ya no es el repo. Verificar que no se pierde nada y eliminar, o mover a `_archive/`.
-
-- **Evaluar `pages/`**. El README raíz la marca como no usada activamente. Confirmar y eliminar si procede.
-
-- **Branch protection en `main` (nota operativa, no pendiente del proyecto)**. Hoy la protección de `main` es disciplina, no configuración. Con el modelo `main`→deploy de Shopify (cada merge despliega a producción sin staging), activar branch protection real en GitHub —requerir PR, requerir que pasen los workflows de test (`test-edge-functions.yml`, y un futuro lint de theme), no permitir push directo— es una **recomendación operativa estándar** que aplica quien gobierne el repo en cada momento. No es un entregable de cierre del proyecto, sino una práctica de operación continua. Cross-link a 13-github-actions.
-
-- **CODEOWNERS**. No hay fichero `CODEOWNERS`. Para cuando el repo se transfiera al cliente o entren más manos, definir ownership por carpeta (theme, supabase, docs) ayudaría a enrutar reviews. Baja prioridad mientras el repo tenga un solo mantenedor.
+- **CODEOWNERS**. No hay fichero `CODEOWNERS`. Para cuando el repo se
+  transfiera al cliente o entren más manos, definir ownership por
+  carpeta (theme, supabase, docs) ayudaría a enrutar reviews. Baja
+  prioridad mientras el repo tenga un solo mantenedor.
 
 ## Cambios
 
+- **v1.1** (17-may-2026): eliminadas de §7 las subsecciones sobre esqueletos v0.1 y `nav` desincronizado, que describían deuda ya resuelta en los PRs #118–#124; §8 Pendientes reescrita dejando solo los pendientes de repo vigentes.
 - **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.
