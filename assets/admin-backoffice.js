@@ -132,9 +132,51 @@
     const sorted = emails.slice().sort();
     for (const e of sorted) {
       const li = document.createElement('li');
-      li.textContent = e;
+      li.className = 'bo__whitelist-item';
+
+      const span = document.createElement('span');
+      span.className = 'bo__whitelist-email';
+      span.textContent = e;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'bo__btn bo__btn--remove';
+      btn.textContent = 'Quitar';
+      btn.dataset.boRemoveEmail = e;
+
+      li.appendChild(span);
+      li.appendChild(btn);
       list.appendChild(li);
     }
+  }
+
+  function wireWhitelistRemove() {
+    const list = document.getElementById('bo-whitelist-list');
+    if (!list) return;
+    list.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-bo-remove-email]');
+      if (!btn) return;
+      const email = btn.dataset.boRemoveEmail;
+      if (!email) return;
+      if (!confirm('¿Quitar ' + email + ' de la whitelist?')) return;
+      btn.disabled = true;
+      setFeedback('bo-whitelist-feedback', 'Quitando ' + email + '…');
+      const { status, ok, data } = await postJson(
+        ENDPOINTS.update,
+        authBody({ emails: email, mode: 'remove' }),
+      );
+      if (!ok || data.error) {
+        btn.disabled = false;
+        setFeedback('bo-whitelist-feedback', humanError(data, 'Error (' + status + ')'), 'error');
+        return;
+      }
+      if (data.not_found) {
+        setFeedback('bo-whitelist-feedback', email + ' ya no estaba en la whitelist.', 'warning');
+      } else {
+        setFeedback('bo-whitelist-feedback', email + ' quitado de la whitelist.', 'success');
+      }
+      await reload();
+    });
   }
 
   // ---------- Pendientes table ----------
@@ -327,6 +369,7 @@
 
   function init() {
     wireWhitelistForm();
+    wireWhitelistRemove();
     wirePendientesActions();
     reload();
   }

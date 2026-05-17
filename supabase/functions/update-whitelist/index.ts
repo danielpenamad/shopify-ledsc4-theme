@@ -20,11 +20,13 @@
 //     customerId: "gid://shopify/Customer/<approver_id>",
 //     timestamp: <unix_seconds>,
 //     signature: "<hex hmac>",
+//     mode?: "add" (default) | "remove",
 //     emails: "texto libre del textarea (uno por línea, comas, espacios...)",
+//             en mode 'remove' lleva un único email a quitar,
 //     dryRun?: false
 //   }
 //
-// Output:
+// Output (mode 'add'):
 //   {
 //     ok: true,
 //     added: number,
@@ -33,6 +35,21 @@
 //     total_now: number,
 //     promote_triggered: boolean
 //   }
+//
+// Output (mode 'remove'):
+//   {
+//     ok: true,
+//     mode: "remove",
+//     removed: string | null,   // null si el email no estaba en la lista
+//     not_found: boolean,
+//     total_now: number
+//   }
+//
+// ⚠ DEUDA CONOCIDA: tanto 'add' como 'remove' hacen read-modify-write
+// last-write-wins sobre el metafield (readWhitelist → mutar en memoria →
+// setWhitelistAndTimestamp). NO hay compare-and-swap: dos escrituras
+// concurrentes pueden pisarse. No se aborda aquí (volumen bajo, edición
+// manual por backoffice).
 //
 // Errores:
 //   400 INVALID_INPUT
@@ -233,6 +250,7 @@ Deno.serve(async (req) => {
     const timestamp = Number(body.timestamp);
     const signature = (body.signature as string | undefined)?.toLowerCase();
     const rawEmails = (body.emails as string | undefined) ?? "";
+    const mode = body.mode === "remove" ? "remove" : "add";
     const dryRun = body.dryRun === true;
 
     if (!customerId || !customerId.startsWith("gid://shopify/Customer/")) {
@@ -255,6 +273,63 @@ Deno.serve(async (req) => {
     if (!tagCheck.ok) {
       logJson("warn", "auth_failed", { code: tagCheck.code, customerId });
       return jsonResponse({ error: tagCheck.code.toLowerCase(), code: tagCheck.code }, 403);
+    }
+
+    // --- mode 'remove': quita un único email del metafield ---------------
+    // Reescribe el metafield y devuelve. NO llama a triggerPromote(): quitar
+    // un email nunca genera matches nuevos (promote-whitelist-matches es
+    // puramente aditivo). Mismo read-modify-write last-write-wins que 'add'.
+    if (mode === "remove") {
+      // Normaliza el target con el mismo parser que 'add' (trim + lowercase)
+      // para que el match contra la lista sea consistente.
+      const { valid: targets } = parseEmails(rawEmails);
+      const target = targets[0] ?? null;
+      if (!target) {
+        return jsonResponse({ error: "no valid email to remove", code: "INVALID_INPUT" }, 400);
+      }
+
+      const existingList = await readWhitelist();
+      const newList = existingList.filter((e) => e !== target);
+      const wasPresent = newList.length !== existingList.length;
+
+      if (dryRun) {
+        logJson("info", "dry_run", { customerId, mode, target, would_remove: wasPresent });
+        return jsonResponse({
+          ok: true,
+          startedAt,
+          mode: "remove",
+          dryRun: true,
+          removed: wasPresent ? target : null,
+          not_found: !wasPresent,
+          total_now: existingList.length,
+          wouldTotal: newList.length,
+        });
+      }
+
+      if (!wasPresent) {
+        logJson("info", "remove_noop", { customerId, target });
+        return jsonResponse({
+          ok: true,
+          startedAt,
+          mode: "remove",
+          removed: null,
+          not_found: true,
+          total_now: existingList.length,
+        });
+      }
+
+      const shopGid = await getShopGid();
+      await setWhitelistAndTimestamp(newList, shopGid);
+
+      logJson("info", "remove_ok", { customerId, target, total_now: newList.length });
+      return jsonResponse({
+        ok: true,
+        startedAt,
+        mode: "remove",
+        removed: target,
+        not_found: false,
+        total_now: newList.length,
+      });
     }
 
     const { valid: parsedValid, invalid } = parseEmails(rawEmails);
