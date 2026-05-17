@@ -1,7 +1,7 @@
 # D5 · New customer accounts
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ aceptada (impuesta por plataforma)
     **Audiencia:** Equipo de desarrollo
 
@@ -65,4 +65,5 @@ Las únicas alternativas reales eran sobre **cómo cubrir el alta B2B** que las 
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (15-may-2026): primera publicación.

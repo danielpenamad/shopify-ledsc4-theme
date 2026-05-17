@@ -1,7 +1,7 @@
 # Gestionar la whitelist
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 12-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Operador back-office
     **Bloqueado por:** —
@@ -64,4 +64,5 @@ En el mismo bloque, hay una opción para **desplegar la whitelist actual** y ver
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (12-may-2026): primera publicación

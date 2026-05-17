@@ -1,7 +1,7 @@
 # Gestión de productos
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 12-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ✅ completo
     **Audiencia:** Administrador del negocio
     **Bloqueado por:** —
@@ -131,4 +131,5 @@ Para editarlos: **Shopify Admin → Online Store → Pages**, abre la página co
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1.
 - **v0.1** (12-may-2026): primera publicación

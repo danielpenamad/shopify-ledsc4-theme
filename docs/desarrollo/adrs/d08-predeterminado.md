@@ -1,7 +1,7 @@
 # D8 · Columna `Predeterminado` del CSV: importar sin exponer
 
 !!! info "Estado del documento"
-    **Versión:** 0.1 · 15-may-2026
+    **Versión:** 1.0 · 17-may-2026
     **Estado:** ⚠️ aceptada provisional (pendiente confirmación cliente)
     **Audiencia:** Equipo de desarrollo
 
@@ -54,4 +54,5 @@ El metafield se popula en cada import incremental como cualquier otro. Es accesi
 
 ## Cambios
 
+- **v1.0** (17-may-2026): cabecera de estado actualizada; el documento estaba completo pero figuraba como v0.1. El estado de decisión se mantiene en ⚠️ provisional (refleja el estado real del ADR, no una cabecera desfasada).
 - **v0.1** (15-may-2026): primera publicación.
