@@ -41,7 +41,7 @@ Agrupadas por dominio:
 | Dominio | Edge function | Invocador | Propósito |
 |---|---|---|---|
 | **Registro B2B** | `register-b2b-customer` | Form storefront `/pages/acceso-profesional` | Crea Customer con tag `b2b-pendiente` y metafields de empresa. Envía magic link. |
-| **Aprobaciones** | `create-company-for-customer` | Flow W1 (whitelist hit), W2 (aprobación manual) | Crea `Company` + `CompanyContact` + `CompanyLocationCatalog`. Idempotente. |
+| **Aprobaciones** | `create-company-for-customer` | Flow W1 (whitelist hit), W2 (aprobación manual) | Crea `Company` + `CompanyContact` + `CompanyLocationCatalog` y asigna al contacto ambos roles de sistema sobre su `CompanyLocation` (sin rol el cliente vería el catálogo pero no podría comprar). Idempotente. |
 | | `approve-customer` | Página backoffice `/pages/admin-backoffice` | Tag `b2b-aprobado`, dispara cascada W2. |
 | | `reject-customer` | Página backoffice | Tag `b2b-rechazado`, dispara W3. |
 | | `list-pending-customers` | Página backoffice | Lectura GraphQL de customers con tag `b2b-pendiente`. |
