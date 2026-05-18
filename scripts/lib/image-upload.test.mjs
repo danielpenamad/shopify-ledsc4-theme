@@ -7,7 +7,7 @@
 //
 // Run: node scripts/lib/image-upload.test.mjs
 
-import { resolveImageToShopifyFileId, sniffImageMime, makeStagedFilename } from './image-upload.mjs';
+import { resolveImageToShopifyFileId, sniffImageMime, makeStagedFilename, reconcileImageCache } from './image-upload.mjs';
 import { createTokenBucket } from '../rate-limiter.mjs';
 import { createHash } from 'node:crypto';
 
@@ -651,8 +651,125 @@ async function testValidatesArgs() {
 
 // --- runner -------------------------------------------------------------
 
+// --- reconcileImageCache (C) -------------------------------------------
+
+// Mock pg.Client for reconcile: in-memory set of cache rows, handles the
+// group-by SELECT and the ANY($1) DELETE. Records delete calls.
+function makeReconcileDb(initialRows) {
+  const rows = new Map(); // shopify_file_id → source_url
+  for (const r of initialRows) rows.set(r.shopify_file_id, r.source_url ?? null);
+  const deleteCalls = [];
+  return {
+    rows,
+    deleteCalls,
+    async query(sql, params) {
+      if (/select\s+shopify_file_id.*group by shopify_file_id/is.test(sql)) {
+        return { rows: [...rows.entries()].map(([id, url]) => ({ shopify_file_id: id, source_url: url })) };
+      }
+      if (/delete\s+from\s+private\.image_cache\s+where\s+shopify_file_id\s*=\s*any/is.test(sql)) {
+        const ids = params[0];
+        deleteCalls.push(ids);
+        let n = 0;
+        for (const id of ids) if (rows.delete(id)) n++;
+        return { rowCount: n };
+      }
+      throw new Error(`reconcile mock db: unhandled SQL: ${sql.slice(0, 80)}`);
+    },
+  };
+}
+
+// Shopify `nodes` mock: status by id; unknown id → null node.
+function nodesFetch(statusById, { throwIds = new Set() } = {}) {
+  return makeMockFetch([{
+    match: (url, init) => init?.method === 'POST',
+    respond: async (_url, init) => {
+      const body = JSON.parse(init.body);
+      const ids = body.variables.ids;
+      if (ids.some((id) => throwIds.has(id))) {
+        return { ok: false, status: 500, text: async () => 'boom' };
+      }
+      const nodes = ids.map((id) => {
+        const st = statusById[id];
+        if (st === undefined) return null;          // dead: node missing
+        if (st === '__NOT_MEDIA__') return { __typename: 'GenericFile' };
+        return { __typename: 'MediaImage', id, status: st };
+      });
+      return { ok: true, status: 200, json: async () => ({ data: { nodes } }) };
+    },
+  }]);
+}
+
+async function testReconcileMixedDeadAlive() {
+  const initial = [
+    { shopify_file_id: 'gid://A', source_url: 'u/a' },
+    { shopify_file_id: 'gid://B', source_url: 'u/b' },
+    { shopify_file_id: 'gid://C', source_url: 'u/c' },
+    { shopify_file_id: 'gid://D', source_url: 'u/d' },
+    { shopify_file_id: 'gid://E', source_url: 'u/e' },
+  ];
+  const db = makeReconcileDb(initial);
+  const ctx = makeCtx(nodesFetch({
+    'gid://A': 'READY',
+    // B missing → dead
+    'gid://C': 'FAILED',          // not READY → dead
+    'gid://D': 'READY',
+    'gid://E': '__NOT_MEDIA__',   // wrong type → dead
+  }));
+  const r = await reconcileImageCache({ ctx, dbConnection: db, batchSize: 250 });
+  assert(r.checked === 5, `reconcile: checked=5 (got ${r.checked})`);
+  assert(r.dead === 3, `reconcile: dead=3 (got ${r.dead})`);
+  assert(r.invalidated === 3, `reconcile: invalidated=3 (got ${r.invalidated})`);
+  assert(r.unverified === 0, `reconcile: unverified=0 (got ${r.unverified})`);
+  const deadSet = new Set(r.deadRows.map((x) => x.shopify_file_id));
+  assert(deadSet.has('gid://B') && deadSet.has('gid://C') && deadSet.has('gid://E'),
+    'reconcile: B,C,E flagged dead');
+  assert(!db.rows.has('gid://B') && db.rows.has('gid://A') && db.rows.has('gid://D'),
+    'reconcile: only dead rows deleted, alive kept');
+  assert(r.deadRows.find((x) => x.shopify_file_id === 'gid://B')?.source_url === 'u/b',
+    'reconcile: deadRows carries source_url for the report');
+}
+
+async function testReconcileBatching() {
+  const initial = Array.from({ length: 5 }, (_, i) => ({ shopify_file_id: `gid://${i}`, source_url: null }));
+  const db = makeReconcileDb(initial);
+  const statuses = { 'gid://0': 'READY', 'gid://1': 'READY', 'gid://2': 'READY', 'gid://3': 'READY', 'gid://4': 'READY' };
+  const ctx = makeCtx(nodesFetch(statuses));
+  const r = await reconcileImageCache({ ctx, dbConnection: db, batchSize: 2 });
+  assert(r.checked === 5 && r.dead === 0 && r.invalidated === 0,
+    `reconcile batching: all alive across 3 batches (checked=${r.checked} dead=${r.dead})`);
+  assert(db.deleteCalls.length === 0, 'reconcile batching: no DELETE when nothing dead');
+}
+
+async function testReconcileCallFailsNeverDeletes() {
+  const initial = [
+    { shopify_file_id: 'gid://X', source_url: null },
+    { shopify_file_id: 'gid://Y', source_url: null },
+  ];
+  const db = makeReconcileDb(initial);
+  // Every call (and every split-half retry) hits a throwing id → ambiguous.
+  const ctx = makeCtx(nodesFetch({}, { throwIds: new Set(['gid://X', 'gid://Y']) }));
+  const r = await reconcileImageCache({ ctx, dbConnection: db, batchSize: 250 });
+  assert(r.unverified === 2, `reconcile fail: unverified=2 (got ${r.unverified})`);
+  assert(r.invalidated === 0, `reconcile fail: invalidated=0 (got ${r.invalidated})`);
+  assert(db.deleteCalls.length === 0, 'reconcile fail: ambiguity never triggers DELETE');
+  assert(db.rows.has('gid://X') && db.rows.has('gid://Y'), 'reconcile fail: rows untouched');
+}
+
+async function testReconcileNoDbIsNoop() {
+  let fetchCalled = false;
+  const ctx = makeCtx(async () => { fetchCalled = true; throw new Error('should not fetch'); });
+  const r = await reconcileImageCache({ ctx, dbConnection: null });
+  assert(r.skipped === true, 'reconcile no-db: skipped=true');
+  assert(r.checked === 0 && r.invalidated === 0, 'reconcile no-db: zero counts');
+  assert(fetchCalled === false, 'reconcile no-db: no Shopify call');
+}
+
 const tests = [
   testSniffImageMime,
+  testReconcileMixedDeadAlive,
+  testReconcileBatching,
+  testReconcileCallFailsNeverDeletes,
+  testReconcileNoDbIsNoop,
   testMakeStagedFilename,
   testHappyPath,
   testCacheHit,

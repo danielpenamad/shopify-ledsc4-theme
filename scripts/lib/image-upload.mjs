@@ -203,6 +203,153 @@ async function cacheInsert(dbConnection, row) {
   }
 }
 
+// --- C: batch reconcile of cached file ids against Shopify ---------------
+//
+// Why: image_cache is write-once (cacheInsert never rewrites shopify_file_id,
+// see ON CONFLICT above). When media is replaced/deleted Shopify-side out of
+// band (manual admin, external re-import), the cached MediaImage GIDs go
+// dead. cacheLookup does NO existence check, so productSet keeps receiving
+// dead `files[].id` and Shopify rejects the whole atomic input — taking the
+// variant price/inventory down with it. This pass runs once at the start of
+// each full run: it verifies every cached GID via Shopify `nodes(ids:)` and
+// DELETEs rows whose GID is null / not a MediaImage / not READY, so the next
+// cacheLookup misses and resolveImageToShopifyFileId re-uploads from
+// source_url (feed-wins, no manual-curation preservation by design).
+//
+// Fail-safe contract:
+//   - dbConnection null  → no-op (cache disabled), { skipped:true }.
+//   - A batch GraphQL call that throws is retried once split in half; if a
+//     half still throws, that half's ids are left UNVERIFIED (counted in
+//     `unverified`) and never deleted — ambiguity never causes a delete.
+//   - Only ids confirmed dead in a successful response are deleted. The run
+//     ALWAYS proceeds; reconcile failure degrades to today's behavior.
+//
+// Shopify `nodes` accepts up to 250 ids/call; default batch 250 → ~4 calls
+// for ~959 rows, each paced through ctx.bucket like every other GraphQL call.
+
+const RECONCILE_NODES_QUERY = `
+  query ReconcileImageCache($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      __typename
+      ... on MediaImage { id status }
+    }
+  }
+`;
+
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Verify one batch of ids. Returns { ok:true, dead:string[] } when the call
+// succeeded, or { ok:false } when it threw (caller decides retry/skip).
+async function verifyBatch(ctx, ids) {
+  let data;
+  try {
+    data = await gqlCall(ctx, RECONCILE_NODES_QUERY, { ids });
+  } catch {
+    return { ok: false };
+  }
+  const nodes = data?.nodes ?? [];
+  const dead = [];
+  for (let i = 0; i < ids.length; i++) {
+    const n = nodes[i];
+    // Dead = absent node, wrong type, or a MediaImage not in READY state
+    // (a FAILED/PROCESSING MediaImage in productSet.files errors too).
+    if (!n || n.__typename !== 'MediaImage' || n.status !== 'READY') {
+      dead.push(ids[i]);
+    }
+  }
+  return { ok: true, dead };
+}
+
+/**
+ * Batch-verify cached shopify_file_id GIDs and invalidate (DELETE) the dead
+ * ones so they're re-uploaded on miss. Read-mostly + a single scoped DELETE.
+ *
+ * @param {object}   args
+ * @param {object}   args.ctx           Shopify GraphQL ctx { endpoint, token, fetch, bucket? }.
+ * @param {object}   args.dbConnection  pg.Client-like (.query). Null → no-op.
+ * @param {(s:string)=>void} [args.onProgress]
+ * @param {number}   [args.batchSize=250]
+ * @returns {Promise<{ checked:number, dead:number, invalidated:number,
+ *                      unverified:number, skipped:boolean, error:string|null,
+ *                      deadRows:Array<{shopify_file_id:string,source_url:string|null}> }>}
+ * Never throws.
+ */
+export async function reconcileImageCache({ ctx, dbConnection, onProgress = () => {}, batchSize = 250 }) {
+  const result = {
+    checked: 0, dead: 0, invalidated: 0, unverified: 0,
+    skipped: false, error: null, deadRows: [],
+  };
+  if (!dbConnection) {
+    result.skipped = true;
+    return result;
+  }
+
+  // Snapshot id → source_url (for the report; one row per GID is enough).
+  let rows;
+  try {
+    const r = await dbConnection.query(
+      `select shopify_file_id, min(source_url) as source_url
+         from private.image_cache
+        where shopify_file_id is not null
+        group by shopify_file_id`,
+    );
+    rows = r.rows ?? [];
+  } catch (err) {
+    result.error = `cache snapshot failed: ${String(err?.message ?? err)}`;
+    onProgress(`[warn] image_cache reconcile skipped: ${result.error}`);
+    return result;
+  }
+
+  result.checked = rows.length;
+  if (rows.length === 0) return result;
+
+  const urlById = new Map(rows.map((x) => [x.shopify_file_id, x.source_url ?? null]));
+  const allIds = rows.map((x) => x.shopify_file_id);
+  const deadIds = [];
+
+  for (const batch of chunk(allIds, batchSize)) {
+    let res = await verifyBatch(ctx, batch);
+    if (!res.ok) {
+      // Retry once, split in half, to dodge a transient/over-cost call.
+      const halves = chunk(batch, Math.max(1, Math.ceil(batch.length / 2)));
+      for (const half of halves) {
+        const r2 = await verifyBatch(ctx, half);
+        if (r2.ok) deadIds.push(...r2.dead);
+        else result.unverified += half.length; // ambiguous → never delete
+      }
+      continue;
+    }
+    deadIds.push(...res.dead);
+  }
+
+  result.dead = deadIds.length;
+  result.deadRows = deadIds.map((id) => ({ shopify_file_id: id, source_url: urlById.get(id) ?? null }));
+
+  if (deadIds.length > 0) {
+    try {
+      const del = await dbConnection.query(
+        `delete from private.image_cache where shopify_file_id = any($1::text[])`,
+        [deadIds],
+      );
+      result.invalidated = del.rowCount ?? 0;
+    } catch (err) {
+      result.error = `delete failed: ${String(err?.message ?? err)}`;
+      onProgress(`[warn] image_cache reconcile: dead GIDs found but DELETE failed: ${result.error}`);
+      return result;
+    }
+  }
+
+  onProgress(
+    `image_cache reconcile: checked=${result.checked} dead=${result.dead} ` +
+    `invalidated=${result.invalidated} unverified=${result.unverified}`,
+  );
+  return result;
+}
+
 async function gqlCall(ctx, query, variables) {
   if (ctx.bucket) await ctx.bucket.acquire(1);
   const res = await ctx.fetch(ctx.endpoint, {
