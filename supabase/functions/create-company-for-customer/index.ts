@@ -173,6 +173,9 @@ Deno.serve(async (req) => {
           id: string;
           name: string;
           locations: { edges: Array<{ node: { id: string } }> };
+          contactRoles: {
+            edges: Array<{ node: { id: string; name: string; note: string } }>;
+          };
         } | null;
         userErrors: Array<{ field: string[]; message: string; code: string }>;
       };
@@ -184,6 +187,7 @@ Deno.serve(async (req) => {
             id
             name
             locations(first: 1) { edges { node { id } } }
+            contactRoles(first: 10) { edges { node { id name note } } }
           }
           userErrors { field message code }
         }
@@ -254,6 +258,81 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
+    const companyContactId = assignRes.companyAssignCustomerAsContact.companyContact?.id;
+    if (!companyContactId) {
+      return jsonResponse({
+        startedAt,
+        error: "customer linkeado como contact pero no se devolvió companyContact.id — no se puede asignar rol",
+        companyId: company.id,
+        companyLocationId,
+      }, 500);
+    }
+
+    // 6.6 Asignar rol al contacto sobre la Location. Sin esto el cliente
+    // ve el catálogo pero no puede comprar ("no se puede comprar en esta
+    // sucursal"). Decisión de negocio 2026-05-18: asignar AMBOS roles de
+    // sistema. Los CompanyContactRole son per-Company (IDs distintos por
+    // company), así que se leen de la company recién creada. Se mapean por
+    // `note` de sistema (estable) y no por `name` (localizable/editable).
+    const roleNotes = [
+      "System-defined Location admin role",
+      "System-defined Ordering only role",
+    ];
+    const roleNodes = company.contactRoles.edges.map((e) => e.node);
+    const rolesToAssign = roleNotes.map((note) => {
+      const role = roleNodes.find((r) => r.note === note);
+      return { note, role };
+    });
+    const missingRoles = rolesToAssign.filter((r) => !r.role).map((r) => r.note);
+    if (missingRoles.length) {
+      return jsonResponse({
+        startedAt,
+        error: "no se encontraron los roles de sistema esperados en la company — contacto SIN rol asignado",
+        missingRoles,
+        availableRoles: roleNodes.map((r) => ({ id: r.id, name: r.name, note: r.note })),
+        companyId: company.id,
+        companyLocationId,
+        companyContactId,
+      }, 500);
+    }
+
+    const roleAssignRes = await gql<{
+      companyContactAssignRoles: {
+        roleAssignments: Array<{ id: string }> | null;
+        userErrors: Array<{ field: string[]; message: string; code: string }>;
+      };
+    }>(
+      `
+      mutation($companyContactId: ID!, $rolesToAssign: [CompanyContactRoleAssign!]!) {
+        companyContactAssignRoles(companyContactId: $companyContactId, rolesToAssign: $rolesToAssign) {
+          roleAssignments { id }
+          userErrors { field message code }
+        }
+      }
+      `,
+      {
+        companyContactId,
+        rolesToAssign: rolesToAssign.map((r) => ({
+          companyContactRoleId: r.role!.id,
+          companyLocationId,
+        })),
+      },
+    );
+
+    const roleErrs = roleAssignRes.companyContactAssignRoles.userErrors;
+    if (roleErrs.length) {
+      return jsonResponse({
+        startedAt,
+        error: "companyContactAssignRoles userErrors — company creada pero contacto SIN rol asignado (cliente no podría comprar)",
+        userErrors: roleErrs,
+        companyId: company.id,
+        companyLocationId,
+        companyContactId,
+      }, 500);
+    }
+
+    const assignedRoleIds = (roleAssignRes.companyContactAssignRoles.roleAssignments ?? []).map((a) => a.id);
+
     // 7. Buscar catálogo "Outlet general"
     const catRes = await gql<{
       catalogs: { edges: Array<{ node: { id: string; title: string } }> };
@@ -316,6 +395,8 @@ Deno.serve(async (req) => {
       companyId: company.id,
       companyName: company.name,
       companyLocationId,
+      companyContactId,
+      assignedRoleIds,
       catalogId: catalog.id,
     });
   } catch (e) {
