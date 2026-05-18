@@ -91,6 +91,7 @@ nav:
           - D12 · Pipeline split: desarrollo/adrs/d12-pipeline-split.md
           - D13 · Multicurrency: desarrollo/adrs/d13-multicurrency.md
           - D14 · sku_state fingerprint: desarrollo/adrs/d14-sku-state-fingerprint.md
+          - D15 · Image cache reconcile: desarrollo/adrs/d15-image-cache-reconcile.md
   - Administración:
       - administracion/index.md
       - Visión general: administracion/00-vision-general.md

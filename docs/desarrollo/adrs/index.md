@@ -29,6 +29,7 @@ Las decisiones se numeran de forma estable (`D1`, `D2`, …) y se referencian de
 | [D12](d12-pipeline-split.md) | Pipeline split sftp-sync (Edge) → GHA | ✅ aceptada |
 | [D13](d13-multicurrency.md) | Multidivisa con auto-rates de Shopify Markets | ✅ aceptada |
 | [D14](d14-sku-state-fingerprint.md) | Fingerprint cache en `private.sku_state` | ⚠️ parcial |
+| [D15](d15-image-cache-reconcile.md) | Reconciliación del image_cache · feed como fuente de verdad de imágenes | ✅ aceptada |
 
 Leyenda: ✅ completo · ⚠️ parcial / provisional · 🚧 esqueleto · ❌ obsoleta · ♻️ superseded por otra.
 
