@@ -60,7 +60,7 @@ import { parseSurtido, parseStock, parsePrecios } from './import-parse.mjs';
 import { buildShopifyModel } from './import-map.mjs';
 import { createTokenBucket, runWithConcurrency } from './rate-limiter.mjs';
 import { buildSkuFingerprint, sortPayloadForFingerprint, buildStockFingerprint } from './fingerprint.mjs';
-import { resolveImageToShopifyFileId } from './lib/image-upload.mjs';
+import { resolveImageToShopifyFileId, reconcileImageCache } from './lib/image-upload.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
@@ -1102,6 +1102,24 @@ export async function runFullImport(options = {}) {
   const reportDir = join(reportRoot, `import-write-${ts}`);
   await mkdir(reportDir, { recursive: true });
 
+  // C: reconcile image_cache against Shopify before any productSet. Dead
+  // cached GIDs would poison the atomic productSet input and drop the
+  // variant price/inventory with them (Bug 4). Invalidated rows fall back
+  // to cache-miss → re-upload from source_url on this same run. Guarded:
+  // only in apply mode with a DB connection (cache is otherwise disabled).
+  // Never throws; a reconcile failure degrades to prior behavior.
+  let cacheReconcile = null;
+  if (applyMode && options.dbConnection) {
+    cacheReconcile = await reconcileImageCache({
+      ctx,
+      dbConnection: options.dbConnection,
+      onProgress,
+    });
+    let recCsv = csvRow(['shopify_file_id', 'source_url']);
+    for (const d of cacheReconcile.deadRows) recCsv += csvRow([d.shopify_file_id, d.source_url ?? '']);
+    await writeFile(join(reportDir, 'cache-reconcile.csv'), recCsv, 'utf8');
+  }
+
   // Build CSV header + hidden rows up-front (those don't need work).
   // PR-IMG-2: 4 new columns sit between publish_errors and overall, with
   // counts of MediaImage nodes by status after polling and the first
@@ -1463,6 +1481,10 @@ export async function runFullImport(options = {}) {
     `- translations (product):       ok=${counts.translations.ok} skipped=${counts.translations.skipped} failed=${counts.translations.failed}\n` +
     `- translations (metafields):    batches_ok=${counts.metafield_translations.batches_ok} batches_failed=${counts.metafield_translations.batches_failed} entries_written=${counts.metafield_translations.entries_written}\n` +
     `- publishablePublish:           ok=${counts.publish.ok} failed=${counts.publish.failed} skipped=${counts.publish.skipped}\n` +
+    (cacheReconcile
+      ? `- image_cache reconcile:        checked=${cacheReconcile.checked} dead=${cacheReconcile.dead} invalidated=${cacheReconcile.invalidated} unverified=${cacheReconcile.unverified}` +
+        (cacheReconcile.error ? ` (error: ${cacheReconcile.error})` : '') + `\n`
+      : '') +
     `- image pre-upload (CDN):       resolved=${counts.image_resolution.resolved_ok} (cache_hit=${counts.image_resolution.from_cache} fresh=${counts.image_resolution.freshly_uploaded}) failed_slots=${counts.image_resolution.failed_slots}\n` +
     `- product media (post-poll):    ready=${counts.media.ready} failed=${counts.media.failed} processing=${counts.media.processing}\n` +
     `- Unpublished orphans:          ok=${counts.unpublished_orphans.ok} failed=${counts.unpublished_orphans.failed} not_found=${counts.unpublished_orphans.not_found}\n` +
