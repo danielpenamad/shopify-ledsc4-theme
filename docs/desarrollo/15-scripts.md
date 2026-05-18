@@ -49,7 +49,7 @@ Estos scripts forman el pipeline de importación. Su detalle está en 02-importe
 | `import-report.mjs` | Genera los reports del run |
 | `fingerprint.mjs` | Calcula el fingerprint por SKU para imports incrementales (ver D14) |
 | `rate-limiter.mjs` | Rate limiter para las llamadas a la Admin API |
-| `lib/image-upload.mjs` | Pre-upload de imágenes a Shopify Files con dedupe por sha256 (ver D11) |
+| `lib/image-upload.mjs` | Pre-upload de imágenes a Shopify Files con dedupe por sha256 + `reconcileImageCache` (ver D11, D15) |
 | `lib/sku-overrides.mjs` | Aplica los overrides manuales de `sku-overrides.json` |
 
 Scripts npm que los orquestan (`package.json`): `npm test`, `npm run import:dry-run`, `npm run import:apply` — ver 12-github-repo §5.

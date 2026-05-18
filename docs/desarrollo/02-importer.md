@@ -24,7 +24,7 @@ No cubre:
 - Configuración inicial de Shopify (catálogo, smart collections, colecciones cat-*) → [administracion/02-gestion-categorias-menu](../administracion/02-gestion-categorias-menu.md).
 - Detalle exhaustivo del catálogo de metafields → [01-data-model](01-data-model.md).
 
-Decisiones arquitectónicas relevantes: [D6](adrs/d06-catalogo-unico.md) (catalog único), [D9](adrs/d09-metafields-ampliados.md) (Fase I1), [D10](adrs/d10-3-csvs-sftp.md) (3 CSVs), [D11](adrs/d11-image-pre-upload.md) (pre-upload), [D12](adrs/d12-pipeline-split.md) (split sftp-sync ↔ GHA), [D14](adrs/d14-sku-state-fingerprint.md) (sku_state).
+Decisiones arquitectónicas relevantes: [D6](adrs/d06-catalogo-unico.md) (catalog único), [D9](adrs/d09-metafields-ampliados.md) (Fase I1), [D10](adrs/d10-3-csvs-sftp.md) (3 CSVs), [D11](adrs/d11-image-pre-upload.md) (pre-upload), [D12](adrs/d12-pipeline-split.md) (split sftp-sync ↔ GHA), [D14](adrs/d14-sku-state-fingerprint.md) (sku_state), [D15](adrs/d15-image-cache-reconcile.md) (reconcile image_cache).
 
 ## 1. Resumen ejecutivo
 
@@ -323,9 +323,9 @@ El writer aplica cambios contra Shopify Admin GraphQL. Es el bloque más complej
 
 ### 7.0 Pre-upload de imágenes (Files API)
 
-Antes de tocar el producto en sí, todas las imágenes referenciadas se aseguran de existir en Shopify Files. Detalle en §11.
+Antes de tocar productos, el run full **reconcilia el caché de imágenes** (`reconcileImageCache`, tras resolver el contexto de shop y antes del worker pool): verifica en lotes de 250 los `shopify_file_id` cacheados contra Shopify (`nodes(ids:)`) y **borra de `private.image_cache` los GIDs muertos** (nodo `null`, no `MediaImage`, o `status ≠ READY`). Los borrados caen como cache-miss y se resuben desde `source_url` en este mismo run. Es fail-safe: sin DB es no-op; una llamada que falla se reintenta partida y, si sigue fallando, esos ids quedan `unverified` y **no se borran**; el run siempre continúa. Reporta `image_cache reconcile: checked/dead/invalidated/unverified` en `summary.txt` y `cache-reconcile.csv`. Diseño y motivación: [D15](adrs/d15-image-cache-reconcile.md). El feed gobierna las imágenes igual que precio y stock — una imagen curada a mano en el Admin se revierte en el siguiente run.
 
-Por cada URL de `files.ledsc4.com`:
+Después, por cada URL de `files.ledsc4.com`:
 
 1. **Rate limit CDN**: `cdnBucket.acquire(1)` — bucket compartido del run que serializa las descargas a **1 req cada 1.5 s** (SLA de cortesía probado en diagnóstico: 337 HEADs sin un solo 429).
 2. **Fetch del binario** a memoria (timeout 15 s) + `sha256` + sniff MIME (header → fallback magic-byte).
@@ -494,13 +494,18 @@ Tabla Postgres en Supabase. Keyed por `sha256` del binario:
 | `sha256` | text PK |
 | `shopify_file_id` | text |
 | `mime_type` | text |
-| `bytes` | integer |
+| `byte_size` | bigint |
+| `source_url` | text |
 | `created_at` | timestamptz |
 | `last_used_at` | timestamptz |
 
-Sobrevive a la descatalogación de SKUs y permite que dos SKUs distintos con la misma foto compartan el mismo File en Shopify. **No hay política de eviction** — al volumen actual (~455 productos × hasta 6 imgs) la tabla cabe holgada.
+Sobrevive a la descatalogación de SKUs y permite que dos SKUs distintos con la misma foto compartan el mismo File en Shopify. La escritura es **write-once sobre `shopify_file_id`** (`ON CONFLICT` solo refresca `last_used_at`). Sin política de eviction por volumen — al volumen actual (~455 productos × hasta 6 imgs) la tabla cabe holgada.
 
 Migration: `supabase/migrations/20260510120000_image_cache.sql`.
+
+#### Reconciliación (`reconcileImageCache`)
+
+Como `cacheLookup` no verifica existencia, un GID que muere fuera del pipeline (cambio de media en Admin / re-import externo) envenenaría el `productSet` atómico y arrastraría precio y stock del SKU. Al inicio de cada run full, `reconcileImageCache` verifica los GIDs cacheados en lotes de 250 vía `nodes(ids:)` y borra los muertos; el siguiente miss los resube desde `source_url`. Fail-safe (la ambigüedad nunca borra) y observabilidad en `summary.txt` + `cache-reconcile.csv`. Detalle: [D15](adrs/d15-image-cache-reconcile.md).
 
 ### Rate limit a la CDN del cliente
 
@@ -679,7 +684,7 @@ Documentado en §6.4. Para 55 SKUs el estado del portal no es deducible del ERP 
 - **Trazabilidad del cierre de PR-CAT-RESTRUCTURE**. El documento de cierre del proyecto no está en el repo (era un entregable externo); su política Vía 1/2/3, el checklist y el procedimiento de reversión ya están refundidos en [16-operations-runbook](16-operations-runbook.md) §10. Si se quiere conservar el original para trazabilidad, incorporarlo a `docs/_archive/`, no a `docs/proyectos/`.
 - **Revisión trimestral de `sku-overrides.json`**. Para cada regla, verificar si el ERP ya refleja el estado deseado y, si es así, retirarla. La salida limpia siempre es preferible a la acumulación — el mecanismo de §6.4 no debería convertirse en un cementerio de excepciones permanentes.
 - **Cleanup de `product.accesorio` legacy** tras migrar todos los SKUs a `accesorio_url`.
-- **Eviction policy en `image_cache`**. Hoy ninguna. Si la tabla crece mucho (cambio de fotos masivo del cliente), añadir TTL o LRU.
+- **Invalidación de `image_cache`**. No hay TTL/LRU por antigüedad, pero `reconcileImageCache` invalida por run los GIDs muertos ([D15](adrs/d15-image-cache-reconcile.md)). El crecimiento por volumen sigue sin política de eviction; a escala actual no es problema.
 - **Pre-procesado de imágenes >20 MP**: hoy fallan en Shopify; el WARN es informativo pero no resoluble desde el importer. Mover a un step previo (worker que las reescala) o pedir al cliente.
 - **Confirmar semántica de `predeterminado`** con el cliente. Hoy importado pero oculto del storefront ([D8](adrs/d08-predeterminado.md)).
 - **Multicurrency Fase 2**: hoy solo EUR. Cuando se active, ECB daily rates (gratis, oficial UE). Aparcado.
