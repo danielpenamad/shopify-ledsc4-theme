@@ -679,7 +679,7 @@ async function buildModelFromSamples({ samplesDir, mappingPath }) {
 //   - warnings: array of { kind, message, position, url } for each failure.
 //
 // Never throws; failures are downgraded to null entries + warnings.
-export async function resolveImagesForSku({ model, ctx, cdnBucket, dbConnection, fetchImpl, pollMs, pollMaxMs }) {
+export async function resolveImagesForSku({ model, ctx, cdnBucket, dbConnection, fetchImpl, fetchTimeoutMs, pollMs, pollMaxMs }) {
   const images = model.product.images ?? [];
   if (images.length === 0) return { resolved: [], warnings: [] };
 
@@ -690,6 +690,7 @@ export async function resolveImagesForSku({ model, ctx, cdnBucket, dbConnection,
       cdnBucket,
       dbConnection,
       fetchImpl,
+      fetchTimeoutMs,
       pollMs,
       pollMaxMs,
     })
@@ -825,6 +826,7 @@ async function processSku({ ctx, model, locationId, publicationId, cdnBucket, db
     cdnBucket,
     dbConnection,
     fetchImpl,
+    fetchTimeoutMs: imageFetchTimeoutMs,
     pollMs: imageFilePollMs,
     pollMaxMs: imageFilePollMaxMs,
   });
@@ -1011,6 +1013,7 @@ async function processSku({ ctx, model, locationId, publicationId, cdnBucket, db
  * @param {string|null} [options.runId]        Optional uuid stored as last_run_id in sku_state.
  * @param {{capacity:number, refillPerSec:number}} [options.rateLimit]   Rate limiter config. Default {capacity:50, refillPerSec:10} — matches Shopify Admin GraphQL Basic cost-point restore (100/s, ~10 ops/s for typical mutations). The 10/s default is safe because gql() retries 429/THROTTLED with backoff.
  * @param {{capacity:number, refillPerSec:number}} [options.cdnRateLimit]   Rate limiter config for fetches against the supplier CDN (files.ledsc4.com). Default {capacity:1, refillPerSec: 1/1.5} — i.e. 1 request per 1.5s, which the diagnostic on 2026-05-10 proved keeps the CDN's anti-flood from triggering (336 sequential HEADs at this pace = 0 × 429). Tunable down to make backfills faster once the CDN stops biting.
+ * @param {number} [options.imageFetchTimeoutMs]   Per-request abort ceiling for the CDN binary GET (files.ledsc4.com). Default 15_000ms. Raise (e.g. 30_000) when the supplier CDN is slow-but-not-rejecting under bulk load — the failure mode is AbortError at this ceiling, not HTTP 429.
  * @param {number} [options.mediaPollMs]       Poll interval for product.media[*].status after productSet (PR-IMG-2). Default 500ms.
  * @param {number} [options.mediaPollMaxMs]    Ceiling for product-media polling. Default 15_000ms (per PR-IMG-2 contract). With pre-uploaded Files this is overkill — the cloned MediaImage is usually READY on the first poll — but it absorbs Shopify-side post-association failures (pixel limit, format edge cases) without making us wait on stuck PROCESSING.
  * @param {number} [options.concurrency]       Worker pool size. Default 4.
@@ -1044,6 +1047,7 @@ export async function runFullImport(options = {}) {
   // the diagnostic. Override via options.cdnRateLimit to speed up once
   // we have telemetry confirming the CDN tolerates more.
   const cdnRateLimit = options.cdnRateLimit ?? { capacity: 1, refillPerSec: 1 / 1.5 };
+  const imageFetchTimeoutMs = Number.isFinite(options.imageFetchTimeoutMs) ? options.imageFetchTimeoutMs : 15_000;
   const mediaPollMs = Number.isFinite(options.mediaPollMs) ? options.mediaPollMs : 500;
   const mediaPollMaxMs = Number.isFinite(options.mediaPollMaxMs) ? options.mediaPollMaxMs : 15_000;
 
@@ -1212,6 +1216,7 @@ export async function runFullImport(options = {}) {
           cdnBucket,
           dbConnection: options.dbConnection ?? null,
           fetchImpl,
+          imageFetchTimeoutMs,
           mediaPollMs,
           mediaPollMaxMs,
         });
