@@ -259,6 +259,16 @@ jobs:
               runId: process.env.RUN_ID,
               onProgress: (msg) => console.log(msg),
             };
+            // Supplier CDN (files.ledsc4.com) rate-limit mitigation: space
+            // GETs further apart (1/3s vs default 1/1.5s) and raise the
+            // per-fetch abort ceiling (30s vs 15s). The full run's window
+            // is ~5h (full @02:00 UTC, next stock_only @07:00) so the
+            // slower cadence (~58min CDN-bound) fits with wide margin.
+            // Stock-only does no image resolution, so scope to full.
+            if (kind === 'full') {
+              opts.cdnRateLimit = { capacity: 1, refillPerSec: 1 / 3 };
+              opts.imageFetchTimeoutMs = 30000;
+            }
             const fn = kind === 'full' ? runFullImport : runStockOnly;
             const result = await fn(opts);
             await writeFile('tmp/writer-result.json', JSON.stringify({
