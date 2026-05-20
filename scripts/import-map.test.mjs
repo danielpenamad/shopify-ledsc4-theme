@@ -367,6 +367,41 @@ function testOverrideControl_skuNotInTable() {
   assertEq(getTrMfValue(m.translations, 'en', 'tipo'), 'Pendant_NATIVE', 'EN tipo preserved');
 }
 
+// ---- PR-IMG-3: derived schematic image slot ----
+function testDerivedSchematicSlot() {
+  console.log('Test 34 (PR-IMG-3): el slot de esquema se añade al FINAL del array de imágenes, con altText propio y sin extensión');
+  const mapping = {
+    files: { surtido: { primary_locale: 'ES' } },
+    columns: {
+      "0": { column_name_es: 'Referencia', destination: 'variant.sku', translatable: false, type: 'string', key: true },
+      "58": { column_name_es: 'Imagen web', destination: 'product.images', image_position: 0, type: 'url' },
+      "59": { column_name_es: 'Imagen ambiente 1', destination: 'product.images', image_position: 1, type: 'url' },
+    },
+    derived_images: {
+      slots: [
+        { id: 'esquema_tecnico', url_template: 'https://files.ledsc4.com/png/{SKU}', alt_template: 'Esquema técnico — {SKU}' },
+      ],
+    },
+  };
+  function row(sku, img0, img1) { const r = []; r[0] = sku; r[58] = img0; r[59] = img1; return r; }
+  const records = [{ sku: 'DE-0148-BLA', raw: row('DE-0148-BLA', 'https://files.ledsc4.com/img/a.jpg', 'https://files.ledsc4.com/img/b.jpg') }];
+  const fx = {
+    surtidoByLocale: new Map([['ES', { records }]]),
+    stock: { records: [{ sku: 'DE-0148-BLA', inventario: 10 }] },
+    precios: { records: [{ sku: 'DE-0148-BLA', tarifa: '15,00€' }] },
+    mapping,
+  };
+  const { products } = buildShopifyModel(fx);
+  const imgs = products.get('DE-0148-BLA').product.images;
+  assertEq(imgs.length, 3, 'two CSV photos + one schematic slot');
+  const last = imgs[imgs.length - 1];
+  assertEq(last.src, 'https://files.ledsc4.com/png/DE-0148-BLA', 'schematic src built from SKU, no extension');
+  assertEq(last.alt, 'Esquema técnico — DE-0148-BLA', 'schematic altText is its own, not inherited');
+  assertEq(last.derived, 'esquema_tecnico', 'schematic slot tagged as derived');
+  assert(imgs[0].alt === undefined && imgs[1].alt === undefined, 'CSV photos keep no alt key (behaviour unchanged)');
+  assert(!last.src.endsWith('.png') && !last.alt.includes('.png'), 'no file extension assumed anywhere in the slot');
+}
+
 function main() {
   testCleanIdempotent();
   testDoubleSpaceCollapsed();
@@ -402,6 +437,7 @@ function main() {
   testOverrideBucketB_multilocale();
   testOverrideBucketC();
   testOverrideControl_skuNotInTable();
+  testDerivedSchematicSlot();
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     console.error('\nFailures:');

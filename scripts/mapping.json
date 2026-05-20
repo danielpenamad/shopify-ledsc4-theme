@@ -635,6 +635,16 @@
       "destination": "ignore"
     }
   },
+  "derived_images": {
+    "$comment": "Slots de imagen sintéticos NO respaldados por columna del CSV: la URL se construye desde el SKU. Se añaden DESPUÉS de las imágenes de columns[*].destination=product.images, en el orden listado aquí — el orden del array es la posición en el carrusel. El endpoint /png/ sirve PNG o JPEG indistintamente (Fase 0 PR-IMG-3); el MIME lo resuelve image-upload.mjs por sniff, NO asumir extensión.",
+    "slots": [
+      {
+        "id": "esquema_tecnico",
+        "url_template": "https://files.ledsc4.com/png/{SKU}",
+        "alt_template": "Esquema técnico — {SKU}"
+      }
+    ]
+  },
   "filters_summary": {
     "$comment": "Lista derivada de columns[*].filterable=true. Sirve para el script de configuración de filtros del catálogo en theme settings.",
     "filters": [

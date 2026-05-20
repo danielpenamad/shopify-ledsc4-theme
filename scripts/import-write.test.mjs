@@ -1163,6 +1163,116 @@ async function testResolveImagesForSku_partialFailure() {
   assert(r.warnings[0].resolveKind === 'fetch_failed', `resolveKind preserved, got ${r.warnings[0].resolveKind}`);
 }
 
+// PR-IMG-3: alt wiring + derived-slot expected-absence
+function testBuildProductSetInput_altWiring_idAndLegacy() {
+  console.log('Test (PR-IMG-3): buildProductSetInput — img.alt → FileSetInput.alt en rama id y legacy; foto sin alt no añade el campo');
+  const model = makeModel();
+  // photo (no alt) + derived schematic slot (alt propio)
+  model.product.images = [
+    { src: 'https://files.ledsc4.com/img/a.jpg', position: 0 },
+    { src: 'https://files.ledsc4.com/png/TEST-SKU-001', position: 1, alt: 'Esquema técnico — TEST-SKU-001', derived: 'esquema_tecnico' },
+  ];
+  // id-mode
+  const idInput = buildProductSetInput(model, {
+    locationId: LOC,
+    resolvedImages: [{ fileId: 'gid://shopify/MediaImage/PHOTO' }, { fileId: 'gid://shopify/MediaImage/SCHEM' }],
+  });
+  assert(idInput.files.length === 2, '2 files in id-mode');
+  assert(!('alt' in idInput.files[0]), 'photo slot has NO alt key (behaviour intact)');
+  assert(idInput.files[0].id === 'gid://shopify/MediaImage/PHOTO', 'photo id preserved');
+  assert(idInput.files[1].alt === 'Esquema técnico — TEST-SKU-001', `schematic carries alt, got ${JSON.stringify(idInput.files[1])}`);
+  assert(idInput.files[1].id === 'gid://shopify/MediaImage/SCHEM', 'schematic id preserved alongside alt');
+  // legacy/dry-run path (no resolvedImages)
+  const legacyInput = buildProductSetInput(model, { locationId: LOC });
+  assert(!('alt' in legacyInput.files[0]), 'legacy: photo slot has NO alt key');
+  assert(legacyInput.files[1].alt === 'Esquema técnico — TEST-SKU-001', 'legacy: schematic carries alt');
+  assert(legacyInput.files[1].originalSource === 'https://files.ledsc4.com/png/TEST-SKU-001', 'legacy: schematic originalSource intact');
+}
+
+function makeDerivedOnlyModel() {
+  const model = makeModel();
+  model.product.images = [
+    { src: 'https://files.ledsc4.com/png/TEST-SKU-001', position: 0, alt: 'Esquema técnico — TEST-SKU-001', derived: 'esquema_tecnico' },
+  ];
+  return model;
+}
+
+async function testResolveImagesForSku_derivedSchematic404_expectedAbsence() {
+  console.log('Test (PR-IMG-3): slot derived con HTTP 404 → resolved[null], 0 warnings, 1 expectedAbsence (no WARN)');
+  const model = makeDerivedOnlyModel();
+  const fetchImpl = async (url) => {
+    if (typeof url === 'string' && url.startsWith('https://files.ledsc4.com/png/')) return new Response('not found', { status: 404 });
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  const ctx = { endpoint: 'https://mock/admin/api/2025-10/graphql.json', token: 't', fetch: fetchImpl };
+  const cdnBucket = createTokenBucket({ capacity: 10, refillPerSec: 100 });
+  const r = await resolveImagesForSku({ model, ctx, cdnBucket, dbConnection: null, fetchImpl });
+  assert(r.resolved.length === 1 && r.resolved[0] === null, 'derived slot null on 404');
+  assert(r.warnings.length === 0, `0 warnings (no false WARN), got ${r.warnings.length}`);
+  assert(r.expectedAbsences.length === 1, `1 expectedAbsence, got ${r.expectedAbsences.length}`);
+  assert(r.expectedAbsences[0].derived === 'esquema_tecnico', 'expectedAbsence carries derived id');
+  assert(r.schematicStatus === 'missing', `schematicStatus=missing, got ${r.schematicStatus}`);
+}
+
+async function testResolveImagesForSku_derivedSchematicPresent_returnsPresent() {
+  console.log('Test (PR-IMG-3 Fase 3): slot derived que resuelve OK → schematicStatus=present');
+  const model = makeDerivedOnlyModel();
+  const png = Buffer.alloc(64);
+  png[0] = 0x89; png[1] = 0x50; png[2] = 0x4e; png[3] = 0x47;
+  const fetchImpl = async (url, init = {}) => {
+    if (typeof url === 'string' && url.startsWith('https://files.ledsc4.com/png/')) return new Response(png, { status: 200, headers: { 'content-type': 'image/png' } });
+    if (typeof url === 'string' && url.includes('mock-staged.s3.')) return new Response('', { status: 200 });
+    if (typeof url === 'string' && url.includes('/admin/api/')) {
+      const body = JSON.parse(init.body);
+      const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+      if (op === 'StagedUploadsCreate') return new Response(JSON.stringify({ data: { stagedUploadsCreate: { stagedTargets: [{ url: 'https://mock-staged.s3.amazonaws.com/u', resourceUrl: 'https://mock-staged.s3.amazonaws.com/r', parameters: [] }], userErrors: [] } } }), { status: 200 });
+      if (op === 'FileCreate') return new Response(JSON.stringify({ data: { fileCreate: { files: [{ id: 'gid://shopify/MediaImage/SCHEM', status: 'READY', mediaErrors: [] }], userErrors: [] } } }), { status: 200 });
+      throw new Error(`unexpected gql op: ${op}`);
+    }
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  const ctx = { endpoint: 'https://mock/admin/api/2025-10/graphql.json', token: 't', fetch: fetchImpl };
+  const cdnBucket = createTokenBucket({ capacity: 10, refillPerSec: 100 });
+  const r = await resolveImagesForSku({ model, ctx, cdnBucket, dbConnection: null, fetchImpl });
+  assert(r.resolved[0]?.fileId === 'gid://shopify/MediaImage/SCHEM', 'derived slot resolved');
+  assert(r.warnings.length === 0, '0 warnings');
+  assert(r.expectedAbsences.length === 0, '0 expectedAbsences');
+  assert(r.schematicStatus === 'present', `schematicStatus=present, got ${r.schematicStatus}`);
+}
+
+async function testResolveImagesForSku_derivedSchematicNon404_isWarn() {
+  console.log('Test (PR-IMG-3): slot derived con fallo NO-404 (HTTP 500) → sí WARN, 0 expectedAbsences');
+  const model = makeDerivedOnlyModel();
+  const fetchImpl = async (url) => {
+    if (typeof url === 'string' && url.startsWith('https://files.ledsc4.com/png/')) return new Response('boom', { status: 500 });
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  const ctx = { endpoint: 'https://mock/admin/api/2025-10/graphql.json', token: 't', fetch: fetchImpl };
+  const cdnBucket = createTokenBucket({ capacity: 10, refillPerSec: 100 });
+  const r = await resolveImagesForSku({ model, ctx, cdnBucket, dbConnection: null, fetchImpl });
+  assert(r.resolved[0] === null, 'slot null on 500');
+  assert(r.warnings.length === 1, `1 warning (real failure), got ${r.warnings.length}`);
+  assert(r.warnings[0].resolveKind === 'fetch_failed', 'resolveKind=fetch_failed');
+  assert(r.expectedAbsences.length === 0, 'NOT an expected absence (non-404)');
+  assert(r.schematicStatus === 'failed', `schematicStatus=failed, got ${r.schematicStatus}`);
+}
+
+async function testResolveImagesForSku_csvPhoto404_stillWarn() {
+  console.log('Test (PR-IMG-3): foto del CSV (sin derived) con 404 → sigue siendo WARN, sin expectedAbsence (comportamiento intacto)');
+  const model = makeModel();
+  model.product.images = [{ src: 'https://files.ledsc4.com/img/photo.jpg', position: 0 }]; // no derived, no alt
+  const fetchImpl = async (url) => {
+    if (typeof url === 'string' && url.startsWith('https://files.ledsc4.com/')) return new Response('not found', { status: 404 });
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  const ctx = { endpoint: 'https://mock/admin/api/2025-10/graphql.json', token: 't', fetch: fetchImpl };
+  const cdnBucket = createTokenBucket({ capacity: 10, refillPerSec: 100 });
+  const r = await resolveImagesForSku({ model, ctx, cdnBucket, dbConnection: null, fetchImpl });
+  assert(r.warnings.length === 1, 'CSV photo 404 is still a WARN');
+  assert(r.expectedAbsences.length === 0, 'no expectedAbsence for a CSV photo');
+  assert(r.schematicStatus === null, `schematicStatus=null (no derived slot), got ${r.schematicStatus}`);
+}
+
 async function testResolveImagesForSku_emptyModel() {
   console.log('Test: resolveImagesForSku — model with 0 images returns empty arrays without calling anything');
   const model = makeModel();
@@ -1358,6 +1468,10 @@ async function testRunFullImport_happyPathReportsAllReady() {
     const jpeg = Buffer.alloc(64); jpeg[0] = 0xff; jpeg[1] = 0xd8; jpeg[2] = 0xff;
     const mockFetch = async (url, init = {}) => {
       if (typeof url === 'string' && url.startsWith('https://example.com/')) return new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+      // PR-IMG-3: el pipeline ahora añade el slot derivado /png/{SKU}. Este SKU
+      // no tiene esquema → 404 limpio = ausencia esperada (NO WARN). Valida el
+      // camino completo a través de runFullImport.
+      if (typeof url === 'string' && url.startsWith('https://files.ledsc4.com/png/')) return new Response('not found', { status: 404 });
       if (typeof url === 'string' && url.includes('mock-staged.s3.')) return new Response('', { status: 200 });
       if (typeof url === 'string' && url.includes('/admin/api/')) {
         const body = JSON.parse(init.body);
@@ -1400,6 +1514,121 @@ async function testRunFullImport_happyPathReportsAllReady() {
   } finally {
     await rm(tmp, { recursive: true, force: true });
   }
+}
+
+// PR-IMG-3 Fase 3: integration — 4 SKUs covering present/missing/failed + the
+// Fase 4 control (photo fails, schematic OK → schematic.failed must stay 0).
+async function testRunFullImport_schematicThreeBucketsAndPhotoFailControl() {
+  console.log('Test (PR-IMG-3 Fase 3): 4 SKUs → counts.schematic={present:2,missing:1,failed:1}, summary line correcta, schematic_status por SKU, y foto-fail no entra en schematic.failed (control Fase 4)');
+  const tmp = await mkdtemp(join(tmpdir(), 'runfullimport-schem-'));
+  try {
+    await mkdir(join(tmp, 'samples', 'productos'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'stock'), { recursive: true });
+    await mkdir(join(tmp, 'samples', 'precios'), { recursive: true });
+    const surtidoHeader = Array.from({ length: 79 }, (_, i) => `col${i}`).join(',') + '\n';
+    function row(sku) {
+      const f = Array.from({ length: 79 }, () => '');
+      f[0] = sku; f[3] = 'X'; f[5] = 'F';
+      f[58] = `https://example.com/photo/${sku}`;
+      return f.join(',');
+    }
+    const skus = ['SCH-PRES', 'SCH-MISS', 'SCH-FAIL', 'PHOTO-FAIL'];
+    const surtidoBody = skus.map(row).join('\n') + '\n';
+    for (const loc of ['ES','EN','IT','DE','FR','PT']) {
+      await writeFile(join(tmp, 'samples', 'productos', `listado_productos_${loc}.csv`), surtidoHeader + surtidoBody, 'utf8');
+    }
+    await writeFile(join(tmp, 'samples', 'stock', 'stock.csv'), 'SKU,INVENTARIO\n' + skus.map((s) => `${s},1`).join('\n') + '\n', 'utf8');
+    await writeFile(join(tmp, 'samples', 'precios', 'precios_productos.csv'), 'SKU,TARIFA\n' + skus.map((s) => `${s},1.00`).join('\n') + '\n', 'utf8');
+
+    const png = Buffer.alloc(64); png[0] = 0x89; png[1] = 0x50; png[2] = 0x4e; png[3] = 0x47;
+    const jpeg = Buffer.alloc(64); jpeg[0] = 0xff; jpeg[1] = 0xd8; jpeg[2] = 0xff;
+
+    const mockFetch = async (url, init = {}) => {
+      if (typeof url === 'string') {
+        // CSV photos: PHOTO-FAIL's photo 500s; rest serve a real JPEG.
+        if (url.startsWith('https://example.com/photo/')) {
+          if (url.endsWith('/PHOTO-FAIL')) return new Response('boom', { status: 500 });
+          return new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+        }
+        // Schematic endpoint: branch per SKU.
+        if (url.startsWith('https://files.ledsc4.com/png/')) {
+          if (url.endsWith('/SCH-PRES') || url.endsWith('/PHOTO-FAIL')) return new Response(png, { status: 200, headers: { 'content-type': 'image/png' } });
+          if (url.endsWith('/SCH-MISS')) return new Response('not found', { status: 404 });
+          if (url.endsWith('/SCH-FAIL')) return new Response('boom', { status: 500 });
+        }
+        if (url.includes('mock-staged.s3.')) return new Response('', { status: 200 });
+        if (url.includes('/admin/api/')) {
+          const body = JSON.parse(init.body);
+          const op = (body.query.match(/(?:mutation|query)\s+(\w+)/) ?? [])[1];
+          if (op === 'ShopContext') return new Response(JSON.stringify({ data: { publications: { nodes: [{ id: 'P', name: 'Tienda online' }] }, locations: { nodes: [{ id: 'L' }] } } }), { status: 200 });
+          if (op === 'StagedUploadsCreate') return new Response(JSON.stringify({ data: { stagedUploadsCreate: { stagedTargets: [{ url: 'https://mock-staged.s3.amazonaws.com/u', resourceUrl: 'https://mock-staged.s3.amazonaws.com/r', parameters: [] }], userErrors: [] } } }), { status: 200 });
+          if (op === 'FileCreate') return new Response(JSON.stringify({ data: { fileCreate: { files: [{ id: 'gid://shopify/MediaImage/F', status: 'READY', mediaErrors: [] }], userErrors: [] } } }), { status: 200 });
+          if (op === 'productSet') return new Response(JSON.stringify({ data: { productSet: { product: { id: 'gid://shopify/Product/X', handle: 'x', variants: { nodes: [] }, metafields: { nodes: [] } }, userErrors: [] } } }), { status: 200 });
+          if (op === 'TranslatableContent') return new Response(JSON.stringify({ data: { translatableResource: { translatableContent: [] } } }), { status: 200 });
+          if (op === 'TranslatableByIds') return new Response(JSON.stringify({ data: { translatableResourcesByIds: { nodes: [] } } }), { status: 200 });
+          if (op === 'translationsRegister') return new Response(JSON.stringify({ data: { translationsRegister: { translations: [], userErrors: [] } } }), { status: 200 });
+          if (op === 'publishablePublish') return new Response(JSON.stringify({ data: { publishablePublish: { userErrors: [] } } }), { status: 200 });
+          if (op === 'ProductMediaSafe') return new Response(JSON.stringify({ data: { product: { media: { nodes: [{ __typename: 'MediaImage', status: 'READY', mediaErrors: [] }] } } } }), { status: 200 });
+          throw new Error(`unexpected gql op: ${op}`);
+        }
+      }
+      throw new Error(`mock fetch: no handler for ${url}`);
+    };
+
+    const result = await runFullImport({
+      samplesDir: join(tmp, 'samples'), reportDir: join(tmp, 'reports'),
+      applyMode: true, onProgress: () => {}, fetch: mockFetch,
+      shopifyDomain: 'mock', shopifyToken: 'mock',
+      rateLimit: { capacity: 100, refillPerSec: 100 },
+      cdnRateLimit: { capacity: 100, refillPerSec: 1000 },
+      mediaPollMs: 1, mediaPollMaxMs: 50, concurrency: 1,
+    });
+
+    // 1) Counts: 2 present (SCH-PRES + PHOTO-FAIL), 1 missing, 1 failed.
+    assert(result.counts.schematic.present === 2, `present=2, got ${result.counts.schematic.present}`);
+    assert(result.counts.schematic.missing === 1, `missing=1, got ${result.counts.schematic.missing}`);
+    assert(result.counts.schematic.failed === 1, `failed=1, got ${result.counts.schematic.failed}`);
+    // Sum equals SKUs that passed productSet (= 4 in this run).
+    assert(result.counts.schematic.present + result.counts.schematic.missing + result.counts.schematic.failed === 4, 'sum equals productSet-OK SKUs');
+
+    // 2) Control Fase 4: PHOTO-FAIL has a real photo failure but its schematic
+    //    is present → must NOT contribute to schematic.failed. WARN comes from
+    //    the photo, not from the schematic.
+    assert(result.counts.media.warn_skus === 2, `2 WARN (SCH-FAIL + PHOTO-FAIL), got ${result.counts.media.warn_skus}`);
+
+    // 3) Summary line present with exact tokens.
+    const summary = await readFile(result.reportPaths.summary, 'utf8');
+    assert(/Technical schematic:\s+present=2 missing=1 failed=1/.test(summary), `summary contains schematic line, got:\n${summary}`);
+
+    // 4) CSV per-SKU schematic_status column.
+    const csv = await readFile(result.reportPaths.changes, 'utf8');
+    const lines = csv.trim().split('\n');
+    const header = lines[0].split(',');
+    const idxSchem = header.indexOf('schematic_status');
+    const idxOverall = header.indexOf('overall');
+    assert(idxSchem !== -1, 'schematic_status column in header');
+    assert(idxOverall === idxSchem + 1, 'schematic_status is immediately before overall');
+    function rowFor(sku) {
+      const line = lines.find((l) => l.startsWith(sku + ','));
+      assert(line != null, `row for ${sku}`);
+      return line.split(',');
+    }
+    assertEq(rowFor('SCH-PRES')[idxSchem], 'present', 'SCH-PRES schematic_status=present');
+    assertEq(rowFor('SCH-PRES')[idxOverall], 'OK', 'SCH-PRES overall=OK');
+    assertEq(rowFor('SCH-MISS')[idxSchem], 'missing', 'SCH-MISS schematic_status=missing');
+    assertEq(rowFor('SCH-MISS')[idxOverall], 'OK', 'SCH-MISS overall=OK (missing no cambia el estado)');
+    assertEq(rowFor('SCH-FAIL')[idxSchem], 'failed', 'SCH-FAIL schematic_status=failed');
+    assertEq(rowFor('SCH-FAIL')[idxOverall], 'WARN', 'SCH-FAIL overall=WARN');
+    assertEq(rowFor('PHOTO-FAIL')[idxSchem], 'present', 'PHOTO-FAIL schematic_status=present (foto falla, esquema OK)');
+    assertEq(rowFor('PHOTO-FAIL')[idxOverall], 'WARN', 'PHOTO-FAIL overall=WARN (por la foto, no por el esquema)');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+}
+
+// assertEq local (some tests above use raw assert).
+function assertEq(actual, expected, label) {
+  assert(actual === expected, `${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 }
 
 async function main() {
@@ -1445,6 +1674,11 @@ async function main() {
   testBuildProductSetInput_legacyPathPreservedWhenNoResolvedOpt();
   await testResolveImagesForSku_happyPath();
   await testResolveImagesForSku_partialFailure();
+  testBuildProductSetInput_altWiring_idAndLegacy();
+  await testResolveImagesForSku_derivedSchematic404_expectedAbsence();
+  await testResolveImagesForSku_derivedSchematicPresent_returnsPresent();
+  await testResolveImagesForSku_derivedSchematicNon404_isWarn();
+  await testResolveImagesForSku_csvPhoto404_stillWarn();
   await testResolveImagesForSku_emptyModel();
   await testPollProductMediaStatus_allReady();
   await testPollProductMediaStatus_failedSurfacesError();
@@ -1453,6 +1687,7 @@ async function main() {
   await testPollProductMediaStatus_videoCountedAsReady();
   await testRunFullImport_writesNewCsvColumnsAndWarn();
   await testRunFullImport_happyPathReportsAllReady();
+  await testRunFullImport_schematicThreeBucketsAndPhotoFailControl();
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
