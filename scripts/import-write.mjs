@@ -176,14 +176,20 @@ export function buildProductSetInput(model, opts) {
     if (resolvedImages !== undefined) {
       const r = resolvedImages[idx];
       if (!r || !r.fileId) continue; // skip failed slot
-      files.push({ id: r.fileId });
+      // PR-IMG-3: el slot derivado (esquema) trae alt propio; las fotos del
+      // CSV no traen img.alt → el campo no se añade (comportamiento intacto).
+      const f = { id: r.fileId };
+      if (img.alt) f.alt = img.alt;
+      files.push(f);
     } else {
-      files.push({
+      const f = {
         contentType: 'IMAGE',
         originalSource: img.src,
         filename: makeStableFilename(sku, img.position ?? idx, img.src),
         duplicateResolutionMode: 'REPLACE',
-      });
+      };
+      if (img.alt) f.alt = img.alt;
+      files.push(f);
     }
   }
 
@@ -698,6 +704,11 @@ export async function resolveImagesForSku({ model, ctx, cdnBucket, dbConnection,
 
   const resolved = [];
   const warnings = [];
+  const expectedAbsences = []; // PR-IMG-3: slots derived ausentes (404) — NO son WARN
+  // PR-IMG-3 Fase 3: estado del slot de esquema para telemetría de cobertura.
+  // El mapper añade exactamente UN slot derived por SKU (invariante Fase 1),
+  // así que esto es 1:1: 'present' | 'missing' | 'failed' | null (sin slot).
+  let schematicStatus = null;
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const img = images[i];
@@ -708,8 +719,26 @@ export async function resolveImagesForSku({ model, ctx, cdnBucket, dbConnection,
         sha256: r.sha256,
         mimeType: r.mimeType,
       });
+      if (img.derived) schematicStatus = 'present';
     } else {
       resolved.push(null);
+      // PR-IMG-3: un slot sintético (img.derived) que falla con HTTP 404 es
+      // una ausencia ESPERADA (Fase 0: SKU sin esquema → 404 limpio), no un
+      // fallo de foto comercial. Se omite de warnings → no dispara WARN; el
+      // slot ya es null arriba, así que buildProductSetInput lo salta y el
+      // producto se publica con sus fotos. La detección es sobre el dato
+      // estructurado r.httpStatus (NO se parsea r.message). Cualquier otro
+      // fallo del slot derivado (timeout, file_create, mime…) o un
+      // fetch_failed no-404 sí es fallo real → sigue a warnings como hoy.
+      const isExpectedAbsence =
+        img.derived &&
+        r.kind === 'fetch_failed' &&
+        r.httpStatus === 404;
+      if (isExpectedAbsence) {
+        expectedAbsences.push({ position: img.position ?? i, derived: img.derived, url: img.src });
+        schematicStatus = 'missing'; // isExpectedAbsence ya implica img.derived
+        continue;
+      }
       warnings.push({
         kind: 'image_resolve_failed',
         position: img.position ?? i,
@@ -717,9 +746,10 @@ export async function resolveImagesForSku({ model, ctx, cdnBucket, dbConnection,
         resolveKind: r.kind,
         message: r.message,
       });
+      if (img.derived) schematicStatus = 'failed';
     }
   }
-  return { resolved, warnings };
+  return { resolved, warnings, expectedAbsences, schematicStatus };
 }
 
 // Truncate to 200 chars (per PR-IMG-2 contract for media_first_error).
@@ -1136,6 +1166,7 @@ export async function runFullImport(options = {}) {
     'translation_errors',
     'publish_status', 'publish_errors',
     'media_ready_count', 'media_failed_count', 'media_processing_count', 'media_first_error',
+    'schematic_status',
     'overall',
   ]);
   for (const [sku, m] of products) {
@@ -1145,6 +1176,7 @@ export async function runFullImport(options = {}) {
       sku, skuToHandle(sku), '', `SKIPPED:${m.publish_reason ?? 'unknown'}`, '',
       '', '', '', 'SKIPPED', '',
       '', '', '', '',
+      '',
       'HIDDEN',
     ]);
   }
@@ -1162,6 +1194,11 @@ export async function runFullImport(options = {}) {
     // the next cron heals via cache-driven re-tries.
     media: { ready: 0, failed: 0, processing: 0, warn_skus: 0 },
     image_resolution: { resolved_ok: 0, from_cache: 0, freshly_uploaded: 0, failed_slots: 0 },
+    // PR-IMG-3 Fase 3: cobertura de esquemas técnicos. Observabilidad para
+    // el cliente (Albert), NO un gate: missing alto = baja cobertura del
+    // catálogo del cliente, no un error del pipeline. Sin exit code propio.
+    // Población = SKUs que superan productSet (igual que image_resolution).
+    schematic: { present: 0, missing: 0, failed: 0 },
     // Tracks DB upserts (PR-Y fix). Only meaningful when options.dbConnection
     // is set; otherwise both stay 0.
     sku_state: { upserted_ok: 0, upsert_failed: 0 },
@@ -1189,6 +1226,7 @@ export async function runFullImport(options = {}) {
         '',
         'WOULD_PUBLISH_TIENDA_ONLINE', '',
         '', '', '', '',
+        '',
         'DRY_RUN',
       ]);
       counts.skus.ok++;
@@ -1242,6 +1280,7 @@ export async function runFullImport(options = {}) {
           sku, skuToHandle(sku), '', 'FAILED', `worker error: ${r.error?.message ?? r.error}`,
           '', '', '', 'SKIPPED', '',
           '', '', '', '',
+          '',
           'FAILED',
         ]);
         continue;
@@ -1257,6 +1296,7 @@ export async function runFullImport(options = {}) {
           v.productSet.errors.map((e) => `[${e.code ?? ''}] ${e.field?.join?.('.') ?? ''}: ${e.message}`).join('; '),
           '', '', '', 'SKIPPED', '',
           '', '', '', '',
+          '',
           'FAILED',
         ]);
         continue;
@@ -1283,7 +1323,7 @@ export async function runFullImport(options = {}) {
       counts.media.ready += media.ready;
       counts.media.failed += media.failed;
       counts.media.processing += media.processing;
-      const ir = v.imageResolution ?? { resolved: [], warnings: [] };
+      const ir = v.imageResolution ?? { resolved: [], warnings: [], expectedAbsences: [], schematicStatus: null };
       for (const slot of ir.resolved) {
         if (slot && slot.fileId) {
           counts.image_resolution.resolved_ok++;
@@ -1292,6 +1332,9 @@ export async function runFullImport(options = {}) {
         }
       }
       counts.image_resolution.failed_slots += ir.warnings.length;
+      if (ir.schematicStatus === 'present') counts.schematic.present++;
+      else if (ir.schematicStatus === 'missing') counts.schematic.missing++;
+      else if (ir.schematicStatus === 'failed') counts.schematic.failed++;
 
       // PR-IMG-2: WARN reserved for "product is fine, but at least one
       // image isn't" — image-resolve failure (CDN unreachable etc.) OR
@@ -1320,6 +1363,7 @@ export async function runFullImport(options = {}) {
         pub.ok ? 'OK' : 'FAILED',
         pub.errors.map((e) => `[${e.code ?? ''}] ${e.message}`).join('; '),
         String(media.ready), String(media.failed), String(media.processing), csvFirstError,
+        ir.schematicStatus ?? '',
         isWarn ? 'WARN' : 'OK',
       ]);
 
@@ -1492,6 +1536,7 @@ export async function runFullImport(options = {}) {
       : '') +
     `- image pre-upload (CDN):       resolved=${counts.image_resolution.resolved_ok} (cache_hit=${counts.image_resolution.from_cache} fresh=${counts.image_resolution.freshly_uploaded}) failed_slots=${counts.image_resolution.failed_slots}\n` +
     `- product media (post-poll):    ready=${counts.media.ready} failed=${counts.media.failed} processing=${counts.media.processing}\n` +
+    `- Technical schematic:          present=${counts.schematic.present} missing=${counts.schematic.missing} failed=${counts.schematic.failed}\n` +
     `- Unpublished orphans:          ok=${counts.unpublished_orphans.ok} failed=${counts.unpublished_orphans.failed} not_found=${counts.unpublished_orphans.not_found}\n` +
     `- SKUs overall:                 ok=${counts.skus.ok} (warn=${counts.media.warn_skus}) failed=${counts.skus.failed}\n` +
     `- Fingerprints computed:        ${Object.keys(fingerprints).length}` +

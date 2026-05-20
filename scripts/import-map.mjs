@@ -233,6 +233,9 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
 
   // 2) Index columns by destination for quick mapper lookups.
   const cols = mapping.columns;
+  // PR-IMG-3: slots de imagen sintéticos (URL construida desde SKU,
+  // no respaldados por columna del CSV). Ver mapping.derived_images.
+  const derivedImageSlots = mapping.derived_images?.slots ?? [];
   // Map<colIndex, columnSpec> for entries with destination=metafield
   const metafieldCols = [];
   // Map<colIndex, columnSpec> for entries with destination=product.images
@@ -353,6 +356,18 @@ export function buildShopifyModel({ surtidoByLocale, stock, precios, mapping }) 
         continue;
       }
       images.push({ src: String(url).trim(), position: ic.image_position ?? images.length });
+    }
+
+    // PR-IMG-3: slots sintéticos al FINAL del carrusel, después de todas
+    // las fotos del CSV. El orden del array = posición en la galería.
+    // altText propio (no hereda el de las fotos), sin extensión de fichero.
+    for (const slot of derivedImageSlots) {
+      images.push({
+        src: slot.url_template.replaceAll('{SKU}', sku),
+        position: images.length,
+        alt: slot.alt_template ? slot.alt_template.replaceAll('{SKU}', sku) : null,
+        derived: slot.id,
+      });
     }
 
     // Metafields (primary locale): coerce per type, skip nulls.

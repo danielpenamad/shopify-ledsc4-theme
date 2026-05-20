@@ -144,7 +144,10 @@ async function fetchBinary({ url, fetchImpl, timeoutMs, userAgent }) {
       signal: ctrl.signal,
     });
     if (!res.ok) {
-      return { ok: false, kind: 'fetch_failed', message: `HTTP ${res.status} ${res.statusText}` };
+      // httpStatus exposed structurally (PR-IMG-3): callers must NOT parse the
+      // message string to branch on the status code (e.g. 404 → expected
+      // absence of a derived slot). The message stays human-readable only.
+      return { ok: false, kind: 'fetch_failed', message: `HTTP ${res.status} ${res.statusText}`, httpStatus: res.status };
     }
     const headerMime = normalizeMime(res.headers.get('content-type'));
     const ab = await res.arrayBuffer();
@@ -463,6 +466,7 @@ async function pollFileStatus({ ctx, fileId, pollMs, pollMaxMs }) {
  * | { ok: false, kind: 'fetch_failed' | 'fetch_timeout' | 'unsupported_mime'
  *               | 'staged_upload_failed' | 'file_create_failed' | 'file_status_failed',
  *     message: string,
+ *     httpStatus?: number,
  *     sha256?: string }
  * >}
  *
