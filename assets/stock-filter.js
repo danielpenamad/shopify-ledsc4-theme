@@ -50,10 +50,14 @@
   }
 
   let timer = null;
-  input.addEventListener('input', () => {
+  const stopBubble = (e) => e.stopPropagation();
+  input.addEventListener('input', (e) => {
+    e.stopPropagation();
     clearTimeout(timer);
     timer = setTimeout(applyFilter, 200);
   });
+  input.addEventListener('change', stopBubble);
+  input.addEventListener('keydown', stopBubble);
 
   const observer = new MutationObserver(() => {
     if (input.value.trim() !== '') applyFilter();
