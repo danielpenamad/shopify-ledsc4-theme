@@ -186,7 +186,7 @@ Convierte los registros del parser al modelo Shopify aplicando coerción según 
 |---|---|
 | `productInput` | title compuesto, body_html (ES), vendor=`LedsC4`, tags (incluyen `Familia:<valor>`), handle (= SKU en minúsculas). |
 | `metafieldsInput` | N entradas, una por columna con `destination=metafield`. Coerción de tipos según `type`. |
-| `imageInput` | M entradas (0-6), una por columna `Imagen web` / `Imagen ambiente 1-3` / `Detail Image 1-2` no vacía. |
+| `imageInput` | M entradas (0-6) por columna `Imagen web` / `Imagen ambiente 1-3` / `Detail Image 1-2` no vacía + 1 **slot derivado** del esquema técnico al final del array (URL construida desde el SKU, no respaldada por columna). Ver [17 · Slot del esquema técnico](17-image-schematic-slot.md). |
 | `translationsInput` | 5 (EN, IT, DE, FR, PT). Cada uno con todos los campos `translatable=true` del SKU. |
 
 ### 6.1 Construcción del title
@@ -485,6 +485,8 @@ Esto permite que un run abortado a la mitad pueda re-correrse sin efectos secund
 
 ## 11. Imágenes — caché y polling
 
+Además de las fotos comerciales que vienen como URL en las columnas 58-63 del CSV, cada SKU lleva un **slot derivado del esquema técnico** (URL construida desde el SKU, último slot del carrusel, con `altText` propio). El pre-upload y el caché que se describen a continuación se aplican igual a fotos y esquema; las diferencias específicas del slot derivado (discriminación 404 = `missing` sin WARN, telemetría dedicada, hidratación quirúrgica) están en [17 · Slot del esquema técnico](17-image-schematic-slot.md).
+
 ### `private.image_cache`
 
 Tabla Postgres en Supabase. Keyed por `sha256` del binario:
@@ -560,14 +562,19 @@ Total publishables processed: 745
 
 Image pre-upload (CDN): resolved=2682 (cache_hit=1820 fresh=862) failed_slots=12
 Product media (post-poll): ready=2670 failed=8 processing=4
+Technical schematic: present=440 missing=8 failed=2
 Unpublished orphans: ok=3 failed=0 not_found=1
 ```
+
+La línea **`Technical schematic`** mide la cobertura del slot derivado del esquema técnico (`present` = resuelto, `missing` = 404 esperado, `failed` = fallo no-404). Población = SKUs que superan `productSet`. Detalle en [17 · Slot del esquema técnico §6](17-image-schematic-slot.md#6-telemetría).
 
 ### `changes.csv`
 
 1 fila por SKU del mapper (publishables + hidden), con columnas:
 
-`sku, handle, product_id, product_set_status, product_set_errors, product_translations_registered, metafield_translations_registered, translation_errors, publish_status, publish_errors, media_ready_count, media_failed_count, media_processing_count, media_first_error, overall`
+`sku, handle, product_id, product_set_status, product_set_errors, product_translations_registered, metafield_translations_registered, translation_errors, publish_status, publish_errors, media_ready_count, media_failed_count, media_processing_count, media_first_error, schematic_status, overall`
+
+La columna **`schematic_status`** (`present` / `missing` / `failed` / vacío) refleja el estado del slot derivado del esquema. Vacío en filas HIDDEN/SKIPPED/FAILED/DRY_RUN. Detalle en [17 · Slot del esquema técnico §6.2](17-image-schematic-slot.md#62-columna-en-changescsv).
 
 `media_first_error` truncado a 200 chars — preferentemente el `mediaErrors[0].details` de Shopify; si no hay pero sí hubo fallo de resolve, el primer warning del helper.
 
