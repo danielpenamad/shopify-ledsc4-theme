@@ -166,6 +166,10 @@ El `run_id` debe ser de una row de `private.import_runs` en estado `downloaded`.
 
 Si el workflow muere entre "Mark run as processing" y el cierre (timeout de 60 min, cancelación), la row queda en `processing` indefinidamente. Se detectan con una query: status `processing`, `started_at` viejo, sin `completed_at` ni `failed_at`. No hay limpieza automática — hay que decidir caso por caso si el import llegó a aplicarse (mirar los reports en Storage) antes de re-disparar. Anotado como pendiente en 13-github-actions §8.
 
+### Hidratación quirúrgica del slot del esquema técnico
+
+Cuando un cron se cancela por timeout dejando SKUs sin esquema en `image_cache`, o tras un primer run con caché fría que no encaja en `timeout-minutes`, se puede precalentar el caché fuera del cron sin tocar el catálogo. Procedimiento, casos de uso y esqueleto del script en [17 · Slot del esquema técnico §7](17-image-schematic-slot.md#7-procedimiento-operativo--hidratación-quirúrgica).
+
 ## 9. Metafield definitions bloqueadas por smart collections
 
 Caso edge que aparece al correr `scripts/apply-metafield-definitions.mjs`.
