@@ -395,7 +395,23 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 8. Mark run as downloaded.
+    // 8. Pre-flight: if the SFTP listing produced ZERO files, do NOT mark the
+    // row as 'downloaded' — there is nothing for the workflow to download and
+    // it would bail with exit 1 (`no files to download`), leaving the row
+    // orphan in 'downloaded'. Mark the run as 'failed' with stage='sftp_list'
+    // so it shows up in the failed-runs dashboard and no GHA dispatch fires.
+    // Cause is usually the client SFTP being momentarily empty for `kind`'s
+    // subdirs; ops can re-run sftp-sync manually if needed.
+    if (downloaded.length === 0) {
+      const subdirsTried = SUBDIRS_BY_KIND[kind].join(', ');
+      return await failRun(
+        'sftp_list',
+        `SFTP returned zero files for kind='${kind}' (subdirs: ${subdirsTried}). Nothing to dispatch.`,
+        downloaded,
+      );
+    }
+
+    // 9. Mark run as downloaded.
     const flagsNote = nonCsvFlags.length > 0
       ? `flagged_unexpected_entries: ${nonCsvFlags.join('; ')}`
       : null;
@@ -412,7 +428,7 @@ Deno.serve(async (req: Request) => {
       return await failRun('db_update', (err as Error).message, downloaded);
     }
 
-    // 9. PR-A2: trigger Job 2 via GitHub repository_dispatch. Best-effort —
+    // 10. PR-A2: trigger Job 2 via GitHub repository_dispatch. Best-effort —
     // a failure here does NOT roll back the row (the download is genuinely
     // done) and does NOT mark it failed (manual workflow_dispatch with the
     // same run_id is the documented fallback). Caller sees dispatch_status
