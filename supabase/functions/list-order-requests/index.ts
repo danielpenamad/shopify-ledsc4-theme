@@ -119,10 +119,12 @@ Deno.serve(async (req) => {
 
     // --- Detalle (ref) ---
     if (ref) {
-      // El name de Shopify llega como "#D9". El "#" es carácter de comentario
-      // en la search syntax de Admin y trunca la query, así que lo quitamos
-      // y entrecomillamos el valor por defensa.
-      const refClean = ref.replace(/^#/, '').replace(/"/g, '');
+      // OJO: el filtro `name:` en draftOrders está bugueado en Shopify Admin
+      // (devuelve los primeros resultados ignorando el valor). Usamos el ref
+      // como término libre, que sí matchea por name. Sanitizamos a
+      // alfanuméricos para evitar inyección de operadores (OR/AND/...).
+      const refClean = ref.replace(/[^A-Za-z0-9]/g, '');
+      if (!refClean) return jsonResponse({ error: "invalid_ref" }, 400);
       // Query por name (e.g. D1042) filtrado por customer
       const data = await gql<{
         draftOrders: {
@@ -171,7 +173,7 @@ Deno.serve(async (req) => {
           }
         }
         `,
-        { q: `name:"${refClean}" AND customer_id:${custNumericId} AND tag:solicitud-b2b` },
+        { q: `${refClean} AND customer_id:${custNumericId} AND tag:solicitud-b2b` },
       );
       const node = data.draftOrders.edges[0]?.node;
       if (!node) return jsonResponse({ error: "not_found" }, 404);
