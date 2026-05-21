@@ -116,7 +116,7 @@
             <details
               class="{% if filter_type == 'horizontal' %}disclosure-has-popup facets__disclosure{% else %} facets__disclosure-vertical{% endif %} js-filter"
               data-index="stock-min"
-              open
+              {% if filter_type == 'vertical' %}open{% endif %}
             >
               <summary class="facets__summary caption-large focus-offset">
                 <div>
