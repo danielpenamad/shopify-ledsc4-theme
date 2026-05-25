@@ -4,7 +4,7 @@
   Do not modify this file. Any changes will be reset the next time that
   Locksmith interacts with this theme.
 
-  Last updated: Tue, 21 Apr 2026 03:30:48 +0200 (CEST)
+  Last updated: Mon, 25 May 2026 03:21:46 +0200 (CEST)
 {% endcomment -%}
 
 {%include 'locksmith-variables', locksmith_scope: nil%}{%if locksmith_access_denied_content == blank%}{%capture locksmith_access_denied_content%}{%if locksmith_manual_lock%}{{content_for_layout}}{%elsif locksmith_remote_lock%}<div id="locksmith-content">
@@ -53,7 +53,7 @@
             </div>
           </div>
         </div>
-      </div>{%assign _7=true%}<script data-locksmith>
+      </div>{%assign _b=true%}<script data-locksmith>
         var load = function () {
           Locksmith.postResource(
             {},
@@ -71,7 +71,94 @@
         }
       </script>{%endif%}{%endcapture%}{%endif%}{%include 'locksmith-content-variables'%}{%include 'locksmith-variables', locksmith_scope: nil%}{%if locksmith_access_denied%}{%capture content_for_header%}{{content_for_header|replace:'.oembed', ''|replace:'.atom', ''|replace:'link rel="alternate" type="application/json+oembed"', 'link'|replace:' title="Feed" rel="alternate" type="application/atom+xml"', ''}}{%endcapture%}{%endif%}{%capture locksmith_initializations%}{%if locksmith_access_denied and locksmith_manual_lock == false and locksmith_noindex%}<meta name="robots" content="noindex" />{%endif%}{{locksmith_json_script}}{{locksmith_client}}
 
-  <script data-locksmith>Locksmith.jsonTag={{locksmith_json|json}};Locksmith.jsonTagSignature={{locksmith_json_signature|json}}</script>{%endcapture%}{%if locksmith_access_granted or locksmith_manual_lock%}{%if locksmith_redirect != blank%}{%assign content_for_layout=locksmith_redirect%}{%endif%}{%else%}{%assign content_for_layout=locksmith_access_denied_content%}{%endif%}{%capture _3%}{%if locksmith_access_denied%}<style>
+  <script data-locksmith>Locksmith.jsonTag={{locksmith_json|json}};Locksmith.jsonTagSignature={{locksmith_json_signature|json}}</script>{%endcapture%}{%if locksmith_access_granted or locksmith_manual_lock%}{%if locksmith_redirect != blank%}{%assign content_for_layout=locksmith_redirect%}{%endif%}{%else%}{%assign content_for_layout=locksmith_access_denied_content%}{%endif%}{%capture _7%}{%if locksmith_access_denied%}<div id="locksmith-suspension-notice" style="display: none;">
+  <div>
+    <span>Your Locksmith account does not have an active subscription - <b>nobody can access this content!</b> </span>
+    <a href="/admin/apps/locksmith/" target="_blank">Please disable Locksmith from within the app, or start a subscription.<i></i></a>
+  </div>
+  <div>
+    <span><small>Only you can see this notice.</small></span>
+  </div>
+</div>
+
+<style type="text/css">
+  #locksmith-suspension-notice {
+    box-sizing: border-box;
+    min-height: 40px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #8C0B0B;
+    color: #fff;
+    padding: 5px 10px;
+    z-index: 2147483647;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 15px;
+    -webkit-font-smoothing: subpixel-antialiased;
+    display: flex;
+  }
+
+  #locksmith-suspension-notice > div {
+    flex-grow: 2;
+  }
+
+  #locksmith-suspension-notice > div:last-child {
+    text-align: right;
+    flex-grow: 1;
+  }
+
+  #locksmith-suspension-notice small {
+    opacity: 0.8;
+    font-size: 13px;
+    display: block;
+    padding-top: 4px;
+  }
+
+  #locksmith-suspension-notice span,
+  #locksmith-suspension-notice a {
+    display: inline-block;
+    margin: 4px 10px;
+  }
+
+  #locksmith-suspension-notice a {
+    background: #fff;
+    color: #a00;
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 3px 8px 4px;
+    white-space: nowrap;
+    transition: all 0.3s;
+    position: relative;
+    bottom: 0;
+  }
+
+  #locksmith-suspension-notice a i {
+    margin-left: 3px;
+    position: relative;
+    bottom: 1px;
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 3.5px 0 3.5px 3px;
+    border-color: transparent transparent transparent #a00;
+  }
+
+  #locksmith-suspension-notice a:hover {
+    position: relative;
+    bottom: 1px;
+  }
+</style>
+
+<script type="text/javascript">
+  document.addEventListener('DOMContentLoaded', function () {
+    if (document.getElementById('admin-bar-iframe')) {
+      document.getElementById('locksmith-suspension-notice').style.display = 'flex';
+    }
+  });
+</script>{%endif%}{%if locksmith_access_denied%}<style>
     /* Smart spacing for Locksmith content - only applied when access is denied */
       /* Base padding: always add 20px minimum to top */
       #locksmith-content .section {
@@ -117,7 +204,7 @@
 
   </style>{%endif%}<script data-locksmith>
     var load = function () {
-{%unless _7%}
+{%unless _b%}
           if (document.querySelectorAll('.locksmith-manual-trigger').length > 0) {
             Locksmith.ping();
           }
@@ -149,4 +236,4 @@
     } else {
       window.addEventListener('load', load);
     }
-  </script>{%endcapture%}{%unless request.design_mode or request.host contains ".shopifypreview.com" or request.page_type == "password"%}{%assign content_for_layout=content_for_layout|append:_3%}{%endunless%}{%if locksmith_access_denied and content_for_layout contains '<input type="hidden" name="form_type" value="customer_login" />'%}{%assign locksmith_original_template=template%}{%assign template='customers/login'%}{%endif%}
+  </script>{%endcapture%}{%unless request.design_mode or request.host contains ".shopifypreview.com" or request.page_type == "password"%}{%assign content_for_layout=content_for_layout|append:_7%}{%endunless%}{%if locksmith_access_denied and content_for_layout contains '<input type="hidden" name="form_type" value="customer_login" />'%}{%assign locksmith_original_template=template%}{%assign template='customers/login'%}{%endif%}
