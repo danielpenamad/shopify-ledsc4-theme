@@ -201,7 +201,10 @@ async function setWhitelistAndTimestamp(emails: string[], shopGid: string): Prom
           ownerId: shopGid,
           namespace: "b2b",
           key: "whitelist_emails",
-          type: "list.single_line_text_field",
+          // type 'json' en lugar de 'list.single_line_text_field' porque
+          // Shopify capa las listas a 128 items; con json el techo pasa a
+          // ser el tamaño del valor del metafield (~5 MB).
+          type: "json",
           value: JSON.stringify(emails),
         },
         {
