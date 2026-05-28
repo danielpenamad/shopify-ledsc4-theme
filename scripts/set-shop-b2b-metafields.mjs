@@ -126,7 +126,7 @@ function planOps(shop) {
       ownerId: shop.id,
       namespace: NS,
       key: KEY_WHITELIST,
-      type: 'list.single_line_text_field',
+      type: 'json',
       value: JSON.stringify(nextWhitelist),
     });
   }
