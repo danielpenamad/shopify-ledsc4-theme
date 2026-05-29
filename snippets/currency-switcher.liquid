@@ -58,9 +58,16 @@
     assign active_symbol = '£'
   endif
 
-  # return_to: misma URL (path + query) para que el redirect tras
-  # /localization conserve la página donde estaba el usuario.
-  assign return_path = request.path
+  # return_to: URL ABSOLUTA al primary domain (shop.url).
+  #
+  # Por qué absoluta y no relativa: Shopify hace 307 server-side del POST
+  # /localization desde el custom domain (shop.ledsc4.com) al canonical
+  # .myshopify.com para clientes B2B autenticados. Si el return_to es
+  # relativo, tras el bounce el cliente resuelve contra .myshopify.com y
+  # acaba allí sin sesión. Con return_to absoluto a shop.url, Shopify
+  # respeta el host destino y el cliente vuelve al primary domain donde
+  # sí tiene cookies de sesión válidas.
+  assign return_path = shop.url | append: request.path
   if request.query_string != blank
     assign return_path = return_path | append: '?' | append: request.query_string
   endif
