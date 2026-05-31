@@ -167,18 +167,18 @@
                               <span class="visually-hidden">
                                 {{ 'products.product.price.regular_price' | t }}
                               </span>
-                              <s class="cart-item__old-price product-option">
+                              <s class="cart-item__old-price product-option" data-eur-amount="{{ item.original_price }}">
                                 {{- item.original_price | money -}}
                               </s>
                               <span class="visually-hidden">
                                 {{ 'products.product.price.sale_price' | t }}
                               </span>
-                              <strong class="cart-item__final-price product-option">
+                              <strong class="cart-item__final-price product-option" data-eur-amount="{{ item.final_price }}" data-fx-approx="1">
                                 {{ item.final_price | money }}
                               </strong>
                             </div>
                           {%- else -%}
-                            <div class="product-option">
+                            <div class="product-option" data-eur-amount="{{ item.original_price }}" data-fx-approx="1">
                               {{ item.original_price | money }}
                             </div>
                           {%- endif -%}
@@ -249,18 +249,18 @@
                                 <span class="visually-hidden">
                                   {{ 'products.product.price.regular_price' | t }}
                                 </span>
-                                <s class="cart-item__old-price price price--end">
+                                <s class="cart-item__old-price price price--end" data-eur-amount="{{ item.original_line_price }}">
                                   {{ item.original_line_price | money }}
                                 </s>
                                 <span class="visually-hidden">
                                   {{ 'products.product.price.sale_price' | t }}
                                 </span>
-                                <span class="price price--end">
+                                <span class="price price--end" data-eur-amount="{{ item.final_line_price }}">
                                   {{ item.final_line_price | money }}
                                 </span>
                               </div>
                             {%- else -%}
-                              <span class="price price--end">
+                              <span class="price price--end" data-eur-amount="{{ item.original_line_price }}">
                                 {{ item.original_line_price | money }}
                               </span>
                             {%- endif -%}
@@ -514,7 +514,7 @@
                   <li class="discounts__discount discounts__discount--end">
                     {{- 'icon-discount.svg' | inline_asset_content -}}
                     {{ discount.title | escape }}
-                    (-{{ discount.total_allocated_amount | money }})
+                    (-<span data-eur-amount="{{ discount.total_allocated_amount }}">{{ discount.total_allocated_amount | money }}</span>)
                   </li>
                 {%- endfor -%}
               </ul>
@@ -523,8 +523,9 @@
 
           <div class="totals" role="status">
             <h2 class="totals__total">{{ 'sections.cart.estimated_total' | t }}</h2>
-            <p class="totals__total-value">{{ cart.total_price | money_with_currency }}</p>
+            <p class="totals__total-value" data-eur-amount="{{ cart.total_price }}" data-fx-approx="1">{{ cart.total_price | money_with_currency }}</p>
           </div>
+          <p class="ledsc4-fx-disclaimer caption">{{ 'ledsc4.common.currency.fx_disclaimer' | t }}</p>
 
           {%- comment -%}
             Disclaimers B2B Outlet (PR A, mayo 2026): sustituyen la nota

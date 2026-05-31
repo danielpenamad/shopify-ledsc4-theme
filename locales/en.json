@@ -847,7 +847,8 @@
         "ad": "Andorra"
       },
       "currency": {
-        "switcher_label": "Change currency"
+        "switcher_label": "Change currency",
+        "fx_disclaimer": "Indicative prices · billed in EUR"
       },
       "footer": {
         "aria_legal": "Legal links",

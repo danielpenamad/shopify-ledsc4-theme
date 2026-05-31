@@ -762,7 +762,8 @@
         "pt": "Portugal"
       },
       "currency": {
-        "switcher_label": "Changer de devise"
+        "switcher_label": "Changer de devise",
+        "fx_disclaimer": "Prix indicatifs · facturation en EUR"
       },
       "footer": {
         "aria_legal": "Mentions légales",

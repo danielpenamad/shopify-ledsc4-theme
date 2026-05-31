@@ -59,7 +59,7 @@
                         <li class="discounts__discount discounts__discount--position">
                           {{- 'icon-discount.svg' | inline_asset_content -}}
                           {{ discount.title | escape }}
-                          (-{{ discount.total_allocated_amount | money }})
+                          (-<span data-eur-amount="{{ discount.total_allocated_amount }}">{{ discount.total_allocated_amount | money }}</span>)
                         </li>
                       {%- endfor -%}
                     </ul>
@@ -68,8 +68,9 @@
 
                 <div class="totals">
                   <h2 class="totals__total">{{ 'sections.cart.estimated_total' | t }}</h2>
-                  <p class="totals__total-value">{{ cart.total_price | money_with_currency }}</p>
+                  <p class="totals__total-value" data-eur-amount="{{ cart.total_price }}" data-fx-approx="1">{{ cart.total_price | money_with_currency }}</p>
                 </div>
+                <p class="ledsc4-fx-disclaimer caption">{{ 'ledsc4.common.currency.fx_disclaimer' | t }}</p>
 
                 {%- comment -%}
                   Disclaimers B2B Outlet (PR A, mayo 2026): sustituyen la

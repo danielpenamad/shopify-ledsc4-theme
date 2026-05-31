@@ -607,7 +607,8 @@
         "ma": "Marruecos"
       },
       "currency": {
-        "switcher_label": "Cambiar divisa"
+        "switcher_label": "Cambiar divisa",
+        "fx_disclaimer": "Precios orientativos · se factura en EUR"
       },
       "footer": {
         "aria_legal": "Enlaces legales",
