@@ -935,7 +935,7 @@
       "revision": {
         "heading": "Nous validons votre demande",
         "datos_heading": "Données que vous nous avez transmises",
-        "correct_html": "Vous voyez une erreur ? Écrivez-nous à <a href=\"mailto:{{ email }}\">{{ email }}</a> avant que nous l’approuvions."
+        "lead": "Votre demande d’accès est en attente de validation. Notre équipe commerciale l’examinera et validera votre accès sous peu."
       },
       "rechazada": {
         "badge": "Non activée",
