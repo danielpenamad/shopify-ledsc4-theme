@@ -1,11 +1,36 @@
 // Supabase Edge Function: promote-whitelist-matches
 //
-// Cada 30 min pg_cron invoca esta función. Promueve customers con tag
-// 'pendiente' cuyo email esté en shop.metafields.b2b.whitelist_emails
-// a tag 'aprobado'. Eso dispara W2 en Shopify Flow (fecha_aprobacion +
-// emails al cliente y al backoffice).
+// Cada 30 min pg_cron invoca esta función. Promueve customers cuyo email
+// esté en shop.metafields.b2b.whitelist_emails y NO estén ya aprobados
+// ni rechazados a tag 'aprobado'. Eso dispara W2 en Shopify Flow
+// (fecha_aprobacion + emails al cliente + create-company).
 //
-// No crea Company — Opción A de Fase B: creación manual por backoffice.
+// Backstop del caso "alta no-`pendiente`" (jefe da de alta a un cliente
+// whitelisted manualmente o por import): W1 no se dispara porque solo
+// reacciona al evento customer_created del form; este cron lo recoge
+// igual y fuerza la transición pendiente→aprobado que W2 necesita
+// (condición: aprobado IN tags AND pendiente IN tags_previous).
+//
+// Por cada customer a promover:
+//   1. customerEmailMarketingConsentUpdate SUBSCRIBED + SINGLE_OPT_IN
+//      (idempotente; los emails de Flow van por marketing activity y
+//      se descartan en silencio si no está SUBSCRIBED).
+//   2. Si no tiene tag 'pendiente', tagsAdd(['pendiente']) — Shopify
+//      Flow lee tags_previous antes del último customer_updated, así
+//      que el flip de dos pasos garantiza que pendiente esté en
+//      tags_previous cuando W2 evalúa.
+//   3. customerUpdate(tags = sin estados + 'aprobado') — flip atómico.
+//      El primer customer_updated (post-tagsAdd) no satisface
+//      'aprobado IN tags' → no dispara. El segundo sí, con
+//      pendiente IN tags_previous → W2 dispara una sola vez.
+//
+// Idempotente: si ya tiene 'aprobado', salta el customer entero.
+//
+// empresa-less: si el customer no tiene b2b.empresa (alta manual sin
+// completar metafields), W2 intentará create-company y fallará. No
+// abortamos la promoción — solo emitimos log estructurado y lo
+// añadimos a `promotedWithoutEmpresa` en la respuesta para que el
+// staff complete los datos manualmente.
 //
 // Secrets requeridos (Supabase Project Settings → Edge Functions → Secrets):
 //   SHOPIFY_STORE_DOMAIN   ledsc4-b2b-outlet.myshopify.com
@@ -23,7 +48,14 @@ if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_TOKEN) {
 const endpoint =
   `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
-type PendingCustomer = { id: string; email: string };
+const STATE_TAGS = new Set(["pendiente", "aprobado", "rechazado"]);
+
+type Candidate = {
+  id: string;
+  email: string;
+  tags: string[];
+  hasEmpresa: boolean;
+};
 
 async function gql<T = unknown>(
   query: string,
@@ -68,31 +100,33 @@ async function readWhitelist(): Promise<string[]> {
   }
 }
 
-async function listPendingCustomers(): Promise<PendingCustomer[]> {
-  const out: PendingCustomer[] = [];
+async function listCandidates(): Promise<Candidate[]> {
+  const out: Candidate[] = [];
   let cursor: string | null = null;
   do {
     const data = await gql<{
       customers: {
         pageInfo: { hasNextPage: boolean; endCursor: string };
-        edges: Array<
-          {
-            node: {
-              id: string;
-              defaultEmailAddress: { emailAddress: string } | null;
-            };
-          }
-        >;
+        edges: Array<{
+          node: {
+            id: string;
+            tags: string[];
+            defaultEmailAddress: { emailAddress: string } | null;
+            empresa: { value: string } | null;
+          };
+        }>;
       };
     }>(
       `
       query($cursor: String) {
-        customers(first: 100, after: $cursor, query: "tag:'pendiente'") {
+        customers(first: 100, after: $cursor, query: "-tag:aprobado AND -tag:rechazado") {
           pageInfo { hasNextPage endCursor }
           edges {
             node {
               id
+              tags
               defaultEmailAddress { emailAddress }
+              empresa: metafield(namespace: "b2b", key: "empresa") { value }
             }
           }
         }
@@ -103,7 +137,12 @@ async function listPendingCustomers(): Promise<PendingCustomer[]> {
     for (const { node } of data.customers.edges) {
       const email = node.defaultEmailAddress?.emailAddress;
       if (email) {
-        out.push({ id: node.id, email: email.trim().toLowerCase() });
+        out.push({
+          id: node.id,
+          email: email.trim().toLowerCase(),
+          tags: node.tags ?? [],
+          hasEmpresa: !!(node.empresa?.value && node.empresa.value.trim().length > 0),
+        });
       }
     }
     cursor = data.customers.pageInfo.hasNextPage
@@ -113,7 +152,37 @@ async function listPendingCustomers(): Promise<PendingCustomer[]> {
   return out;
 }
 
-async function addApprovedTag(customerId: string): Promise<void> {
+async function setMarketingConsent(customerId: string): Promise<void> {
+  // Idempotente: si ya está SUBSCRIBED, Shopify no falla.
+  const data = await gql<{
+    customerEmailMarketingConsentUpdate: {
+      userErrors: Array<{ message: string }>;
+    };
+  }>(
+    `
+    mutation($input: CustomerEmailMarketingConsentUpdateInput!) {
+      customerEmailMarketingConsentUpdate(input: $input) {
+        userErrors { message }
+      }
+    }
+    `,
+    {
+      input: {
+        customerId,
+        emailMarketingConsent: {
+          marketingState: "SUBSCRIBED",
+          marketingOptInLevel: "SINGLE_OPT_IN",
+        },
+      },
+    },
+  );
+  const errs = data.customerEmailMarketingConsentUpdate?.userErrors ?? [];
+  if (errs.length) {
+    throw new Error(`marketingConsent errors: ${JSON.stringify(errs)}`);
+  }
+}
+
+async function addPendienteTag(customerId: string): Promise<void> {
   const data = await gql<{
     tagsAdd: { userErrors: Array<{ message: string }> };
   }>(
@@ -124,11 +193,45 @@ async function addApprovedTag(customerId: string): Promise<void> {
       }
     }
     `,
-    { id: customerId, tags: ["aprobado"] },
+    { id: customerId, tags: ["pendiente"] },
   );
   const errs = data.tagsAdd?.userErrors ?? [];
   if (errs.length) {
-    throw new Error(`tagsAdd errors: ${JSON.stringify(errs)}`);
+    throw new Error(`tagsAdd pendiente errors: ${JSON.stringify(errs)}`);
+  }
+}
+
+async function flipToAprobado(
+  customerId: string,
+  knownTags: string[],
+): Promise<void> {
+  // Construye tags finales: quita los 3 de estado, asegura 'aprobado'.
+  // Para customers que NO tenían 'pendiente', el caller ya ejecutó
+  // addPendienteTag antes — pasamos [...knownTags, 'pendiente'] y el
+  // filter STATE_TAGS lo elimina junto con cualquier 'aprobado'/'rechazado'
+  // residual. Resultado: 1) en la pasada anterior (post-addPendienteTag)
+  // el customer tenía 'pendiente'; 2) esta mutation produce el evento
+  // customer_updated con tags={..., 'aprobado'} y tags_previous={..., 'pendiente'}.
+  // W2 (aprobado IN tags AND pendiente IN tags_previous) dispara una vez.
+  const finalTags = Array.from(
+    new Set(knownTags.filter((t) => !STATE_TAGS.has(t))),
+  );
+  finalTags.push("aprobado");
+  const data = await gql<{
+    customerUpdate: { userErrors: Array<{ message: string }> };
+  }>(
+    `
+    mutation($input: CustomerInput!) {
+      customerUpdate(input: $input) {
+        userErrors { message }
+      }
+    }
+    `,
+    { input: { id: customerId, tags: finalTags } },
+  );
+  const errs = data.customerUpdate?.userErrors ?? [];
+  if (errs.length) {
+    throw new Error(`customerUpdate flip errors: ${JSON.stringify(errs)}`);
   }
 }
 
@@ -151,15 +254,30 @@ Deno.serve(async (_req) => {
       });
     }
 
-    const pending = await listPendingCustomers();
-    const toPromote = pending.filter((c) => whitelist.includes(c.email));
+    const candidates = await listCandidates();
+    const toPromote = candidates.filter(
+      (c) => whitelist.includes(c.email) && !c.tags.includes("aprobado"),
+    );
 
     let promoted = 0;
     const errors: string[] = [];
+    const promotedWithoutEmpresa: string[] = [];
     for (const customer of toPromote) {
       try {
-        await addApprovedTag(customer.id);
+        await setMarketingConsent(customer.id);
+        if (!customer.tags.includes("pendiente")) {
+          await addPendienteTag(customer.id);
+        }
+        await flipToAprobado(customer.id, [...customer.tags, "pendiente"]);
         promoted++;
+        if (!customer.hasEmpresa) {
+          promotedWithoutEmpresa.push(customer.email);
+          console.log(JSON.stringify({
+            event: "promoted_without_empresa",
+            email: customer.email,
+            customerId: customer.id,
+          }));
+        }
       } catch (e) {
         errors.push(`${customer.email}: ${(e as Error).message}`);
       }
@@ -168,9 +286,10 @@ Deno.serve(async (_req) => {
     return jsonResponse({
       startedAt,
       promoted,
-      totalPending: pending.length,
+      totalCandidates: candidates.length,
       whitelistSize: whitelist.length,
       promotedEmails: toPromote.map((c) => c.email),
+      promotedWithoutEmpresa,
       errors,
     });
   } catch (e) {

@@ -14,13 +14,15 @@
 //
 // Auth: HMAC-SHA256 del payload `<timestamp>:<nonce>` firmado por Liquid
 // SSR de la página de registro con `settings.register_b2b_hmac_secret`.
-// Mismo secret en env REGISTER_B2B_HMAC_SECRET. TTL 5 min.
+// Mismo secret en env REGISTER_B2B_HMAC_SECRET. TTL 1 hora (margen para
+// formularios B2B largos; el v26 hotfix en producción usaba 3600s y no se
+// ha observado abuso).
 //
 // TODO Hardening producción:
 //   - Implementar dedupe de nonce en KV (p.ej. Upstash o Redis-on-Supabase)
 //     para evitar replay con misma signature dentro del TTL. Hoy se confía
-//     en la ventana de 5 min + rate-limit del gateway de Supabase. Replay
-//     attack reduciría a "alguien crea N customers fake en 5 min con datos
+//     en la ventana de 1 hora + rate-limit del gateway de Supabase. Replay
+//     attack reduciría a "alguien crea N customers fake en 1 hora con datos
 //     que intercepte". Customer Create es idempotente por email (devuelve
 //     EMAIL_ALREADY_EXISTS) así que el daño práctico es bajo.
 //   - Rate limit por IP a nivel edge (currently none).
@@ -72,7 +74,7 @@ if (!HMAC_SECRET) {
   throw new Error("Missing REGISTER_B2B_HMAC_SECRET env var");
 }
 
-const HMAC_TTL_SECONDS = 300; // 5 min
+const HMAC_TTL_SECONDS = 3600; // 1 hora — paridad con v26 hotfix en producción
 const ENDPOINT = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
 const SECTOR_ENUM = new Set([
@@ -408,10 +410,14 @@ Deno.serve(async (req: Request) => {
             // emails al cliente —W1-acuse, W1-bienvenida, W2-aprobacion,
             // W3-rechazo, W5-acuse— nunca llegarían. Base legal del consent:
             // checkbox `condiciones` obligatorio (validado arriba).
+            // SINGLE_OPT_IN (no double-opt-in) — paridad con v26 hotfix en
+            // producción. CONFIRMED_OPT_IN haría que Shopify exija al cliente
+            // confirmar suscripción por email antes de marcarlo SUBSCRIBED, y
+            // los emails de Flow (W1 acuse, W2 aprobación, W3 rechazo) NO
+            // llegarían hasta esa confirmación → regresión grave en el alta.
             emailMarketingConsent: {
               marketingState: "SUBSCRIBED",
-              marketingOptInLevel: "CONFIRMED_OPT_IN",
-              consentUpdatedAt: new Date().toISOString(),
+              marketingOptInLevel: "SINGLE_OPT_IN",
             },
             metafields: [
               { namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa },
