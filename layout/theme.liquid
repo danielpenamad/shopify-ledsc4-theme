@@ -76,10 +76,16 @@
       }
     </style>
     <script>
-      // Si la cookie es EUR (o no hay cookie), no hay que ocultar nada:
-      // los importes EUR de Liquid son ya correctos. Marcamos ready
-      // inmediatamente para evitar cualquier parpadeo en el flujo
-      // dominante.
+      // Doble guardia anti-flash / anti-precios-ocultos:
+      //   1) Si la cookie es EUR (o no hay cookie), marcamos ready al
+      //      instante: los importes EUR de Liquid son ya correctos y no
+      //      hay parpadeo en el flujo dominante.
+      //   2) Failsafe INDEPENDIENTE del asset: si el JS del conversor no
+      //      llega a cargar (404, CDN, deploy race) y la cookie ≠ EUR,
+      //      este timeout revela los precios pase lo que pase. El
+      //      conversor también tiene su propio timeout más corto y revela
+      //      en cuanto termina; aquí solo es backstop por si el asset
+      //      nunca corre.
       (function () {
         try {
           var m = document.cookie.match(/(?:^|; )ledsc4_currency=([^;]*)/);
@@ -90,6 +96,9 @@
         } catch (e) {
           document.documentElement.classList.add('ledsc4-fx-ready');
         }
+        setTimeout(function () {
+          document.documentElement.classList.add('ledsc4-fx-ready');
+        }, 2000);
       })();
     </script>
     <noscript>

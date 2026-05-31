@@ -549,6 +549,12 @@
     }
   },
   "ledsc4": {
+    "common": {
+      "currency": {
+        "switcher_label": "Alterar moeda",
+        "fx_disclaimer": "Preços indicativos · faturação em EUR"
+      }
+    },
     "checkout": {
       "disclaimers": {
         "body_html": ""
