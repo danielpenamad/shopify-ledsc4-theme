@@ -537,6 +537,12 @@
     }
   },
   "ledsc4": {
+    "common": {
+      "currency": {
+        "switcher_label": "Währung wechseln",
+        "fx_disclaimer": "Richtpreise · Abrechnung in EUR"
+      }
+    },
     "checkout": {
       "disclaimers": {
         "body_html": ""

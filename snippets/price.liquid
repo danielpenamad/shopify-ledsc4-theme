@@ -66,7 +66,7 @@
                 {{- 'products.product.price.regular_price' | t -}}
               </span>
               <span>
-                <s class="price-item price-item--regular variant-item__old-price">
+                <s class="price-item price-item--regular variant-item__old-price" data-eur-amount="{{ compare_at_price }}">
                   {% if settings.currency_code_enabled %}
                     {{ compare_at_price | money_with_currency }}
                   {% else %}
@@ -77,7 +77,12 @@
             {%- endunless -%}
           {%- endif -%}
           <span class="visually-hidden visually-hidden--inline">{{ 'products.product.price.regular_price' | t }}</span>
-          <span class="price-item price-item--regular">
+          <span
+            class="price-item price-item--regular"
+            data-eur-amount-min="{{ price_min }}"
+            data-eur-amount-max="{{ price_max }}"
+            data-fx-approx="1"
+          >
             {{-
               'products.product.volume_pricing.price_range'
               | t: minimum: money_price_min, maximum: money_price_max
@@ -85,7 +90,11 @@
           </span>
         {%- else -%}
           <span class="visually-hidden visually-hidden--inline">{{ 'products.product.price.regular_price' | t }}</span>
-          <span class="price-item price-item--regular">
+          <span
+            class="price-item price-item--regular"
+            data-eur-amount="{{ price }}"
+            data-fx-approx="1"
+          >
             {{ money_price }}
           </span>
         {%- endif -%}
@@ -94,7 +103,7 @@
         {%- unless product.price_varies == false and product.compare_at_price_varies %}
           <span class="visually-hidden visually-hidden--inline">{{ 'products.product.price.regular_price' | t }}</span>
           <span>
-            <s class="price-item price-item--regular">
+            <s class="price-item price-item--regular" data-eur-amount="{{ compare_at_price }}">
               {% if settings.currency_code_enabled %}
                 {{ compare_at_price | money_with_currency }}
               {% else %}
@@ -104,7 +113,11 @@
           </span>
         {%- endunless -%}
         <span class="visually-hidden visually-hidden--inline">{{ 'products.product.price.sale_price' | t }}</span>
-        <span class="price-item price-item--sale price-item--last">
+        <span
+          class="price-item price-item--sale price-item--last"
+          data-eur-amount="{{ price }}"
+          data-fx-approx="1"
+        >
           {{ money_price }}
         </span>
       </div>

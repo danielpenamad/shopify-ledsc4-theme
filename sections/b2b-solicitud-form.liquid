@@ -116,6 +116,8 @@
         </label>
       </div>
 
+      <p class="ledsc4-fx-disclaimer caption">{{ 'ledsc4.common.currency.fx_disclaimer' | t }}</p>
+
       <div class="b2b-solicitud__actions">
         <button type="submit" id="b2b-submit" class="b2b-solicitud__submit">{{ 'ledsc4.solicitudes.form.submit' | t }}</button>
         <a href="{{ routes.cart_url }}" class="b2b-solicitud__cancel">{{ 'ledsc4.solicitudes.form.cancel' | t }}</a>
@@ -131,26 +133,31 @@
         // LOCALE_PREFIX: '' en home, '/fr' en /fr (ver hotfix doc).
         // Usos: LOCALE_PREFIX + '/path/X' (con slash inicial).
         const LOCALE_PREFIX = {{ locale_prefix | json }};
-        // Currency-B — divisa visible en el momento del envío. Se inyecta en
-        // el payload para que submit-order-request la guarde como
-        // note_attribute en el draft order ("Moneda mostrada" / "Símbolo
-        // moneda"). El símbolo se deriva server-side; aquí mandamos solo el
-        // código (EUR/USD/GBP).
+        // Currency-Display — divisa visible elegida por el visitante en el
+        // switcher. Se inyecta en el payload para que submit-order-request la
+        // guarde como note_attribute en el draft order ("Moneda mostrada"). El
+        // draft sigue creándose en EUR (única divisa real del B2B ES); este
+        // valor es informativo.
         //
-        // Path: cart.currency.iso_code, NO localization.country.currency.iso_code.
-        // Razón: en Markets con localCurrencies=true (UK/USA en LedsC4),
-        // el cart se renderiza en la divisa real elegida por el visitante,
-        // que es exactamente lo que queremos guardar en el draft. El path
-        // localization.country.currency.iso_code refleja la divisa "del país
-        // activo del Market", que coincide en el caso simple pero puede
-        // divergir si Shopify presenta una local currency distinta a la base
-        // del Market. cart.currency es la fuente de verdad en el momento
-        // del envío.
+        // Fuente: cookie `ledsc4_currency` ∈ {EUR,USD,GBP}, set por
+        // snippets/currency-switcher.liquid. NO `cart.currency.iso_code`:
+        // el B2B logueado está clavado al Market ES (EUR) y ese path
+        // siempre devolvería 'EUR' aunque el usuario haya elegido USD/GBP
+        // en el switcher cosmético.
         //
-        // Defensive fallback a 'EUR' si el path resuelve nil (cart vacío,
-        // Markets sin configurar). El edge function tiene su propia
-        // whitelist EUR/USD/GBP → cualquier otro valor → 'EUR'.
-        const CURRENCY_CODE = {{ cart.currency.iso_code | default: 'EUR' | json }};
+        // Default 'EUR' si la cookie falta o tiene un valor inesperado. El
+        // edge function tiene whitelist EUR/USD/GBP → cualquier otro
+        // valor → 'EUR' server-side.
+        function readDisplayCurrency() {
+          try {
+            const m = document.cookie.match(/(?:^|; )ledsc4_currency=([^;]*)/);
+            const v = m ? decodeURIComponent(m[1]) : null;
+            return (v === 'USD' || v === 'GBP' || v === 'EUR') ? v : 'EUR';
+          } catch (e) {
+            return 'EUR';
+          }
+        }
+        const CURRENCY_CODE = readDisplayCurrency();
 
         const T = {
           submit: {{ 'ledsc4.solicitudes.form.submit' | t | json }},
@@ -215,7 +222,7 @@
             signature: SIGNATURE,
             note: comentarioEl.value || '',
             items: items,
-            currencyCode: CURRENCY_CODE,
+            currencyCode: readDisplayCurrency(),
             force: !!force,
           };
 

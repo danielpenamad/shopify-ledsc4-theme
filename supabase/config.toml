@@ -68,3 +68,11 @@ verify_jwt = false
 # pg_cron (I4.3) o por Dani manualmente con anon/service key. NO público.
 [functions.sftp-sync]
 verify_jwt = true
+
+# --- Currency display (Fase Currency-Display) ---
+[functions.update-fx-rates]
+# pg_cron semanal invoca esta función vía pg_net sin JWT (refresca el shop
+# metafield ledsc4.fx_rates con tasas Frankfurter). También invocable
+# manualmente para forzar refresh. No expone datos sensibles ni acepta
+# input no-confiable: solo lee Frankfurter y escribe el metafield.
+verify_jwt = false

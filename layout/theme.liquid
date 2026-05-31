@@ -42,6 +42,72 @@
     <script src="{{ 'constants.js' | asset_url }}" defer="defer"></script>
     <script src="{{ 'pubsub.js' | asset_url }}" defer="defer"></script>
     <script src="{{ 'global.js' | asset_url }}" defer="defer"></script>
+
+    {%- comment -%}
+      Currency-Display (Fase Currency-Display, mayo 2026).
+
+      1) window.LEDSC4_FX = tasas EUR→USD/GBP del shop metafield
+         ledsc4.fx_rates (refrescado semanalmente por la EF
+         update-fx-rates). Se inyecta inline antes del asset conversor
+         para que esté disponible cuando arranque.
+      2) Anti-flash: cuando la cookie ledsc4_currency ≠ EUR, los nodos
+         [data-eur-amount] quedan ocultos hasta que el JS los reescriba
+         con la divisa elegida. EUR nunca se oculta. Failsafe doble:
+            (a) timeout en el propio asset que añade .ledsc4-fx-ready
+                pase lo que pase a los 1500 ms;
+            (b) window.error handler que también revela.
+         Si el asset no llega a cargar, la regla CSS depende de la
+         ausencia de la clase → para reforzar, un <noscript> también
+         revela.
+    {%- endcomment -%}
+    <script>
+      window.LEDSC4_FX = {{ shop.metafields.ledsc4.fx_rates.value | json }};
+    </script>
+    <style>
+      html:not(.ledsc4-fx-ready) [data-eur-amount],
+      html:not(.ledsc4-fx-ready) [data-eur-amount-min] {
+        visibility: hidden;
+      }
+      .ledsc4-fx-disclaimer {
+        margin: 0.6rem 0 0;
+        font-size: 1.2rem;
+        color: rgba(var(--color-foreground, 15 18 23), 0.7);
+        font-style: italic;
+      }
+    </style>
+    <script>
+      // Doble guardia anti-flash / anti-precios-ocultos:
+      //   1) Si la cookie es EUR (o no hay cookie), marcamos ready al
+      //      instante: los importes EUR de Liquid son ya correctos y no
+      //      hay parpadeo en el flujo dominante.
+      //   2) Failsafe INDEPENDIENTE del asset: si el JS del conversor no
+      //      llega a cargar (404, CDN, deploy race) y la cookie ≠ EUR,
+      //      este timeout revela los precios pase lo que pase. El
+      //      conversor también tiene su propio timeout más corto y revela
+      //      en cuanto termina; aquí solo es backstop por si el asset
+      //      nunca corre.
+      (function () {
+        try {
+          var m = document.cookie.match(/(?:^|; )ledsc4_currency=([^;]*)/);
+          var v = m ? decodeURIComponent(m[1]) : null;
+          if (!v || v === 'EUR') {
+            document.documentElement.classList.add('ledsc4-fx-ready');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('ledsc4-fx-ready');
+        }
+        setTimeout(function () {
+          document.documentElement.classList.add('ledsc4-fx-ready');
+        }, 2000);
+      })();
+    </script>
+    <noscript>
+      <style>
+        html [data-eur-amount],
+        html [data-eur-amount-min] { visibility: visible !important; }
+      </style>
+    </noscript>
+    <script src="{{ 'ledsc4-currency-display.js' | asset_url }}" defer="defer"></script>
     <script src="{{ 'details-disclosure.js' | asset_url }}" defer="defer"></script>
     <script src="{{ 'details-modal.js' | asset_url }}" defer="defer"></script>
     <script src="{{ 'search-form.js' | asset_url }}" defer="defer"></script>

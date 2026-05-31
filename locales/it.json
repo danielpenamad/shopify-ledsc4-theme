@@ -551,7 +551,8 @@
   "ledsc4": {
     "common": {
       "currency": {
-        "switcher_label": "Cambia valuta"
+        "switcher_label": "Cambia valuta",
+        "fx_disclaimer": "Prezzi indicativi · fatturazione in EUR"
       }
     },
     "checkout": {
