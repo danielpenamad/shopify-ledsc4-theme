@@ -931,7 +931,7 @@
       "revision": {
         "heading": "Estamos validando tu solicitud",
         "datos_heading": "Datos que nos diste",
-        "correct_html": "¿Ves un error? Escríbenos a <a href=\"mailto:{{ email }}\">{{ email }}</a> antes de que aprobemos."
+        "lead": "Tu solicitud de acceso está pendiente de validación. Nuestro equipo comercial la revisará y validará tu acceso en breve."
       },
       "rechazada": {
         "badge": "No activada",

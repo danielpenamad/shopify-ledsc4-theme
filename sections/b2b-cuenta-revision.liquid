@@ -7,10 +7,6 @@
   un mensaje con tiempo estimado + email de contacto.
 {% endcomment %}
 
-{%- liquid
-  assign backoffice_email = shop.metafields.b2b.email_backoffice | default: 'backoffice@ledsc4.com'
--%}
-
 <section class="b2b-status" aria-labelledby="b2b-status-heading">
   <div class="b2b-status__inner">
     <span class="b2b-status__badge b2b-status__badge--pending">{{ 'ledsc4.solicitudes.status.pendiente_revision' | t }}</span>
@@ -19,7 +15,11 @@
     </h1>
 
     <p class="b2b-status__lead">
-      {{- page.metafields.b2b.cuenta_revision_mensaje | default: section.settings.default_message -}}
+      {%- if page.metafields.b2b.cuenta_revision_mensaje != blank -%}
+        {{ page.metafields.b2b.cuenta_revision_mensaje }}
+      {%- else -%}
+        {{ 'ledsc4.account.revision.lead' | t }}
+      {%- endif -%}
     </p>
 
     {%- if customer -%}
@@ -41,9 +41,6 @@
           <dt>{{ 'ledsc4.acceso.form.label_email' | t }}</dt>
           <dd>{{ customer.email }}</dd>
         </dl>
-        <p class="b2b-status__correct">
-          {{ 'ledsc4.account.revision.correct_html' | t: email: backoffice_email }}
-        </p>
       </div>
     {%- endif -%}
 
@@ -184,15 +181,7 @@
 {
   "name": "B2B Cuenta En Revisión",
   "tag": "section",
-  "settings": [
-    {
-      "type": "textarea",
-      "id": "default_message",
-      "label": "Mensaje por defecto (si metafield vacío)",
-      "info": "Fallback si page.metafields.b2b.cuenta_revision_mensaje está vacío.",
-      "default": "El equipo de LedsC4 validará tu solicitud en un plazo de 24-48h hábiles. Te avisaremos por email cuando esté lista."
-    }
-  ],
+  "settings": [],
   "presets": [
     {
       "name": "B2B Cuenta En Revisión"

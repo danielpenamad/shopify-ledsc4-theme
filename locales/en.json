@@ -930,7 +930,7 @@
       "revision": {
         "heading": "We are validating your request",
         "datos_heading": "Data you gave us",
-        "correct_html": "See an error? Email us at <a href=\"mailto:{{ email }}\">{{ email }}</a> before we approve it."
+        "lead": "Your access request is pending validation. Our sales team will review it and approve your access shortly."
       },
       "rechazada": {
         "badge": "Not activated",
