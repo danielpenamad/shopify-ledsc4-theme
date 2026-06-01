@@ -26,11 +26,11 @@
 //
 // Idempotente: si ya tiene 'aprobado', salta el customer entero.
 //
-// empresa-less: si el customer no tiene b2b.empresa (alta manual sin
-// completar metafields), W2 intentará create-company y fallará. No
-// abortamos la promoción — solo emitimos log estructurado y lo
-// añadimos a `promotedWithoutEmpresa` en la respuesta para que el
-// staff complete los datos manualmente.
+// empresa-less: si el customer no tiene b2b.empresa (alta manual o
+// registro sin completar metafields), saltamos la promoción. Si no,
+// W2 intentaría create-company y fallaría con 400, dejando al cliente
+// aprobado sin Company. Se loguea el email saltado y se reintentará
+// en la siguiente pasada cuando complete el formulario.
 //
 // Secrets requeridos (Supabase Project Settings → Edge Functions → Secrets):
 //   SHOPIFY_STORE_DOMAIN   ledsc4-b2b-outlet.myshopify.com
@@ -261,8 +261,13 @@ Deno.serve(async (_req) => {
 
     let promoted = 0;
     const errors: string[] = [];
-    const promotedWithoutEmpresa: string[] = [];
+    const skippedNoEmpresa: string[] = [];
     for (const customer of toPromote) {
+      if (!customer.hasEmpresa) {
+        console.log(`skip (no b2b.empresa): ${customer.email}`);
+        skippedNoEmpresa.push(customer.email);
+        continue;
+      }
       try {
         await setMarketingConsent(customer.id);
         if (!customer.tags.includes("pendiente")) {
@@ -270,14 +275,6 @@ Deno.serve(async (_req) => {
         }
         await flipToAprobado(customer.id, [...customer.tags, "pendiente"]);
         promoted++;
-        if (!customer.hasEmpresa) {
-          promotedWithoutEmpresa.push(customer.email);
-          console.log(JSON.stringify({
-            event: "promoted_without_empresa",
-            email: customer.email,
-            customerId: customer.id,
-          }));
-        }
       } catch (e) {
         errors.push(`${customer.email}: ${(e as Error).message}`);
       }
@@ -288,8 +285,10 @@ Deno.serve(async (_req) => {
       promoted,
       totalCandidates: candidates.length,
       whitelistSize: whitelist.length,
-      promotedEmails: toPromote.map((c) => c.email),
-      promotedWithoutEmpresa,
+      promotedEmails: toPromote
+        .filter((c) => c.hasEmpresa)
+        .map((c) => c.email),
+      skippedNoEmpresa,
       errors,
     });
   } catch (e) {
