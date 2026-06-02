@@ -181,6 +181,44 @@ async function cacheLookup(dbConnection, sha256) {
   }
 }
 
+// Pre-fetch lookup por URL. Si una URL ya produjo un File en Shopify la
+// devolvemos sin tocar el CDN — short-circuit del cuello de botella del full
+// run (1 GET / 3s × ~2700 imágenes = ~80 min solo en descargas).
+//
+// Asunción de URL inmutable documentada en la migración
+// 20260602120000_image_cache_source_url_index.sql.
+//
+// Si una URL aparece con varios sha256 (rehasheo manual fuera de flujo),
+// devolvemos el más recientemente usado — coincide con el comportamiento
+// que tendría un GET normal sobre el CDN tras invalidación.
+async function cacheLookupByUrl(dbConnection, url) {
+  if (!dbConnection || !url) return null;
+  try {
+    const r = await dbConnection.query(
+      `update private.image_cache
+          set last_used_at = now()
+        where sha256 = (
+          select sha256
+            from private.image_cache
+           where source_url = $1
+           order by last_used_at desc
+           limit 1
+        )
+        returning sha256, shopify_file_id, mime_type, byte_size`,
+      [url],
+    );
+    if (r.rowCount === 0) return null;
+    return {
+      sha256: r.rows[0].sha256,
+      shopify_file_id: r.rows[0].shopify_file_id,
+      mime_type: r.rows[0].mime_type,
+      byte_size: Number(r.rows[0].byte_size),
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function cacheInsert(dbConnection, row) {
   if (!dbConnection) return { ok: true, conflict: false };
   try {
@@ -462,7 +500,7 @@ async function pollFileStatus({ ctx, fileId, pollMs, pollMaxMs }) {
  * @param {string} [args.userAgent]                  CDN fetch User-Agent.
  *
  * @returns {Promise<
- *   { ok: true,  fileId: string, fromCache: boolean, sha256: string, mimeType: string, byteSize: number }
+ *   { ok: true,  fileId: string, fromCache: boolean | 'url', sha256: string, mimeType: string, byteSize: number }
  * | { ok: false, kind: 'fetch_failed' | 'fetch_timeout' | 'unsupported_mime'
  *               | 'staged_upload_failed' | 'file_create_failed' | 'file_status_failed',
  *     message: string,
@@ -486,6 +524,22 @@ export async function resolveImageToShopifyFileId({
   if (!url) return { ok: false, kind: 'fetch_failed', message: 'url is required' };
   if (!ctx) return { ok: false, kind: 'fetch_failed', message: 'ctx is required' };
   if (!cdnBucket) return { ok: false, kind: 'fetch_failed', message: 'cdnBucket is required' };
+
+  // 0. Short-circuit por URL. Si esta URL ya produjo un File, devolvemos su
+  //    GID sin tocar el CDN — evita ~80min de GETs paced en el full run.
+  //    Hit aquí salta steps 1-7 enteros. fromCache='url' permite a callers
+  //    distinguirlo del hit clásico por sha256 (fromCache=true / 'sha256').
+  const urlHit = await cacheLookupByUrl(dbConnection, url);
+  if (urlHit) {
+    return {
+      ok: true,
+      fileId: urlHit.shopify_file_id,
+      fromCache: 'url',
+      sha256: urlHit.sha256,
+      mimeType: urlHit.mime_type,
+      byteSize: urlHit.byte_size,
+    };
+  }
 
   // 1. Politely-paced CDN fetch.
   await cdnBucket.acquire(1);

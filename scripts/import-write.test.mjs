@@ -618,8 +618,12 @@ async function testRunFullImportDbUpsert() {
     });
 
     // The upsert must have been called with the SKU, fingerprint, runId, and last_published.
-    assert(dbCalls.length === 1, `expected 1 sku_state upsert, got ${dbCalls.length}`);
-    const call = dbCalls[0];
+    // Filter out unrelated image_cache lookups (added by the URL short-circuit
+    // path in scripts/lib/image-upload.mjs); we only care about the sku_state
+    // write here.
+    const upsertCalls = dbCalls.filter((c) => c.sqlSnippet.includes('insert into private.sku_state'));
+    assert(upsertCalls.length === 1, `expected 1 sku_state upsert, got ${upsertCalls.length} (total dbCalls=${dbCalls.length})`);
+    const call = upsertCalls[0];
     assert(call.sqlSnippet.includes('insert into private.sku_state'), `expected sku_state insert, got snippet '${call.sqlSnippet}'`);
     // pg uses positional placeholders ($1, $2, ...). Verify they're in the SQL.
     assert(call.sqlFull.includes('$1') && call.sqlFull.includes('$4'), `expected $1..$4 placeholders in SQL`);

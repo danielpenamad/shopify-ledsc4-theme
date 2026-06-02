@@ -57,9 +57,31 @@ function makeMockDb(initial = []) {
     queryLog,
     async query(sql, params) {
       queryLog.push({ sql, params });
-      const isSelectUpdate = /update\s+private\.image_cache.*returning\s+shopify_file_id/is.test(sql);
+      const isUrlLookup = /where\s+source_url\s*=\s*\$1/is.test(sql);
+      const isShaLookup = !isUrlLookup && /update\s+private\.image_cache.*returning\s+shopify_file_id/is.test(sql);
       const isInsert = /insert\s+into\s+private\.image_cache/is.test(sql);
-      if (isSelectUpdate) {
+      if (isUrlLookup) {
+        // cacheLookupByUrl: locate the most recently used row whose
+        // source_url matches and refresh its last_used_at.
+        const url = params[0];
+        let best = null;
+        for (const row of rows.values()) {
+          if (row.source_url !== url) continue;
+          if (!best || (row.last_used_at ?? 0) > (best.last_used_at ?? 0)) best = row;
+        }
+        if (!best) return { rowCount: 0, rows: [] };
+        best.last_used_at = new Date();
+        return {
+          rowCount: 1,
+          rows: [{
+            sha256: best.sha256,
+            shopify_file_id: best.shopify_file_id,
+            mime_type: best.mime_type,
+            byte_size: best.byte_size,
+          }],
+        };
+      }
+      if (isShaLookup) {
         // cacheLookup: select by sha256, update last_used_at, return id+mime.
         const sha = params[0];
         const row = rows.get(sha);
@@ -252,6 +274,47 @@ async function testCacheHit() {
   assert(r.fromCache === true, `fromCache=true`);
   assert(r.fileId === 'gid://shopify/MediaImage/CACHED', `cached id returned`);
   assert(gqlCalls === 0, `no Shopify calls — got ${gqlCalls}`);
+}
+
+async function testUrlCacheHitSkipsCdnFetch() {
+  console.log('Test 4b: URL short-circuit — URL hit returns fileId without fetching CDN or Shopify');
+  const buf = jpegBytes(42);
+  const sha = sha256Hex(buf);
+  const url = 'https://files.ledsc4.com/main-photo/SKU-URL-HIT';
+  // Pre-seed a row with source_url set: simulates a previous run that already
+  // resolved this URL.
+  const db = makeMockDb([{
+    sha256: sha,
+    shopify_file_id: 'gid://shopify/MediaImage/URL-CACHED',
+    mime_type: 'image/jpeg',
+    byte_size: buf.length,
+    source_url: url,
+    last_used_at: new Date(),
+  }]);
+  let cdnFetches = 0;
+  let gqlCalls = 0;
+  const fetchImpl = makeMockFetch([
+    {
+      match: (u) => typeof u === 'string' && u.startsWith('https://files.ledsc4.com/'),
+      respond: () => { cdnFetches++; throw new Error('should not fetch CDN on URL hit'); },
+    },
+    gqlHandler(new Proxy({}, { get: () => () => { gqlCalls++; throw new Error('should not call shopify'); } })),
+  ]);
+  const r = await resolveImageToShopifyFileId({
+    url,
+    ctx: makeCtx(fetchImpl),
+    cdnBucket: makeFastBucket(),
+    dbConnection: db,
+    fetchImpl,
+  });
+  assert(r.ok === true, 'ok=true');
+  assert(r.fromCache === 'url', `fromCache='url' (got ${JSON.stringify(r.fromCache)})`);
+  assert(r.fileId === 'gid://shopify/MediaImage/URL-CACHED', `cached id returned`);
+  assert(r.sha256 === sha, 'sha256 carried from the cache row');
+  assert(r.mimeType === 'image/jpeg', 'mimeType from cache');
+  assert(r.byteSize === buf.length, 'byteSize from cache');
+  assert(cdnFetches === 0, `no CDN fetch (got ${cdnFetches})`);
+  assert(gqlCalls === 0, `no Shopify calls (got ${gqlCalls})`);
 }
 
 async function testFetchFailedHttp() {
@@ -533,10 +596,12 @@ async function testCacheRaceConflict() {
   // this by clearing rows after lookup — easier: temporarily monkey-patch
   // the db.query for the lookup-step.
   const realQuery = db.query.bind(db);
-  let lookupServed = false;
+  let shaLookupServed = false;
   db.query = async (sql, params) => {
-    if (!lookupServed && /update\s+private\.image_cache.*returning\s+shopify_file_id/is.test(sql)) {
-      lookupServed = true;
+    // Force the SHA-256 lookup to miss so we proceed with upload — the URL
+    // lookup naturally misses because the pre-seeded row has source_url=null.
+    if (!shaLookupServed && /where\s+sha256\s*=\s*\$1/i.test(sql) && !/insert\s+into/i.test(sql)) {
+      shaLookupServed = true;
       return { rowCount: 0, rows: [] }; // pretend miss
     }
     return realQuery(sql, params);
@@ -773,6 +838,7 @@ const tests = [
   testMakeStagedFilename,
   testHappyPath,
   testCacheHit,
+  testUrlCacheHitSkipsCdnFetch,
   testFetchFailedHttp,
   testFetchTimeout,
   testUnsupportedMime,

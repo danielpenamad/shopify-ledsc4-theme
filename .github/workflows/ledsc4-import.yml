@@ -55,7 +55,13 @@ permissions:
 jobs:
   writer:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Subido de 60 a 180 tras la incidencia 2026-06-02 (catálogo decorative
+    # desapareciendo): el writer estaba justo al límite (~58min CDN-bound)
+    # y 4+ noches consecutivas se cortaron en [325/445] dejando ~120 productos
+    # sin actualizar por noche. Con el short-circuit por source_url
+    # (PR-IMG-source-url) el run baja a ~10-15min, así que 180 es 10× margen
+    # de seguridad sobre el caso esperado.
+    timeout-minutes: 180
     env:
       # PR-A2: dual-source. workflow_dispatch populates `inputs`;
       # repository_dispatch populates `github.event.client_payload`. Exactly
@@ -409,9 +415,27 @@ jobs:
               if (r.rowCount === 0) console.error('warn: close (failed) affected 0 rows — row not in processing state');
               else console.log(`closed run as failed (stage=${payload.stage}, rowCount=${r.rowCount})`);
             } else {
-              // Pre-writer failure: do not touch the row. The workflow run
-              // itself is red, which is the operator's signal.
-              console.log(`pre-writer failure (stage=${payload.stage}); leaving row untouched. message=${payload.message}`);
+              // No writer-result.json + job cancelado/timeout externo: el writer
+              // estaba a media iteración cuando GHA lo mató (timeout-minutes o
+              // cancel manual). Si la fila sigue en 'processing' es nuestra —
+              // la marcamos 'failed' con stage='timeout' para que no quede
+              // huérfana. Si está en otro estado, no la tocamos.
+              const r = await client.query(
+                `update private.import_runs
+                    set status = 'failed',
+                        failed_at = now(),
+                        error_stage = 'timeout',
+                        error_message = $1,
+                        report_storage_prefix = $2
+                  where id = $3 and status = 'processing'`,
+                [
+                  String(payload.message ?? '').slice(0, 4000),
+                  process.env.REPORT_PREFIX,
+                  process.env.RUN_ID,
+                ],
+              );
+              if (r.rowCount > 0) console.log(`closed run as failed (stage=timeout, rowCount=${r.rowCount})`);
+              else console.log(`pre-writer failure (stage=${payload.stage}); row not in processing — leaving untouched. message=${payload.message}`);
             }
           } finally {
             try { await client.end(); } catch {}
