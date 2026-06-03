@@ -405,7 +405,7 @@
       {%- if locale_prefix == '/' -%}{%- assign locale_prefix = '' -%}{%- endif -%}
       {%- assign gate_path = request.path -%}
       {%- assign gate_exempt = false -%}
-      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional,/pages/registro-recibido' | split: ',' -%}
+      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional,/pages/registro-recibido,/pages/completar-registro' | split: ',' -%}
       {%- for p in gate_exempt_paths -%}
         {%- if gate_path == p -%}
           {%- assign gate_exempt = true -%}
@@ -447,17 +447,30 @@
           {%- endif -%}
         {%- else -%}
           {%- comment -%}
-            No aprobado (pendiente explícito o sin tag). Afecta URLs
-            comerciales (products/collections/cart/search/solicitud) y el
-            portal hospedado /account/* (orders, profile…). El cliente
+            No aprobado. Dos sub-estados:
+              - 'pendiente': rellenó form B2B, espera revisión → cuenta-en-revision.
+              - sin tag de estado: alta nativa por New Customer Accounts que
+                no pasó por el formulario B2B → completar-registro.
+            Afecta URLs comerciales (products/collections/cart/search/solicitud)
+            y el portal hospedado /account/* (orders, profile…). El cliente
             pendiente no debe quedarse en /account/orders tras el OTP.
             /account/activate y /account/reset_password ya son exempt
             (gate_exempt arriba), así que el gate ni se ejecuta durante la
             activación: este contains nunca los atrapa.
             Safety net adicional a Locksmith Rule 2 por si no enforza.
           {%- endcomment -%}
+          {%- assign gate_blocks_route = false -%}
           {%- if gate_path contains '/products' or gate_path contains '/collections' or gate_path contains '/cart' or gate_path contains '/search' or gate_path contains '/pages/solicitud' or gate_path contains '/pages/mis-solicitudes' or gate_path contains '/checkout' or gate_path contains '/account' -%}
-            <script>window.location.replace({{ locale_prefix | append: '/pages/cuenta-en-revision' | json }});</script>
+            {%- assign gate_blocks_route = true -%}
+          {%- endif -%}
+          {%- if customer.tags contains 'pendiente' -%}
+            {%- if gate_blocks_route -%}
+              <script>window.location.replace({{ locale_prefix | append: '/pages/cuenta-en-revision' | json }});</script>
+            {%- endif -%}
+          {%- else -%}
+            {%- if gate_blocks_route -%}
+              <script>window.location.replace({{ locale_prefix | append: '/pages/completar-registro' | json }});</script>
+            {%- endif -%}
           {%- endif -%}
         {%- endif -%}
       {%- endunless -%}
