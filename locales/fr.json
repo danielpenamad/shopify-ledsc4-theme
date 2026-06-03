@@ -699,6 +699,33 @@
         "note_html": "Pour valider votre activité, nous avons besoin d'une <strong>raison sociale active</strong> et d'un <strong>NIF/CIF/NIE valide</strong>. L'enregistrement demande également le secteur d'activité, le pays et, facultativement, le volume annuel estimé afin de nous aider à dimensionner le service."
       }
     },
+    "completar": {
+      "hero": {
+        "eyebrow": "Complétez votre inscription",
+        "heading_html": "Terminez votre <em>demande d'accès</em>",
+        "lead": "Nous avons détecté que vous avez déjà un compte mais qu'il manque vos données professionnelles. Remplissez-les et nous validerons votre profil sous 24-48 heures ouvrées."
+      },
+      "form": {
+        "heading": "Vos données professionnelles",
+        "email_label": "E-mail de votre compte",
+        "email_note": "L'e-mail est verrouillé sur celui de votre compte. Pour le modifier, contactez le support.",
+        "submit": "Envoyer la demande"
+      },
+      "msg_anonimo": {
+        "heading": "Connectez-vous pour continuer",
+        "lead": "Cette page complète l'inscription sur votre compte existant. Vous devez d'abord vous connecter.",
+        "cta": "Se connecter"
+      },
+      "msg_ya_gestionada": {
+        "heading": "Votre compte est déjà géré",
+        "lead": "Rien à compléter : votre demande a déjà été traitée par l'équipe.",
+        "cta": "Retour à l'accueil"
+      },
+      "banner": {
+        "session_error": "Nous n'avons pas pu identifier votre session. <a href=\"\" onclick=\"window.location.reload(); return false;\">Rechargez la page</a> et réessayez.",
+        "invalid_payload": "Certains champs requis sont manquants ou incorrects. Vérifiez le formulaire et renvoyez."
+      }
+    },
     "checkout": {
       "disclaimers": {
         "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Les prix sont toujours un Sous-total qui ne comprend pas les taxes.</li><li>Les frais de port seront calculés et facturés selon la fiche de conditions client de LedsC4. Ils apparaîtront sur la confirmation de commande.</li><li>Les produits de la promotion ne sont pas échangeables ni remboursables. Une fois la demande de commande envoyée, notre équipe du service client confirmera les quantités finales disponibles ; il s’agit d’unités limitées pouvant faire l’objet de variations.</li></ol>"

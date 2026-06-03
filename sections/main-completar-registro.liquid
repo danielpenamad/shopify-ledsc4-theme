@@ -1,0 +1,489 @@
+{% comment %}
+  Página /pages/completar-registro.
+
+  Carril para clientes que se registraron por New Customer Accounts (alta
+  nativa, sin formulario B2B) y se quedaron en el limbo: customer existe,
+  pero sin metafields b2b.* ni tag de estado. El gate B2B en
+  layout/theme.liquid (Fase 1) los redirige aquí desde URLs comerciales.
+
+  El form hace customerUpdate sobre el customer YA logueado vía la edge
+  function `complete-b2b-registration` (Fase 3, ya desplegada). NO usa
+  customerCreate: el customer ya existe y daría EMAIL_ALREADY_EXISTS.
+
+  Tres ramas de render:
+    - customer == nil           → bloque "inicia sesión" + CTA al login.
+    - customer.tags contains
+      'aprobado' o 'rechazado'  → "tu cuenta ya está gestionada" + CTA inicio.
+    - resto                     → formulario completar (incluye 'pendiente'
+                                  como caso de reintento).
+
+  Auth del form: HMAC-SHA256 de `<timestamp>:<nonce>:<gid>` con
+  settings.register_b2b_hmac_secret (MISMO secret que register-b2b-customer;
+  el gid en la firma evita reuso entre carriles). TTL 1 hora.
+
+  Reutiliza la nomenclatura BEM `b2b-acceso__*` para herencia visual
+  con /pages/acceso-profesional. El `<style>` se duplica intacto (las dos
+  páginas son sibling templates; no se cargan a la vez).
+{% endcomment %}
+
+{%- liquid
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+-%}
+{%- assign login_return_to = locale_prefix | append: '/pages/completar-registro' | url_encode -%}
+
+<section
+  class="b2b-acceso"
+  aria-labelledby="b2b-completar-heading"
+  style="--b2b-acceso-pad-top: {{ section.settings.padding_top | default: 64 }}px; --b2b-acceso-pad-bottom: {{ section.settings.padding_bottom | default: 80 }}px;"
+>
+
+  {%- if section.settings.show_logo_header -%}
+    <header class="b2b-acceso__brand">
+      {%- if shop.brand.logo != blank -%}
+        <img src="{{ shop.brand.logo | image_url: width: 360 }}" alt="{{ shop.name | escape }}" width="160" height="auto" loading="eager">
+      {%- else -%}
+        <span class="b2b-acceso__brand-wordmark">LEDS C4 <em>Outlet</em></span>
+      {%- endif -%}
+    </header>
+  {%- endif -%}
+
+  <div class="b2b-acceso__hero">
+    <p class="b2b-acceso__eyebrow">{{ 'ledsc4.completar.hero.eyebrow' | t }}</p>
+    <h1 id="b2b-completar-heading" class="b2b-acceso__heading">
+      {{ 'ledsc4.completar.hero.heading_html' | t }}
+    </h1>
+    <p class="b2b-acceso__lead">
+      {{ 'ledsc4.completar.hero.lead' | t }}
+    </p>
+  </div>
+
+  {%- if customer == nil -%}
+
+    {%- comment -%} Rama A: anónimo. {%- endcomment -%}
+    <div class="b2b-acceso__ctas-block">
+      <h2 class="b2b-acceso__h2">{{ 'ledsc4.completar.msg_anonimo.heading' | t }}</h2>
+      <p class="b2b-acceso__ctas-lead">{{ 'ledsc4.completar.msg_anonimo.lead' | t }}</p>
+      <div class="b2b-acceso__ctas">
+        <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-acceso__btn b2b-acceso__btn--primary">
+          {{ 'ledsc4.completar.msg_anonimo.cta' | t }}
+        </a>
+      </div>
+    </div>
+
+  {%- elsif customer.tags contains 'aprobado' or customer.tags contains 'rechazado' -%}
+
+    {%- comment -%} Rama B: estado terminal — no hace falta completar nada. {%- endcomment -%}
+    <div class="b2b-acceso__ctas-block">
+      <h2 class="b2b-acceso__h2">{{ 'ledsc4.completar.msg_ya_gestionada.heading' | t }}</h2>
+      <p class="b2b-acceso__ctas-lead">{{ 'ledsc4.completar.msg_ya_gestionada.lead' | t }}</p>
+      <div class="b2b-acceso__ctas">
+        <a href="{{ locale_prefix }}/" class="b2b-acceso__btn b2b-acceso__btn--primary">
+          {{ 'ledsc4.completar.msg_ya_gestionada.cta' | t }}
+        </a>
+      </div>
+    </div>
+
+  {%- else -%}
+
+    {%- comment -%}
+      Rama C: customer logueado sin estado terminal. Form completar.
+      HMAC payload incluye el gid del customer para evitar reuso entre
+      carriles register / complete.
+    {%- endcomment -%}
+    {%- assign complete_customer_gid = 'gid://shopify/Customer/' | append: customer.id -%}
+    {%- assign complete_now_ts = 'now' | date: '%s' -%}
+    {%- assign complete_nonce_seed = complete_now_ts | append: ':' | append: section.id | append: ':' | append: customer.id -%}
+    {%- assign complete_nonce = complete_nonce_seed | sha256 | slice: 0, 24 -%}
+    {%- assign complete_hmac_payload = complete_now_ts | append: ':' | append: complete_nonce | append: ':' | append: complete_customer_gid -%}
+    {%- assign complete_hmac_sig = complete_hmac_payload | hmac_sha256: settings.register_b2b_hmac_secret -%}
+
+    <section class="b2b-acceso__form-block" aria-labelledby="b2b-completar-form-heading">
+      <h2 id="b2b-completar-form-heading" class="b2b-acceso__h2">{{ 'ledsc4.completar.form.heading' | t }}</h2>
+
+      <form
+        id="b2b-completar-form"
+        class="b2b-acceso__form"
+        data-endpoint="{{ settings.complete_b2b_endpoint }}"
+        novalidate
+        onsubmit="return false;"
+      >
+        <input type="hidden" name="timestamp" value="{{ complete_now_ts }}">
+        <input type="hidden" name="nonce" value="{{ complete_nonce }}">
+        <input type="hidden" name="signature" value="{{ complete_hmac_sig }}">
+        <input type="hidden" name="customerId" value="{{ complete_customer_gid }}">
+        <input type="hidden" name="sector" value="otro">
+
+        <div id="b2b-completar-banner" class="b2b-acceso__form-banner" hidden role="alert"></div>
+
+        <fieldset class="b2b-acceso__fieldset">
+          <legend class="b2b-acceso__fieldset-legend">{{ 'ledsc4.acceso.form.legend_personales' | t }}</legend>
+          <div class="b2b-acceso__form-grid">
+            <div class="b2b-acceso__field">
+              <label for="comp-nombre">{{ 'ledsc4.acceso.form.label_nombre' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+              <input type="text" name="nombre" id="comp-nombre" autocomplete="given-name" required maxlength="100" value="{{ customer.first_name | escape }}">
+              <span class="b2b-acceso__field-error" data-field="nombre" hidden></span>
+            </div>
+            <div class="b2b-acceso__field">
+              <label for="comp-apellidos">{{ 'ledsc4.acceso.form.label_apellidos' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+              <input type="text" name="apellidos" id="comp-apellidos" autocomplete="family-name" required maxlength="100" value="{{ customer.last_name | escape }}">
+              <span class="b2b-acceso__field-error" data-field="apellidos" hidden></span>
+            </div>
+            <div class="b2b-acceso__field">
+              <label for="comp-email">{{ 'ledsc4.completar.form.email_label' | t }}</label>
+              <input type="email" id="comp-email" value="{{ customer.email | escape }}" readonly disabled aria-readonly="true">
+              <span class="b2b-acceso__field-note">{{ 'ledsc4.completar.form.email_note' | t }}</span>
+            </div>
+            <div class="b2b-acceso__field">
+              <label for="comp-telefono">{{ 'ledsc4.acceso.form.label_telefono' | t }}</label>
+              <input type="tel" name="telefono" id="comp-telefono" autocomplete="tel" maxlength="30" inputmode="tel" value="{{ customer.phone | escape }}">
+              <span class="b2b-acceso__field-error" data-field="telefono" hidden></span>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="b2b-acceso__fieldset">
+          <legend class="b2b-acceso__fieldset-legend">{{ 'ledsc4.acceso.form.legend_empresa' | t }}</legend>
+          <div class="b2b-acceso__form-grid">
+            <div class="b2b-acceso__field b2b-acceso__field--wide">
+              <label for="comp-empresa">{{ 'ledsc4.acceso.form.label_razon_social' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+              <input type="text" name="empresa" id="comp-empresa" autocomplete="organization" required maxlength="200">
+              <span class="b2b-acceso__field-error" data-field="empresa" hidden></span>
+            </div>
+            <div class="b2b-acceso__field">
+              <label for="comp-nif">{{ 'ledsc4.acceso.form.label_nif' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+              <input type="text" name="nif" id="comp-nif" required maxlength="20" autocapitalize="characters" spellcheck="false">
+              <span class="b2b-acceso__field-error" data-field="nif" hidden></span>
+            </div>
+            <div class="b2b-acceso__field">
+              <label for="comp-pais">{{ 'ledsc4.acceso.form.label_pais' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+              <select name="pais" id="comp-pais" required>
+                <option value="" disabled selected>{{ 'ledsc4.common.form.option_select' | t }}</option>
+                <option value="ES">{{ 'ledsc4.common.country.es' | t }}</option>
+                <option value="PT">{{ 'ledsc4.common.country.pt' | t }}</option>
+                <option value="FR">{{ 'ledsc4.common.country.fr' | t }}</option>
+                <option value="IT">{{ 'ledsc4.common.country.it' | t }}</option>
+                <option value="DE">{{ 'ledsc4.common.country.de' | t }}</option>
+                <option value="GB">{{ 'ledsc4.common.country.gb' | t }}</option>
+                <option value="NL">{{ 'ledsc4.common.country.nl' | t }}</option>
+                <option value="BE">{{ 'ledsc4.common.country.be' | t }}</option>
+                <option value="AD">{{ 'ledsc4.common.country.ad' | t }}</option>
+                <option value="MA">{{ 'ledsc4.common.country.ma' | t }}</option>
+              </select>
+              <span class="b2b-acceso__field-error" data-field="pais" hidden></span>
+            </div>
+            <div class="b2b-acceso__field b2b-acceso__field--wide">
+              <label for="comp-volumen">{{ 'ledsc4.acceso.form.label_volumen' | t }} <span class="b2b-acceso__optional">{{ 'ledsc4.common.form.optional' | t }}</span></label>
+              <select name="volumen_estimado" id="comp-volumen">
+                <option value="">{{ 'ledsc4.acceso.form.volumen.no_decir' | t }}</option>
+                <option value="<5k">{{ 'ledsc4.acceso.form.volumen.lt_5k' | t }}</option>
+                <option value="5k-25k">{{ 'ledsc4.acceso.form.volumen.5k_25k' | t }}</option>
+                <option value="25k-100k">{{ 'ledsc4.acceso.form.volumen.25k_100k' | t }}</option>
+                <option value=">100k">{{ 'ledsc4.acceso.form.volumen.gt_100k' | t }}</option>
+                <option value="no_se">{{ 'ledsc4.acceso.form.volumen.no_se' | t }}</option>
+              </select>
+              <span class="b2b-acceso__field-error" data-field="volumen_estimado" hidden></span>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="b2b-acceso__terms">
+          <input type="checkbox" name="condiciones" id="comp-terms" required>
+          <label for="comp-terms">{{ 'ledsc4.acceso.form.terms_html' | t }}</label>
+        </div>
+        <span class="b2b-acceso__field-error" data-field="condiciones" hidden></span>
+
+        <button type="submit" id="b2b-completar-submit" class="b2b-acceso__btn b2b-acceso__btn--primary b2b-acceso__btn--submit">
+          <span class="b2b-acceso__btn-label">{{ 'ledsc4.completar.form.submit' | t }}</span>
+          <span class="b2b-acceso__btn-spinner" aria-hidden="true" hidden></span>
+        </button>
+      </form>
+    </section>
+
+  {%- endif -%}
+
+  <footer class="b2b-acceso__footer">
+    <nav class="b2b-acceso__footer-nav" aria-label="{{ 'ledsc4.common.footer.aria_legal' | t }}">
+      <a href="{{ locale_prefix }}/pages/aviso-legal">{{ 'ledsc4.common.footer.aviso_legal' | t }}</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{ locale_prefix }}/pages/politica-de-privacidad">{{ 'ledsc4.common.footer.privacidad' | t }}</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{ locale_prefix }}/pages/condiciones-de-uso">{{ 'ledsc4.common.footer.condiciones' | t }}</a>
+      <span aria-hidden="true">·</span>
+      <a href="{{ locale_prefix }}/pages/canal-de-denuncias">{{ 'ledsc4.common.footer.canal_etico' | t }}</a>
+    </nav>
+    <p class="b2b-acceso__footer-note">
+      {%- assign current_year = 'now' | date: '%Y' -%}
+      {{ 'ledsc4.common.footer.copyright_html' | t: year: current_year }}
+    </p>
+  </footer>
+</section>
+
+<style>
+  .b2b-acceso {
+    --bg: #ffffff;
+    --bg-alt: #f5f5f7;
+    --bg-card: rgba(0, 0, 0, 0.04);
+    --fg: #000000;
+    --fg-strong: #000000;
+    --fg-muted: rgba(0, 0, 0, 0.72);
+    --fg-dim: rgba(0, 0, 0, 0.50);
+    --accent: var(--color-ledsc4-accent);
+    --border: rgba(0, 0, 0, 0.10);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    padding: var(--b2b-acceso-pad-top, 64px) 1.5rem var(--b2b-acceso-pad-bottom, 80px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .b2b-acceso *, .b2b-acceso *::before, .b2b-acceso *::after { box-sizing: border-box; }
+  .b2b-acceso > * { width: 100%; max-width: 780px; }
+
+  .b2b-acceso__brand { text-align: center; margin-bottom: 2.5rem; }
+  .b2b-acceso__brand img { max-width: 100%; height: auto; display: inline-block; }
+  .b2b-acceso__brand-wordmark {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 2.4rem; font-weight: 400; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--fg);
+  }
+  .b2b-acceso__brand-wordmark em {
+    font-style: italic; font-weight: 400; color: var(--accent);
+    text-transform: none; letter-spacing: 0; font-size: 0.85em;
+  }
+
+  .b2b-acceso__hero { text-align: center; margin-bottom: 4rem; }
+  .b2b-acceso__eyebrow {
+    font-size: 1.4rem; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 1.25rem;
+  }
+  .b2b-acceso__heading {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(3.6rem, 6vw, 6.4rem); font-weight: 400;
+    line-height: 1.1; margin: 0 0 1.5rem; color: var(--fg-strong);
+    letter-spacing: -0.015em;
+  }
+  .b2b-acceso__heading em { font-style: italic; color: var(--accent); font-weight: 400; display: block; }
+  @media (min-width: 750px) { .b2b-acceso__heading em { display: inline; } }
+  .b2b-acceso__lead {
+    font-size: clamp(1.7rem, 1.8vw, 2.1rem); line-height: 1.55;
+    color: var(--fg-muted); margin: 0 auto; max-width: 60ch;
+  }
+
+  .b2b-acceso__h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.4rem, 3vw, 3.2rem); font-weight: 400;
+    line-height: 1.2; margin: 0 0 1.25rem; color: var(--fg-strong);
+    letter-spacing: -0.01em;
+  }
+
+  /* CTAs block (ramas A y B) */
+  .b2b-acceso__ctas-block {
+    margin: 2rem 0 3rem; text-align: center;
+    padding: 2.5rem 1.5rem; background: var(--bg-card); border-radius: 16px;
+  }
+  .b2b-acceso__ctas-lead {
+    font-size: 1.7rem; line-height: 1.55; color: var(--fg-muted);
+    margin: 0 auto 1.75rem; max-width: 60ch;
+  }
+  .b2b-acceso__ctas { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+  .b2b-acceso__btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18rem; padding: 1.4rem 2.6rem; border-radius: 999px;
+    font-size: 1.6rem; font-weight: 500; text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .b2b-acceso__btn--primary { background: var(--fg); color: var(--bg); border: 1px solid var(--fg); }
+  .b2b-acceso__btn--primary:hover {
+    background: var(--accent); border-color: var(--accent);
+    color: #ffffff; transform: translateY(-1px);
+  }
+  .b2b-acceso__btn--secondary { background: transparent; color: var(--fg); border: 1px solid var(--fg-dim); }
+  .b2b-acceso__btn--secondary:hover { border-color: var(--fg); background: rgba(0, 0, 0, 0.04); transform: translateY(-1px); }
+  .b2b-acceso__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* Footer */
+  .b2b-acceso__footer { text-align: center; padding: 1.75rem 0 0; border-top: 1px solid var(--border); margin-top: 1rem; }
+  .b2b-acceso__footer-nav {
+    display: flex; justify-content: center; gap: 0.875rem; flex-wrap: wrap;
+    font-size: 1.5rem; margin-bottom: 0.75rem;
+  }
+  .b2b-acceso__footer-nav a { color: var(--fg-muted); text-decoration: none; transition: color 0.2s ease; }
+  .b2b-acceso__footer-nav a:hover { color: var(--fg-strong); }
+  .b2b-acceso__footer-note { font-size: 1.3rem; color: var(--fg-dim); margin: 0; letter-spacing: 0.01em; line-height: 1.55; }
+
+  @media (max-width: 750px) {
+    .b2b-acceso { padding: 2.5rem 1rem 3rem; }
+    .b2b-acceso__hero { margin-bottom: 2.5rem; }
+    .b2b-acceso__ctas-block { padding: 2rem 1rem; }
+  }
+
+  /* Form */
+  .b2b-acceso__form-block {
+    margin: 2rem 0 3rem; padding: 3rem 2rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .b2b-acceso__form { display: flex; flex-direction: column; gap: 2rem; }
+  .b2b-acceso__form-banner {
+    padding: 1.25rem 1.5rem; background: rgba(220, 38, 38, 0.08);
+    border-left: 3px solid #dc2626; border-radius: 4px;
+    color: #991b1b; font-size: 1.5rem; line-height: 1.5;
+  }
+  .b2b-acceso__form-banner--success {
+    background: rgba(0, 81, 255, 0.08); border-left-color: var(--accent); color: var(--fg-strong);
+  }
+  .b2b-acceso__form-banner a { color: inherit; text-decoration: underline; }
+
+  .b2b-acceso__fieldset { border: 0; padding: 0; margin: 0; }
+  .b2b-acceso__fieldset-legend {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.6rem; font-weight: 400; color: var(--fg-strong);
+    margin: 0 0 1.25rem; padding: 0; letter-spacing: -0.005em;
+  }
+  .b2b-acceso__form-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem 1.25rem;
+  }
+  .b2b-acceso__field { display: flex; flex-direction: column; gap: 0.5rem; }
+  .b2b-acceso__field--wide { grid-column: 1 / -1; }
+  .b2b-acceso__field label { font-size: 1.4rem; color: var(--fg-muted); letter-spacing: 0.01em; }
+  .b2b-acceso__req { color: var(--accent); }
+  .b2b-acceso__optional { color: var(--fg-dim); font-size: 0.875em; }
+  .b2b-acceso__field input, .b2b-acceso__field select {
+    width: 100%; padding: 1rem 1.125rem; background: #ffffff;
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg-strong); font-family: inherit;
+    font-size: 1.6rem; line-height: 1.5;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .b2b-acceso__field input:hover, .b2b-acceso__field select:hover { border-color: rgba(0, 0, 0, 0.25); }
+  .b2b-acceso__field input:focus, .b2b-acceso__field select:focus {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+    border-color: var(--accent); background: rgba(0, 81, 255, 0.04);
+  }
+  .b2b-acceso__field input[readonly], .b2b-acceso__field input:disabled {
+    background: rgba(0, 0, 0, 0.04); color: var(--fg-muted); cursor: not-allowed;
+  }
+  .b2b-acceso__field input[aria-invalid="true"], .b2b-acceso__field select[aria-invalid="true"] {
+    border-color: #dc2626;
+  }
+  .b2b-acceso__field-error { font-size: 1.3rem; color: #991b1b; line-height: 1.4; }
+  .b2b-acceso__field-note { font-size: 1.3rem; color: var(--fg-dim); line-height: 1.4; }
+
+  .b2b-acceso__terms {
+    display: flex; align-items: flex-start; gap: 0.875rem;
+    padding: 1.25rem 1.5rem; background: rgba(0, 0, 0, 0.04); border-radius: 8px;
+  }
+  .b2b-acceso__terms input[type="checkbox"] {
+    margin-top: 0.25rem; flex-shrink: 0; width: 1.6rem; height: 1.6rem; accent-color: var(--accent);
+  }
+  .b2b-acceso__terms label { font-size: 1.5rem; line-height: 1.55; color: var(--fg-muted); cursor: pointer; }
+  .b2b-acceso__terms a { color: var(--accent); text-decoration: underline; }
+
+  .b2b-acceso__btn--submit { align-self: flex-start; min-width: 22rem; position: relative; }
+  .b2b-acceso__btn--submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .b2b-acceso__btn-spinner {
+    display: inline-block; width: 1.4rem; height: 1.4rem; margin-left: 0.875rem;
+    border: 2px solid rgba(0, 0, 0, 0.2); border-top-color: currentColor;
+    border-radius: 50%; animation: b2b-acceso-spin 0.8s linear infinite;
+    vertical-align: -0.2rem;
+  }
+  .b2b-acceso__btn-spinner[hidden] { display: none; }
+  @keyframes b2b-acceso-spin { to { transform: rotate(360deg); } }
+  @media (max-width: 750px) {
+    .b2b-acceso__form-block { padding: 2rem 1.25rem; }
+    .b2b-acceso__btn--submit { width: 100%; min-width: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .b2b-acceso__btn, .b2b-acceso__btn-spinner { transition: none; animation: none; }
+  }
+</style>
+
+<script>
+  // i18n bundle inyectado antes del script defer para garantizar
+  // disponibilidad de window.LEDSC4_I18N.{acceso_form,completar} en el IIFE.
+  window.LEDSC4_I18N = window.LEDSC4_I18N || {};
+  window.LEDSC4_I18N.locale_prefix = {{ locale_prefix | json }};
+  window.LEDSC4_I18N.acceso_form = {
+    err: {
+      required: {{ 'ledsc4.acceso.form.err.required' | t | json }},
+      email:    {{ 'ledsc4.acceso.form.err.email' | t | json }},
+      nif:      {{ 'ledsc4.acceso.form.err.nif' | t | json }},
+      terms:    {{ 'ledsc4.acceso.form.err.terms' | t | json }}
+    },
+    submit:         {{ 'ledsc4.acceso.form.submit' | t | json }},
+    submit_loading: {{ 'ledsc4.acceso.form.submit_loading' | t | json }},
+    banner: {
+      config_missing:           {{ 'ledsc4.acceso.form.banner.config_missing' | t | json }},
+      signature_expired_html:   {{ 'ledsc4.acceso.form.banner.signature_expired_html' | t | json }},
+      service_unavailable_html: {{ 'ledsc4.acceso.form.banner.service_unavailable_html' | t | json }},
+      generic_fallback:         {{ 'ledsc4.acceso.form.banner.generic_fallback' | t | json }},
+      network_error:            {{ 'ledsc4.acceso.form.banner.network_error' | t | json }}
+    }
+  };
+  window.LEDSC4_I18N.completar = {
+    form: {
+      submit: {{ 'ledsc4.completar.form.submit' | t | json }}
+    },
+    banner: {
+      session_error:   {{ 'ledsc4.completar.banner.session_error' | t | json }},
+      invalid_payload: {{ 'ledsc4.completar.banner.invalid_payload' | t | json }}
+    }
+  };
+</script>
+<script src="{{ 'b2b-complete.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Completar registro",
+  "tag": "section",
+  "class": "section-b2b-completar",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Apariencia"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_logo_header",
+      "label": "Mostrar logo en cabecera",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Espaciado"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding superior",
+      "default": 64
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding inferior",
+      "default": 80
+    }
+  ],
+  "presets": [
+    {
+      "name": "Completar registro"
+    }
+  ]
+}
+{% endschema %}

@@ -699,6 +699,33 @@
       },
       "ctas_lead": "Does this work for you? Start by requesting access. If you already have an account, return to your private area."
     },
+    "completar": {
+      "hero": {
+        "eyebrow": "Complete your application",
+        "heading_html": "Finish your <em>access request</em>",
+        "lead": "We detected that you already have an account but your professional details are missing. Fill them in and we will validate your profile within 24-48 business hours."
+      },
+      "form": {
+        "heading": "Your professional details",
+        "email_label": "Your account email",
+        "email_note": "Email is locked to your account. If you need to change it, contact support.",
+        "submit": "Submit application"
+      },
+      "msg_anonimo": {
+        "heading": "Sign in to continue",
+        "lead": "This page completes the registration on your existing account. You need to sign in first.",
+        "cta": "Sign in"
+      },
+      "msg_ya_gestionada": {
+        "heading": "Your account is already managed",
+        "lead": "There is nothing to complete: your application has already been processed by the team.",
+        "cta": "Back to home"
+      },
+      "banner": {
+        "session_error": "We could not identify your session. <a href=\"\" onclick=\"window.location.reload(); return false;\">Reload the page</a> and try again.",
+        "invalid_payload": "Some required fields are missing or incorrect. Review the form and submit again."
+      }
+    },
     "checkout": {
       "disclaimers": {
         "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Prices are always a Subtotal that does not include taxes.</li><li>Shipping costs will be calculated and invoiced according to LedsC4's customer conditions sheet. They will be reflected in the order confirmation.</li><li>Promotional products cannot be returned. Once the order request has been submitted, our customer service team will confirm the final available quantities; these are limited units that may be subject to variations.</li></ol>"

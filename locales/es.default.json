@@ -787,6 +787,33 @@
         }
       }
     },
+    "completar": {
+      "hero": {
+        "eyebrow": "Completa tu alta",
+        "heading_html": "Termina tu <em>solicitud de acceso</em>",
+        "lead": "Detectamos que ya tienes una cuenta pero te faltan los datos profesionales. Rellénalos y validaremos tu perfil en 24-48 horas hábiles."
+      },
+      "form": {
+        "heading": "Tus datos profesionales",
+        "email_label": "Email de tu cuenta",
+        "email_note": "El email queda fijado al de tu cuenta. Si necesitas cambiarlo, escribe a soporte.",
+        "submit": "Enviar solicitud"
+      },
+      "msg_anonimo": {
+        "heading": "Inicia sesión para continuar",
+        "lead": "Esta página completa el alta sobre tu cuenta existente. Necesitas iniciar sesión primero.",
+        "cta": "Iniciar sesión"
+      },
+      "msg_ya_gestionada": {
+        "heading": "Tu cuenta ya está gestionada",
+        "lead": "No hace falta completar nada: tu solicitud ya fue tramitada por el equipo.",
+        "cta": "Volver al inicio"
+      },
+      "banner": {
+        "session_error": "No hemos podido identificar tu sesión. <a href=\"\" onclick=\"window.location.reload(); return false;\">Recarga la página</a> y vuelve a intentarlo.",
+        "invalid_payload": "Faltan datos requeridos o son incorrectos. Revisa el formulario y vuelve a enviar."
+      }
+    },
     "checkout": {
       "disclaimers": {
         "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Los precios son siempre un Subtotal que no incluye impuestos.</li><li>Los gastos de envío serán calculados y emitidos en factura según la ficha de condiciones de cliente de LedsC4. Aparecerán reflejados en la confirmación de pedido.</li><li>Los productos de la promoción no admiten devoluciones. Una vez solicitada la petición de pedido, nuestro equipo de atención al cliente confirmará las cantidades finales disponibles; se trata de unidades limitadas que pueden estar sujetas a variaciones.</li></ol>"

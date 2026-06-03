@@ -1484,6 +1484,13 @@
       },
       {
         "type": "text",
+        "id": "complete_b2b_endpoint",
+        "label": "URL complete-b2b-registration",
+        "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/complete-b2b-registration",
+        "info": "Endpoint Supabase para customers que ya existen (alta nativa por New Customer Accounts) y completan datos B2B en /pages/completar-registro. Reutiliza el mismo HMAC secret que register_b2b_hmac_secret."
+      },
+      {
+        "type": "text",
         "id": "register_b2b_hmac_secret",
         "label": "HMAC secret · register-b2b",
         "info": "DEBE coincidir con REGISTER_B2B_HMAC_SECRET en Supabase env. Distinto del HMAC de solicitudes (rotación independiente)."
