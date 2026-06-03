@@ -68,3 +68,105 @@ jsonb_build_object(
   'needle', '05-2831'
 )
 ```
+
+## Importación nocturna (writer GHA)
+
+El pipeline NO está dentro de la edge function `sftp-sync`. Esa edge function
+**solo descarga** los CSVs del SFTP de LedsC4 al bucket `ledsc4-imports` y
+dispara `repository_dispatch` (event_type=`ledsc4-import`) contra el repo;
+el procesamiento real (parseo + Shopify productSet + traducciones +
+inventario + image upload) lo hace el job `writer` del workflow
+[.github/workflows/ledsc4-import.yml](.github/workflows/ledsc4-import.yml)
+en GitHub Actions.
+
+### Estados en `private.import_runs`
+
+| status | quién lo escribe |
+|---|---|
+| `started` | `sftp-sync` al insertar la fila |
+| `downloaded` | `sftp-sync` tras subir todos los CSV a Storage |
+| `processing` | step "Mark run as processing" del workflow GHA |
+| `completed` | step "Close import_runs row" si `writer-result.json` ok |
+| `failed` | step "Close import_runs row" si `writer-result.json` no ok, **o** si el job fue cancelado externamente y el row sigue en `processing` (caso timeout) |
+
+Un row colgado en `processing` mucho tiempo después de `started_at` significa
+que el writer murió a media iteración sin escribir `writer-result.json` —
+hasta el fix 2026-06-02 esto se quedaba huérfano; ahora el step de cierre
+lo detecta y lo marca `failed` con `error_stage='timeout'`.
+
+### Timeout del writer
+
+`timeout-minutes: 180` (subido de 60 el 2026-06-02 tras 12 noches consecutivas
+muriendo a los 60min). El run típico es ~17min en régimen estacionario; los
+180min son margen 10× para crecimiento de catálogo o degradación del CDN.
+
+### Cache de imágenes (`private.image_cache`)
+
+Para evitar resubir las ~1.500 imágenes del catálogo en cada full run, cada
+imagen se cachea en `private.image_cache` con dos índices de lookup:
+
+1. **Por `source_url` (lookup pre-fetch, añadido 2026-06-02)** — short-circuit:
+   si la URL ya produjo un Shopify File, devolvemos el GID sin tocar el CDN.
+   Asume URLs inmutables (LedsC4 renombra el path cuando la imagen cambia).
+2. **Por `sha256`** — fallback: si la URL es nueva (o falla el lookup por URL),
+   descargamos el binario del CDN, calculamos hash y consultamos.
+
+El cuello de botella histórico era el rate-limit del CDN del proveedor a
+1 GET/3s. Con el cache por URL en régimen estacionario el full corre con
+hit rate ~99,9% (1 GET en 1.500 imágenes) y no necesita descargar nada.
+
+`reconcileImageCache` corre al inicio del full run y borra entradas cuyo
+GID de Shopify ya no existe (media re-subida o borrada fuera de banda).
+
+### Cómo disparar un run manual
+
+Cuando hace falta forzar un full fuera del cron de las 02:00 UTC:
+
+```sql
+SELECT private.invoke_edge_function('sftp-sync', '{"kind":"full"}'::jsonb, true);
+-- O 'stock_only' para refrescar solo inventario.
+```
+
+El edge function arranca un row nuevo en `private.import_runs` y dispara el
+workflow GHA. **No** se puede relanzar un run existente con el mismo `run_id`
+porque el workflow exige `status='downloaded'` (que ya se consume al pasar a
+`processing`).
+
+## Currency cosmético (display USD/GBP, factura EUR)
+
+**El B2B logueado está clavado al Market ES — la única divisa real es EUR.**
+USD/GBP son solo conversión cosmética en cliente: cookie + asset JS reescribe
+los importes que Liquid ya pintó. **No tocar Markets/presentment**: rompe la
+sesión cross-domain (ya pasó dos veces, ver PRs #140 y #141).
+
+| Capa | Implementación |
+|---|---|
+| Tasas | EF [`update-fx-rates`](supabase/functions/update-fx-rates/index.ts) → metafield del shop `ledsc4.fx_rates` (json, storefront PUBLIC_READ). Fuente: Frankfurter (BCE, sin API key). |
+| Cron | pg_cron lunes 06:00 UTC. Args tipados explícitos. |
+| Switcher UI | [`snippets/currency-switcher.liquid`](snippets/currency-switcher.liquid). Click → setCookie + `CustomEvent('ledsc4:currency-changed')`. Sin redirect, sin `{% form 'localization' %}`. |
+| Asset conversor | [`assets/ledsc4-currency-display.js`](assets/ledsc4-currency-display.js). Lee `window.LEDSC4_FX` (inyectado por `layout/theme.liquid` desde el metafield) y reescribe `textContent` de los nodos `[data-eur-amount]`. Símbolo `≈` solo en nodos `[data-fx-approx="1"]`. Se reaplica tras `cartUpdate`. |
+| Anti-flash | Si la cookie ≠ EUR, los precios arrancan con `visibility:hidden`. Failsafe triple: timeout 1500ms, `window.onerror`, `<noscript>`. EUR no se oculta nunca. |
+| Form solicitud | El submit lee la cookie y manda divisa al draft; `submit-order-request` valida EUR/USD/GBP. **El draft y la factura siguen en EUR** — la divisa mostrada se guarda como note_attribute. |
+
+Verificar a la semana que `updated_at` del metafield `ledsc4.fx_rates` cambió
+(que el cron sigue vivo).
+
+## Whitelist B2B
+
+### Metafield `b2b.whitelist_emails` es tipo `json` (no `list.*`)
+
+Cambiado en PR #139 porque `list.single_line_text_field` está **capado a 128
+entradas**. Ahora soporta ~5 MB (decenas de miles de emails). El formato del
+valor sigue siendo un array JSON de strings, así que los lectores
+(`promote-whitelist-matches`, `list-pending-customers`, `readWhitelist`)
+funcionan sin cambios. **No recrear la definición como `list.*`** si en algún
+re-setup la migración aparece por defecto así.
+
+### `promote-whitelist-matches` salta candidatos sin `b2b.empresa`
+
+Por diseño: si un email whitelisted aún no tiene `b2b.empresa` (porque el
+cliente no ha completado el formulario), el cron lo salta con log
+`skip (no b2b.empresa): <email>` y espera a la pasada siguiente. **No es un
+fallo del cron**: antes (pre-PR #145) intentaba ejecutar W2 →
+`create-company-for-customer` y se llevaba HTTP 400 en bucle, que sí ensuciaba
+los logs.

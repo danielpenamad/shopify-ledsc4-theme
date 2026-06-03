@@ -143,7 +143,7 @@ El script `scripts/audit-customer-state.js` valida la invariante. Modos de fallo
 
 | Key | Tipo | Pin | Quién escribe | Uso |
 |---|---|---|---|---|
-| `whitelist_emails` | `list.single_line_text_field` | ✅ | edge `update-whitelist` (desde backoffice) o staff manual (permiso "Edit custom data") | Lista de emails / dominios que se auto-aprueban al registrarse. Consumida por Flow W1 (chequeo whitelist) y por edge `promote-whitelist-matches` (cron cada 30 min). |
+| `whitelist_emails` | `json` (array de strings) | ✅ | edge `update-whitelist` (desde backoffice) o staff manual (permiso "Edit custom data") | Lista de emails / dominios que se auto-aprueban al registrarse. Consumida por Flow W1 (chequeo whitelist) y por edge `promote-whitelist-matches` (cron cada 30 min). **Tipo `json`** desde [PR #139](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/139) (era `list.single_line_text_field`, capado a 128 entradas). Formato del valor (array JSON de strings) sin cambios — los lectores no se tocaron. |
 | `whitelist_last_update` | `date_time` | ✅ | edge `update-whitelist` | Timestamp ISO de la última actualización del metafield `whitelist_emails`. Usado por `promote-whitelist-matches` para identificar entradas nuevas desde el último run. |
 | `email_backoffice` | `single_line_text_field` | ✅ | Staff manual (Settings → Custom data) | Destinatario de avisos de nuevo registro pendiente. Consumido por Flow W1 rama B y por el email 3. |
 

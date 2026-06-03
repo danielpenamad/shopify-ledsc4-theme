@@ -37,12 +37,13 @@ La conversación con el equipo del cliente confirmó que **no van a relajar el r
 
 Flujo por imagen:
 
-1. **Bucket compartido del run** serializa descargas: 1 request cada 1.5 segundos a la CDN del cliente. SLA de cortesía verificado en diagnóstico (337 HEADs sin un solo 429). Configurable vía `options.cdnRateLimit`.
-2. **Fetch binario a memoria** (timeout 15s) + cálculo de `sha256` + sniff MIME (header + fallback magic-byte).
-3. **Cache lookup** en tabla `private.image_cache` (`sha256` → `shopify_file_id`):
+0. **Short-circuit por `source_url`** (añadido 02-jun-2026, [PR #147](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/147)). Lookup en `private.image_cache` por `source_url` antes del bucket de descarga. Hit → devolvemos el `shopify_file_id` sin tocar CDN ni hashear. Ver [D15](d15-image-cache-reconcile.md) §"Lookup pre-fetch".
+1. **Bucket compartido del run** serializa descargas (solo si (0) miss): 1 request cada 3 segundos a la CDN del cliente en runs full (subido desde 1/1.5s tras incidente 02-jun-2026), 1 request cada 1.5 segundos en stock-only. SLA de cortesía verificado en diagnóstico (337 HEADs sin un solo 429). Configurable vía `options.cdnRateLimit`.
+2. **Fetch binario a memoria** (timeout 30s en full, 15s en stock-only) + cálculo de `sha256` + sniff MIME (header + fallback magic-byte).
+3. **Cache lookup por `sha256`** en tabla `private.image_cache` (`sha256` → `shopify_file_id`):
    - Hit → reusar el File existente, salir sin tocar Shopify Files.
    - Miss → `stagedUploadsCreate(resource: IMAGE)` → POST multipart al target devuelto → `fileCreate(originalSource: resourceUrl)` → polling de `MediaImage.status` hasta `READY` o `FAILED` (techo 15s).
-4. **Persistir en cache**: `INSERT INTO private.image_cache ... ON CONFLICT (sha256) DO UPDATE last_used_at = now()`.
+4. **Persistir en cache**: `INSERT INTO private.image_cache (sha256, shopify_file_id, mime_type, byte_size, source_url) … ON CONFLICT (sha256) DO UPDATE last_used_at = now()`. La columna `source_url` se usa como clave del lookup pre-fetch del paso (0) en runs futuros.
 5. **Asociar al producto**: el `productSet` referencia el File pre-subido vía `FileSetInput.id`, no vía `originalSource`.
 
 Helper: `scripts/lib/image-upload.mjs`. Cada modo de fallo (`fetch_failed`, `fetch_timeout`, `unsupported_mime`, `staged_upload_failed`, `file_create_failed`, `file_status_failed`) devuelve `{ ok: false, kind, message }`. El slot pasa a `null` en `productSet.input.files[]` para no tocar el media existente del producto.

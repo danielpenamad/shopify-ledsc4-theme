@@ -1,198 +1,175 @@
-# 10 · Multidivisa (Currency-B)
+# 10 · Multidivisa (Currency cosmético)
 
 !!! info "Estado del documento"
-    **Versión:** 1.0 · 17-may-2026
-    **Estado:** ✅ completo
+    **Versión:** 2.0 · 03-jun-2026
+    **Estado:** ✅ vigente
     **Audiencia:** Equipo de desarrollo
+
+!!! warning "Cambio de modelo desde v1.x"
+    Hasta el 31-may-2026 este doc describía **Currency-B**, un modelo basado en Shopify Markets nativos con `localCurrencies: true`. Ese enfoque **se revirtió** en [PR #142](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/142) porque rompía la sesión cross-domain del B2B logueado (incidentes [#140](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/140), [#141](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/141)). El modelo vigente es **cosmético**: cookie + asset JS que reescribe los importes ya pintados por Liquid, sin tocar Markets. ADR vigente: [D16](adrs/d16-multicurrency-cosmetic.md), que supersede a [D13](adrs/d13-multicurrency.md).
 
 ## 1. Para qué sirve este documento
 
-El portal B2B Outlet presenta precios al comprador en su divisa preferida (EUR, USD, GBP) mientras cierra todos los pedidos internamente en EUR. Esta separación entre **divisa de presentación** y **divisa de checkout** es la decisión de diseño central de Currency-B (mayo 2026), documentada como ADR en [D13](adrs/d13-multicurrency.md).
+El B2B logueado del portal LedsC4 Outlet está clavado al Market ES — **EUR es la única divisa real** (carrito, Draft Order, factura). USD y GBP son solo **conversión de presentación en cliente** que un asset JS aplica sobre los importes que Liquid ya pintó. El comprador puede alternar entre EUR/USD/GBP en la cabecera; los importes muestran "≈ X,XX $" en cualquier modo no-EUR, con la nota "Precios orientativos · se factura en EUR".
 
-Este doc explica la implementación operativa: qué hace Shopify Markets nativamente, qué hace el theme custom (`currency-switcher.liquid`), cómo persiste la elección del comprador entre sesiones, cómo se propaga al Draft Order en `submit-order-request`, qué scripts hay para activar divisas adicionales, y la historia de PR-CURRENCY-A v1 (revertido).
+Este doc explica la implementación operativa: pipeline de tasas (BCE/Frankfurter), switcher, asset conversor, anti-flash, propagación al Draft Order como `customAttribute` informativo, y la advertencia explícita de **no tocar Markets/presentment** (rompe la sesión cross-domain del B2B). Decisión arquitectónica completa en [D16](adrs/d16-multicurrency-cosmetic.md).
 
-No se cubre aquí: el modelo conceptual y las alternativas evaluadas — eso vive en D13. Ni los detalles del Draft Order más allá de los `customAttributes` de divisa (ver 07-solicitudes-pedido). Ni configuración de Markets en Shopify Admin (ese paso es manual, documentado al final del §3).
-
-Lectores principales: cualquier dev o IA que tenga que añadir una divisa, modificar el switcher, debugear por qué un comprador no ve el precio que espera, o escalar Currency-B a checkout multidivisa real cuando llegue el momento.
+No se cubre aquí el modelo conceptual y por qué se descartó Markets nativos — eso vive en D16. Ni los detalles del Draft Order más allá de los `customAttributes` (ver [07-solicitudes-pedido](07-solicitudes-pedido.md)).
 
 ## 2. Modelo: presentación vs. checkout
 
-Currency-B es **presentación multidivisa**, no checkout multidivisa. La separación se sostiene en tres puntos:
+Sigue siendo presentación multidivisa con checkout EUR. Lo que ha cambiado es **quién hace la conversión**:
 
-| Capa | Quién gestiona | Divisa |
-| --- | --- | --- |
-| Precio mostrado en storefront | Shopify Markets (auto-rates) | EUR / USD / GBP según selección del comprador |
-| `submit-order-request` (Edge function) | Theme + edge | Persiste la divisa elegida en `customAttributes` del Draft Order |
-| Draft Order que ve el backoffice | Shopify Draft Orders | **Siempre EUR**. El precio es base, no se recalcula. |
-| Facturación al cliente | Cliente (Odoo) | EUR. |
+| Capa | v1 (revertida) | v2 actual |
+|---|---|---|
+| Quién muta el precio mostrado | Shopify Markets nativo (`@inContext`, `localCurrencies`) | Asset JS del theme reescribe `textContent` de los nodos `[data-eur-amount]` |
+| Quién mantiene las tasas | Shopify (auto-rates internas, no expuestas) | Edge function `update-fx-rates` que las cachea en metafield del shop |
+| Fuente de tasas | Shopify (privada) | Frankfurter (BCE, pública, sin API key) |
+| Frecuencia de refresco | "Cuando Shopify quiera" | Cron pg_cron lunes 06:00 UTC |
+| Divisa del carrito y Draft | EUR (forzado en `submit-order-request`) | EUR (sin cambios) |
+| Sesión cross-domain B2B | **Rota** al cambiar Market | Intacta — no se toca el Market |
 
-Implicación operativa: si un comprador en UK ve "GBP 84.50" en una ficha, esa cifra la calcula Shopify Markets en tiempo real aplicando su tipo de cambio actual EUR→GBP sobre el precio base EUR del producto. Cuando ese comprador envía la solicitud, el Draft Order que llega al backoffice se cierra en EUR al precio base — no en GBP. La divisa GBP queda anotada en `customAttributes` solo como pista para que el equipo comercial sepa qué moneda vio el comprador al evaluar la oferta.
+| Capa actual | Quién gestiona | Divisa |
+|---|---|---|
+| Precio renderizado por Liquid en el HTML inicial | Shopify (Market ES) | **EUR (siempre)** |
+| Precio que ve el comprador en pantalla | Asset JS reescribiendo el textContent | EUR, USD o GBP según cookie |
+| `submit-order-request` (edge function) | Theme + edge | Persiste la divisa elegida en `customAttributes`; el draft se cierra en EUR |
+| Draft Order que ve el backoffice | Shopify | **Siempre EUR** |
+| Facturación al cliente | Cliente (Odoo) | **EUR** |
 
-El comprador nunca paga en GBP en este modelo. El Draft Order se convierte en pedido firme tras revisión comercial y la facturación es EUR. Currency-B es UX informativa para reducir fricción cognitiva al comprador internacional ("este producto cuesta unos 84 libras") sin asumir las complicaciones de checkout multidivisa real (gestión de tipos de cambio comerciales, reconciliación contable con varias divisas, divergencia entre precio mostrado y precio facturado por desfase de tasa). Razonamiento completo en D13 §Decisión y §Alternativas.
+## 3. Pipeline de tasas
 
-## 3. Activación de divisas en Shopify Markets
+### EF `update-fx-rates`
 
-Shopify Markets es nativo y aplica tasas auto-actualizadas (basadas en sus proveedores estándar) cuando un Market tiene `localCurrencies: true`. El theme custom no mantiene una tabla de tipos de cambio propia.
+Source: [`supabase/functions/update-fx-rates/index.ts`](../../supabase/functions/update-fx-rates/index.ts).
 
-### Configuración actual
+Idempotente. En cada invocación:
 
-Tres Markets activos:
+1. Crea (si no existe) la metafield definition `ledsc4.fx_rates` con `type=json` y `access.storefront=PUBLIC_READ` para que el storefront API la pueda leer sin auth.
+2. Llama a la API pública de [Frankfurter](https://frankfurter.dev/) (datos BCE, sin API key) para obtener tasas EUR→USD y EUR→GBP frescas.
+3. Hace `metafieldsSet` sobre el shop con valor:
 
-| Market handle | Base currency | localCurrencies | Estado |
-| --- | --- | --- | --- |
-| `es` (ES) | EUR | n/a (default) | Default activo. EUR es la moneda base del store. |
-| `uk` (UK) | GBP | `true` | Activado vía script. |
-| `usa` (USA) | USD | `true` | Activado vía script. |
+   ```json
+   {
+     "base": "EUR",
+     "USD": 1.0823,
+     "GBP": 0.8567,
+     "rate_date": "2026-06-02",
+     "updated_at": "2026-06-03T06:00:14.302Z",
+     "source": "frankfurter"
+   }
+   ```
 
-El Market default (ES + EUR) no necesita activación — es la base del store. Los otros dos se activaron una sola vez con el script `scripts/activate-market-currencies.mjs`.
+| Atributo | Valor |
+|---|---|
+| `verify_jwt` | `false` (la invocación viene de pg_cron con anon, pero la EF no requiere auth porque solo escribe metafield, sin secret expuesto) |
+| Trigger | POST con body vacío |
+| Dependencias externas | Frankfurter (https://api.frankfurter.dev). Sin API key. |
 
-### El script
+### Cron schedule
 
-`scripts/activate-market-currencies.mjs` es un one-shot idempotente. Lo que hace:
+Migration: [`supabase/migrations/20260531120000_setup_cron_fx_rates.sql`](../../supabase/migrations/20260531120000_setup_cron_fx_rates.sql).
 
-1. Lista todos los Markets vía `markets(first: 50)` query.
-2. Para cada target (`uk` → GBP, `usa` → USD), comprueba si el Market ya tiene `localCurrencies=true` y `baseCurrency=<código esperado>`.
-3. Si ya está activo, hace skip.
-4. Si no, llama `marketUpdate` con `currencySettings: { localCurrencies: true, baseCurrency: <código> }`.
+| jobname | Schedule (UTC) | Comando |
+|---|---|---|
+| `update-fx-rates-weekly` | `0 6 * * 1` (lunes 06:00) | `SELECT private.invoke_edge_function('update-fx-rates', '{}'::jsonb, false);` |
 
-Sin OXR, sin cron, sin tabla de tipos de cambio en Supabase, sin edge function — solo una llamada GraphQL idempotente.
+Args tipados explícitamente (`'...'::text, '{}'::jsonb, false`) para evitar la ambigüedad entre los dos overloads de `private.invoke_edge_function` que rompió otros crons (ver [PR #146](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/146)).
 
-Ejecución:
+### Verificar que sigue vivo
+
+```sql
+-- Cuándo fue la última ejecución del cron
+SELECT j.jobname, r.start_time, r.status
+FROM cron.job_run_details r
+JOIN cron.job j ON j.jobid = r.jobid
+WHERE j.jobname = 'update-fx-rates-weekly'
+ORDER BY r.start_time DESC
+LIMIT 5;
+```
+
+Y desde el storefront:
 
 ```bash
-SHOPIFY_STORE_DOMAIN=ledsc4-b2b-outlet.myshopify.com \
-SHOPIFY_ADMIN_TOKEN=shpat_xxx \
-node scripts/activate-market-currencies.mjs
+# El metafield es storefront-readable; basta una query GraphQL pública
+curl -s "https://<shop>.myshopify.com/api/2025-10/graphql.json" \
+  -H "X-Shopify-Storefront-Access-Token: <token>" \
+  -d '{"query":"{ shop { metafield(namespace:\"ledsc4\", key:\"fx_rates\") { value updatedAt } } }"}'
 ```
 
-Scopes Admin API requeridos: `read_markets`, `write_markets`.
+Si `updatedAt` no cambió en la última semana, el cron está roto.
 
-### Limitación API: `localCurrencies` no admite `baseCurrencyManualRate`
+## 4. Theme — switcher cosmético
 
-La combinación `localCurrencies: true` + `baseCurrencyManualRate: <numero>` la rechaza la API con:
+### `snippets/currency-switcher.liquid`
 
-```
-Manual exchange rates cannot be used when local currencies are enabled.
-```
+Click → **setCookie + dispara CustomEvent**. Sin `{% form 'localization' %}`, sin redirect, sin sessionStorage anti-bucle (no hace falta — no hay bucle posible cuando no se cambia de Market).
 
-Documentado en el header del script. La consecuencia es que Currency-B usa **siempre auto-rates** — no hay manera de fijar manualmente la tasa EUR→USD o EUR→GBP mientras `localCurrencies` esté activo. Para fijar manualmente habría que desactivar `localCurrencies` y entrar en un modelo de pricing por Market, que es exactamente lo que se evita (D13 §Alternativas).
-
-### Pasos previos manuales (no automatizados)
-
-Antes de ejecutar el script, los Markets `uk` y `usa` deben existir como Markets en Admin → Settings → Markets. El script no los crea — solo activa la divisa en Markets preexistentes. Si un handle no existe en el listado del Admin, el script lo salta con un warning sin error fatal:
-
-```
-[skip] Market with handle "uk" not found — verifica los handles en admin.
-```
-
-Crear un Market en Admin es manual: clic en "Add market", elegir país/región, asignar locale e idiomas habilitados. Una vez el Market existe, el script se encarga de la divisa.
-
-## 4. Currency switcher: UI y mapping
-
-`snippets/currency-switcher.liquid` es la UI que ve el comprador. Se renderiza dentro de los headers públicos (`b2b-header.liquid`, `b2b-header-simple.liquid`), junto al selector de idioma. Visible para todos los visitantes — no está detrás del gate B2B porque ayuda al comprador a evaluar el catálogo antes de registrarse.
-
-### Tres opciones expuestas
-
-| Opción visible | Código divisa | Símbolo | `country_code` enviado al form |
-| --- | --- | --- | --- |
-| €  EUR | EUR | € | ES |
-| $  USD | USD | $ | US |
-| £  GBP | GBP | £ | GB |
-
-El comprador no ve "Market" en la UI — solo divisa. El mapping `currency → country_code` está fijado en el snippet (en JS y en cada `<button data-country=...>`). Cambiar el mapping requiere editar el snippet (no es configurable desde Theme Editor).
-
-### Mecanismo nativo: `{% form 'localization' %}`
-
-El switcher usa el componente Shopify estándar `{% form 'localization' %}`. Al submit:
-
-1. Se envía POST a `/localization` con `country_code=<ES|US|GB>` y `return_to=<URL actual>`.
-2. Shopify cambia el `@inContext` del Market activo según `country_code`.
-3. Shopify redirige a `return_to` con el cookie de Market actualizado.
-4. En la nueva carga, `localization.country.currency.iso_code` ya devuelve la divisa del Market activo y todos los precios se renderizan en esa divisa.
-
-El theme no implementa lógica de cambio de Market propia — toda la conmutación la hace Shopify nativamente vía el endpoint `/localization`. El JS del switcher solo dispara el submit del form en el momento adecuado.
-
-### `return_to`: preservar la URL actual
-
-El `return_to` se calcula en Liquid antes de renderizar el form, preservando path + query string:
-
-```liquid
-{%- assign return_path = request.path
-  if request.query_string != blank
-    assign return_path = return_path | append: '?' | append: request.query_string
-  endif
--%}
-<input type="hidden" name="return_to" value="{{ return_path | escape }}">
-```
-
-Sin ese cálculo, el redirect tras `/localization` lanzaría al comprador a la home. Con él, el comprador se queda en la misma ficha de producto, página de listado de colección, página de cuenta, etc. — solo cambia la divisa de los precios mostrados.
-
-## 5. Persistencia: cookie `ledsc4_currency` y redirect 1-vez
-
-Shopify gestiona el cookie de Market internamente (`cart_currency`, `localization`), pero hay dos casos donde queremos persistencia más fuerte:
-
-1. El cookie de Market expira o el navegador lo borra → Shopify vuelve a aplicar el Market default (ES + EUR) en la siguiente visita.
-2. El comprador llegó al portal vía un link directo a una página interna sin pasar por la home, y Shopify aún no tiene cookie de Market.
-
-Para cubrir ambos, el switcher persiste la elección del comprador en una cookie propia `ledsc4_currency` con TTL de 30 días. La cookie es solo memoria local — Shopify nunca la lee; el JS del switcher la usa al cargar para detectar si el Market activo coincide con la última elección del comprador y forzar un redirect si no.
-
-### Flujo en cada carga de página
-
-Pseudocódigo del JS en el snippet:
-
-```
-desired = getCookie('ledsc4_currency')
-if (!desired) {
-  desired = 'EUR'
-  setCookie('ledsc4_currency', 'EUR')
-}
-
-active = ACTIVE_CURRENCY   // inyectado server-side desde Liquid
-
-if (desired != active) {
-  // El Market activo no coincide con lo que el comprador eligió.
-  // Submit silencioso del form para corregir.
-  if (!sessionStorage.flag_redirected) {
-    sessionStorage.flag_redirected = desired
-    form.country_code = COUNTRY_BY_CURRENCY[desired]
-    form.submit()
-    return
-  }
-  // Si ya intentamos esta divisa en esta sesión y aún no aplicó,
-  // no reintentar (anti-bucle).
+```js
+function setCurrency(code) {
+  document.cookie = `ledsc4_currency=${code}; path=/; max-age=2592000; SameSite=Lax`;
+  document.dispatchEvent(new CustomEvent('ledsc4:currency-changed', { detail: { code } }));
 }
 ```
 
-### Anti-bucle: el flag de sessionStorage
+El switcher muestra el label inicial leyendo la cookie directamente — no consulta el Market activo (no le importa).
 
-Si el comprador eligió USD pero Shopify rechaza el Market USA (por ejemplo, porque el Market no soporta el país de la IP del comprador, o porque hay alguna restricción de envío), el redirect llega de vuelta con la divisa aún en EUR. Sin protección, el JS volvería a forzar el redirect en bucle infinito.
+### `assets/ledsc4-currency-display.js`
 
-El flag `sessionStorage.ledsc4_currency_redirected` guarda la última divisa intentada **en esta sesión del navegador**. Si tras el redirect la divisa activa sigue sin ser la deseada, el flag impide reintentar. La cookie `ledsc4_currency` queda apuntando a USD (la elección del comprador es respetada), pero el switcher renderiza en EUR (la realidad de Shopify) hasta que:
+Source: [`assets/ledsc4-currency-display.js`](../../assets/ledsc4-currency-display.js).
 
-- El comprador hace clic explícito en una opción del switcher (limpia el flag).
-- El comprador inicia una sesión nueva (sessionStorage se borra).
-- El comprador cambia el cookie manualmente o lo borra.
+Al cargar y en cada `cartUpdate`:
 
-### Click en una opción del switcher
+1. Lee la cookie `ledsc4_currency`.
+2. Lee `window.LEDSC4_FX` (inyectado por `layout/theme.liquid` desde el metafield).
+3. Itera por todos los nodos con `[data-eur-amount]` (céntimos EUR crudos como entero, e.g. `9907` = 99,07 €).
+4. Aplica la tasa, redondea a 2 decimales, formatea con `toLocaleString('es-ES')`, y reescribe `textContent`.
+5. Si el nodo tiene `[data-fx-approx="1"]`, prefija `≈ ` para señalizar aproximación. Esto solo se aplica al primer precio de cada bloque (no se duplica el símbolo dentro de un "desde X,XX").
+6. Añade la clase `ledsc4-fx-ready` al `<html>` para revelar los precios (ver §5 anti-flash).
 
-Al pulsar EUR/USD/GBP en el dropdown, el JS:
+Se suscribe a `PUB_SUB_EVENTS.cartUpdate` (event bus nativo del theme Dawn) para reaplicar tras AJAX del cart drawer y del cart page.
 
-1. Setea `ledsc4_currency` a la divisa pulsada.
-2. Borra el flag `sessionStorage.ledsc4_currency_redirected` (la elección manual sobrescribe cualquier intento previo fallido).
-3. Setea `country_code` en el form al `ES/US/GB` correspondiente.
-4. Submit del form → `/localization` → redirect.
+### Nodos con `data-eur-amount`
 
-La elección manual es siempre prioritaria sobre el estado de la cookie o el sessionStorage anteriores.
+Snippets/sections instrumentados:
 
-### Sin auto-detect por IP
+| Path | Qué precio carga |
+|---|---|
+| [`snippets/price.liquid`](../../snippets/price.liquid) | Listado, ficha, "desde X", precio comparativo |
+| [`snippets/cart-drawer.liquid`](../../snippets/cart-drawer.liquid) | Drawer: line_price + drawer total |
+| [`sections/main-cart-items.liquid`](../../sections/main-cart-items.liquid) | Cart page: line_price por item |
+| [`sections/main-cart-footer.liquid`](../../sections/main-cart-footer.liquid) | Cart page: subtotal + total |
 
-Decisión explícita (D13): no se intenta detectar la divisa por la IP del comprador. Por defecto, todo comprador nuevo aterriza en EUR. Si la cookie vence, vuelve a aterrizar en EUR. Solo cambia de divisa si pulsa explícitamente otra opción.
+Cada uno emite tanto el valor en céntimos (`data-eur-amount="{{ price | times: 0 }}"`) como el HTML EUR formateado por Liquid como contenido inicial. El asset solo reescribe `textContent` si la cookie ≠ EUR.
 
-Razonamiento: el portal está orientado a profesionales que llegan con intención, no a tráfico orgánico de retail. Imponer una divisa por geolocalización molesta más de lo que ayuda en un contexto B2B donde el comprador suele tener preferencias claras (algunos clientes UK quieren ver EUR porque facturarán en EUR; auto-detectar GBP les fuerza a cambiar manualmente).
+## 5. Anti-flash
 
-## 6. Propagación al Draft Order
+Sin tratamiento, un comprador con cookie USD vería 1 frame de precios EUR antes de que el asset reescriba. Solución triple:
 
-Cuando el comprador envía una solicitud de pedido, el JS de `/pages/solicitud` lee la cookie `ledsc4_currency` y la pasa en el body de la llamada a la edge `submit-order-request`:
+1. **CSS condicional**: `layout/theme.liquid` inyecta un script inline ANTES del asset:
+   ```html
+   <script>
+     if (document.cookie.match(/(^|;\s*)ledsc4_currency=EUR/) || !document.cookie.match(/ledsc4_currency=/)) {
+       document.documentElement.classList.add('ledsc4-fx-ready');
+     }
+   </script>
+   <style>
+     :root:not(.ledsc4-fx-ready) [data-eur-amount] { visibility: hidden; }
+   </style>
+   ```
+   EUR (default) nunca se oculta. Solo USD/GBP arranca invisible hasta que el asset añada la clase.
+
+2. **Timeout de seguridad**: el asset añade `.ledsc4-fx-ready` también tras 1500ms pase lo que pase, para que un fallo de carga no deje el carrito en blanco indefinido.
+
+3. **`<noscript>` de rescate**: si JS no carga, se revela CSS-only.
+
+4. **`window.onerror` handler** que revela en caso de throw inesperado del asset.
+
+EUR nunca se oculta — el script inline previo añade la clase de inmediato cuando la cookie es EUR (o no existe). El comprador EUR no ve diferencia con la situación pre-Currency.
+
+## 6. Form de solicitud
+
+[`sections/b2b-solicitud-form.liquid`](../../sections/b2b-solicitud-form.liquid) lee la cookie en el momento del submit y la incluye en el body que manda a `submit-order-request`:
 
 ```json
 {
@@ -205,154 +182,65 @@ Cuando el comprador envía una solicitud de pedido, el JS de `/pages/solicitud` 
 }
 ```
 
-La edge valida que `currencyCode` esté en el set permitido (`EUR`, `USD`, `GBP`) y cae a `EUR` si llega ausente, malformado o con un código no soportado:
+La edge `submit-order-request` no se ha tocado para Currency v2 — sigue validando contra `["EUR", "USD", "GBP"]` con default EUR y guardando dos `customAttributes` en el Draft Order:
 
-```typescript
-const ALLOWED_CURRENCIES = ["EUR", "USD", "GBP"] as const;
-const rawCurrency = (body.currencyCode as string | undefined)?.toUpperCase();
-const currencyCode = (ALLOWED_CURRENCIES as readonly string[]).includes(rawCurrency ?? "")
-  ? (rawCurrency as string)
-  : "EUR";
-const currencySymbol = SYMBOL_BY_CURRENCY[currencyCode]; // "€" | "$" | "£"
-```
+| customAttribute | Valor |
+|---|---|
+| `Moneda mostrada` | `EUR` ∥ `USD` ∥ `GBP` |
+| `Símbolo moneda` | `€` ∥ `$` ∥ `£` |
 
-Luego añade dos `customAttributes` al Draft Order:
+**El draft se cierra siempre en EUR**, independientemente del `currencyCode`. La divisa es solo informativa para el equipo comercial (ver el `customAttribute` en Admin → Draft Order → Additional details).
 
-```typescript
-customAttributes: [
-  { key: "fuente", value: "solicitud-b2b-frontend" },
-  { key: "cbm_total", value: cbmTotal.toString() },
-  { key: "fecha_solicitud", value: new Date().toISOString() },
-  { key: "Moneda mostrada", value: currencyCode },
-  { key: "Símbolo moneda", value: currencySymbol },
-],
-```
+## 7. Disclaimer i18n
 
-`customAttributes` se llaman `note_attributes` en la REST API y se muestran en el Admin del Draft Order bajo "Additional details" como pares clave/valor. Los labels en español (`"Moneda mostrada"` y `"Símbolo moneda"`) son lo que ve el equipo de backoffice — están en castellano deliberadamente para que sean legibles sin traducción mental.
+En cualquier vista que muestre precios convertidos (ficha producto, carrito, form solicitud) aparece la frase **"Precios orientativos · se factura en EUR"** cuando la cookie ≠ EUR. Vive en `locales/*.json` bajo la clave `ledsc4.common.currency.fx_disclaimer`:
 
-### Por qué no se guarda el tipo de cambio numérico
-
-D13 §Decisión lo explica: el equipo comercial no recalcula el precio en EUR desde el precio mostrado en GBP. El Draft Order ya viene en EUR (precio base del producto), y la divisa anotada es solo información de contexto. Persistir un `rate` numérico añadiría falsa precisión — la tasa que aplicó Shopify Markets en el momento del envío no es necesariamente la tasa que aplicaría en facturación si por algún motivo se intentara cobrar en GBP.
-
-Si en algún momento se escala a checkout multidivisa real (Fase 2 hipotética), entonces sí habría que persistir tasa + timestamp para reconciliación. Hoy no se hace porque no se usa para nada.
-
-### Confianza en `currencyCode` del client
-
-El valor del `currencyCode` viene del client (JS storefront) y no está firmado. Un atacante podría enviar `currencyCode: "JPY"` en el body. La edge lo trata como informativo y lo valida contra el allowlist — si está fuera, cae a EUR sin error. No hay riesgo financiero porque el Draft Order se cierra siempre en EUR independientemente: el `currencyCode` no afecta al precio, solo al `customAttribute`.
-
-Esto es deliberado y aceptable en el modelo Fase 1. En un modelo Fase 2 (checkout multidivisa real) habría que firmar la divisa con el HMAC junto al `customerId` y `timestamp` para evitar que un comprador manipule la divisa del checkout. Documentado como pendiente de Fase 2 en §9.
-
-## 7. Historia: PR-CURRENCY-A v1 revertido
-
-Antes de Currency-B (mayo 2026) hubo una primera implementación, **PR-CURRENCY-A v1**, que construyó infra completa para multidivisa con tasas propias. Lo que se construyó:
-
-- **Tabla `currency_rates`** en Supabase con columnas `currency_code`, `rate`, `fetched_at`.
-- **Edge function `refresh-currency-rates`** que consultaba OpenExchangeRates (OXR) diariamente con un API key y poblaba la tabla.
-- **`pg_cron` job** que disparaba la edge cada 24h.
-- **Extensión de `submit-order-request`** para leer la tabla `currency_rates` y guardar `currency_code` + `rate` + `rate_fetched_at` en `note_attributes` del Draft Order.
-
-Al revisar la implementación contra el modelo de negocio real, se vio que toda esa infraestructura no cambiaba nada operativamente:
-
-1. Los Draft Orders se cerraban en EUR igualmente (no había cálculo de precio que usara la tasa).
-2. Las tasas guardadas no se leían en ningún punto downstream (el backoffice ignoraba `note_attributes.rate`).
-3. OXR introducía dependencia externa con coste recurrente (~$15/mes para el plan que soporta más de 1000 calls/mes).
-4. La tabla `currency_rates` y el cron añadían superficie de mantenimiento (monitoring de fallos del cron, recovery si OXR cae, refresh manual si la tasa se quedó stale).
-
-Decisión: revertir todo y migrar a auto-rates nativas de Shopify Markets, que cubre el caso de uso (presentación de precios) sin tabla propia ni cron ni dependencia externa.
-
-**Revertido en PR #78**. Lo que quedó:
-
-- Tabla `currency_rates` borrada de Supabase.
-- Edge function `refresh-currency-rates` borrada del repo.
-- Job `pg_cron` eliminado vía migration.
-- `submit-order-request` simplificado a solo `customAttributes` de divisa (sin rate numérico).
-
-Cualquier referencia a `currency_rates`, `refresh-currency-rates`, OXR, o cron diario de tasas en docs históricas o commits previos a PR #78 se lee como histórica — no es parte del sistema actual. D13 §Historia documenta esto con más detalle.
+| Locale | Texto |
+|---|---|
+| es | Precios orientativos · se factura en EUR |
+| en | Reference prices · billed in EUR |
+| fr | Prix indicatifs · facturé en EUR |
+| de | Richtpreise · Abrechnung in EUR |
+| it | Prezzi orientativi · fatturato in EUR |
+| pt-PT | Preços indicativos · faturado em EUR |
 
 ## 8. Cómo añadir una divisa nueva
 
-Pasos para activar una cuarta divisa (por ejemplo, AUD en un futuro Market Australia):
+Por ejemplo AUD:
 
-1. **Crear el Market en Shopify Admin**. Settings → Markets → Add market. Asignar país/región (e.g. Australia), locale, idiomas habilitados. Anotar el `handle` que Shopify asigna (normalmente `australia` o `au`).
+1. **Actualizar `update-fx-rates`**: añadir `AUD` a la query Frankfurter (`?from=EUR&to=USD,GBP,AUD`). Re-deploy.
+2. **Forzar refresco manual** del metafield: `SELECT private.invoke_edge_function('update-fx-rates', '{}'::jsonb, false);`
+3. **Actualizar el switcher** [`snippets/currency-switcher.liquid`](../../snippets/currency-switcher.liquid): añadir el botón AUD con su símbolo `A$`.
+4. **Actualizar el asset** [`assets/ledsc4-currency-display.js`](../../assets/ledsc4-currency-display.js): añadir `AUD` al mapping `SYMBOL_BY_CURRENCY = { EUR: '€', USD: '$', GBP: '£', AUD: 'A$' }`.
+5. **Actualizar `submit-order-request`** [`supabase/functions/submit-order-request/index.ts`](../../supabase/functions/submit-order-request/index.ts): añadir `AUD` a `ALLOWED_CURRENCIES` y a `SYMBOL_BY_CURRENCY`.
+6. **Test E2E**: cambiar la cookie a AUD, recargar, verificar que los precios cambian y que el draft generado tiene `Moneda mostrada: AUD`.
 
-2. **Añadir el target en `scripts/activate-market-currencies.mjs`**:
+Tiempo total: ~30 min sin downtime. No requiere tocar Markets.
 
-   ```javascript
-   const TARGETS = [
-     { handle: 'uk', currencyCode: 'GBP' },
-     { handle: 'usa', currencyCode: 'USD' },
-     { handle: 'australia', currencyCode: 'AUD' },  // ← nuevo
-   ];
-   ```
+## 9. Lo que NO está en alcance (deliberadamente)
 
-3. **Ejecutar el script**. Es idempotente — los Markets ya activos hacen skip. Solo aplica al nuevo.
+- **Quantity price breaks** (cart-drawer iteración por línea, quick-order-list): los precios viven dentro de strings i18n con `{{ 'sections.quick_order_list.each' | t: money: price }}`. Esos quedan en EUR — los cubre la nota global del disclaimer. Reconstruir los strings desde JS es desproporcionado para el uso real (cliente B2B viendo precio escalonado generalmente entiende EUR base).
+- **`b2b-solicitud-detalle`**: los importes ya vienen formateados desde la edge function `list-order-requests`, fuera de scope del asset frontend. La nota global del disclaimer es suficiente.
+- **Checkout multidivisa real**: aparcado. La razón sigue siendo la misma que en [D13](adrs/d13-multicurrency.md) §Alternativas: no se justifica con el volumen actual de pedidos no-EUR.
 
-4. **Añadir la opción al switcher**. Editar `snippets/currency-switcher.liquid` en cuatro sitios:
+## 10. Por qué NO Markets
 
-   - La lógica de `active_symbol` en el `{% liquid %}` inicial:
+⚠️ **Aviso al lector**: si en algún punto de la operativa surge la tentación de "simplificar" volviendo al modelo Markets nativo, leer primero [D16](adrs/d16-multicurrency-cosmetic.md). Resumen breve:
 
-     ```liquid
-     elsif active_currency == 'AUD'
-       assign active_symbol = 'A$'
-     ```
+- Cambiar Market con `{% form 'localization' %}` provoca cambio de `country_code` en la sesión.
+- En el dominio del B2B logueado (`<shop>.myshopify.com/account` redirige a `shopify.com/<shopId>/account/...` y vuelve), ese cambio de `country_code` rompe la cookie de sesión cross-domain.
+- El comprador termina deslogueado al cambiar de divisa. Pasó dos veces (PRs #140 y #141 fueron parches que no aguantaron; PR #142 revertió el modelo entero).
+- Ningún mecanismo de "preservar sesión" sobrevivió a las pruebas con Shopify customer accounts. Por eso se eligió no tocar Markets en absoluto.
 
-   - Una nueva `<li><button data-ledsc4-currency="AUD" data-country="AU">A$ AUD</button></li>` en el `<ul>` de opciones.
+Si Shopify resuelve la sesión cross-domain B2B en futuras versiones de customer accounts, la decisión podría re-evaluarse. Hoy no.
 
-   - El mapping JS `COUNTRY_BY_CURRENCY`:
+## 11. Pendientes y deuda
 
-     ```javascript
-     var COUNTRY_BY_CURRENCY = { EUR: 'ES', USD: 'US', GBP: 'GB', AUD: 'AU' };
-     ```
-
-5. **Añadir el código en la edge `submit-order-request`**:
-
-   ```typescript
-   const ALLOWED_CURRENCIES = ["EUR", "USD", "GBP", "AUD"] as const;
-   const SYMBOL_BY_CURRENCY: Record<string, string> = {
-     EUR: "€", USD: "$", GBP: "£", AUD: "A$"
-   };
-   ```
-
-6. **Test E2E**. Comprador simulado en el storefront: abrir el switcher, seleccionar AUD, verificar que los precios cambian a AUD en una ficha de producto y en el carrito, enviar una solicitud, verificar que el Draft Order resultante muestra `Moneda mostrada: AUD` y `Símbolo moneda: A$` en Additional details.
-
-Tiempo total: 30–60 minutos de implementación + test, sin downtime.
-
-## 9. Cómo escalar a checkout multidivisa real (Fase 2)
-
-Hipotético — no planificado, documentado por completitud. Cuando el volumen de pedidos no-EUR justifique el coste de infra, el camino sería:
-
-1. **Pricing por Market en cada `PriceList`**. Shopify B2B soporta nativamente price lists con precios diferenciados por Market. Configurar precios explícitos en USD/GBP en cada Catalog B2B en lugar de depender de las auto-rates de presentación.
-
-2. **Eliminar el cierre forzado en EUR de `submit-order-request`**. Hoy el Draft Order ignora la divisa del comprador y se cierra en EUR. En Fase 2 el Draft Order debería heredar la divisa del Market activo (Shopify lo hace si el Market tiene pricing propio).
-
-3. **Firmar `currencyCode` en el HMAC del frontend**. Hoy el HMAC firma `customerId:timestamp`. En Fase 2 firmar `customerId:timestamp:currencyCode` para evitar manipulación de la divisa por parte del comprador.
-
-4. **Persistir tasa + timestamp en `customAttributes`**. Hoy no se persiste (D13 §Decisión). En Fase 2 sí — para reconciliación contable.
-
-5. **Reconciliación contable en backend del cliente (Odoo)**. Hoy el cliente factura en EUR. En Fase 2 tendría que gestionar facturación en múltiples divisas, conversión a EUR para contabilidad, gestión de diferencias por tipo de cambio entre fecha de pedido y fecha de cobro.
-
-6. **Política de tipos de cambio comercial**. Las auto-rates de Shopify Markets son aproximadas — para pedidos reales el cliente probablemente quiera aplicar un margen propio (tasa banco + spread). Esto se hace con `manualRate` en `currencySettings`, pero requiere desactivar `localCurrencies` y entrar en pricing explícito por Market. Trade-off documentado.
-
-Estimación de coste: 2–4 semanas de implementación + setup contable + test E2E + período de paralelo con Fase 1. No iniciar sin demanda real y sin alineación previa con el equipo de finanzas del cliente.
-
-## 10. Pendientes
-
-- **Migration `pg_cron` removida en PR #78** — verificar que la migration de cleanup quedó aplicada en la BD de producción y staging. Si no, ejecutar manualmente. Verificación: `SELECT * FROM cron.job WHERE jobname LIKE '%currency%'` debe devolver vacío.
-
-- **Documentar `customAttributes` del Draft Order completos en 07-solicitudes-pedido §X** — `Moneda mostrada` y `Símbolo moneda` se mencionan aquí pero pertenecen al inventario completo de attributes que debería estar en 07 (junto con `fuente`, `cbm_total`, `fecha_solicitud`). Cross-link cuando 07 lo documente.
-
-- **Test de regresión del anti-bucle del switcher** — el flag `sessionStorage.ledsc4_currency_redirected` cubre el caso de Market rechazado, pero no hay test automatizado. Posible mejora: añadir test Playwright/Cypress que fuerce un Market deshabilitado y verifique que el JS no entra en redirect loop.
-
-- **Auto-detect por IP como opción opcional** — D13 lo descarta como default, pero podría exponerse como toggle en settings del theme para casos específicos (e.g. landing dedicada a UK con auto-GBP). No es prioridad.
-
-- **`country_code` vs `currencyCode` desacoplados** — hoy el mapping `EUR→ES, USD→US, GBP→GB` está hardcoded. Si en algún momento un Market cubre múltiples países con la misma divisa (e.g. Market "Eurozone" con EUR pero `country_code` ambiguo), habría que parametrizar. Hoy no aplica.
-
-- **Símbolo moneda en `submit-order-request`** — el símbolo (`€`, `$`, `£`) se calcula tanto en el switcher (JS) como en la edge (TypeScript) de forma duplicada. Posible refactor: pasarlo desde el frontend en el body junto con `currencyCode`. Marginal — la duplicación son 3 líneas.
-
-- **Detección de divisa del Market no coincidente con cookie en logs** — si el flag anti-bucle dispara (porque Shopify no aplicó el Market deseado), no hay logging server-side. El comprador queda con experiencia inconsistente (cookie GBP, precios EUR) sin que el equipo se entere. Posible mejora: enviar un beacon analytics al detectar el mismatch tras el redirect.
-
-- **D13 referencia `presentation_currency` como label semántico** — el código real usa `"Moneda mostrada"` y `"Símbolo moneda"` como keys de los `customAttributes`. Decidir si renombrar las keys del código (más estricto) o aclarar en D13 que `presentation_currency` es el rol conceptual, no el nombre literal del atributo. Recomendación: aclarar en D13, mantener las keys en español que ve el backoffice.
+- **Verificación automática del cron**: detección de `updated_at` del metafield `ledsc4.fx_rates` con más de 8 días → alerta. Hoy detección manual.
+- **Fallback si Frankfurter cae**: la EF actual hard-fails si Frankfurter no responde. En tal caso, el metafield no se refresca y el asset usa la última tasa válida (degradación grácil). Pero no hay alerta. Mejora: añadir try/catch + fallback a un proveedor secundario (e.g. exchangerate.host) si Frankfurter falla 3 veces seguidas.
+- **`note_attribute` no firmado**: el `currencyCode` del body de `submit-order-request` no está incluido en el HMAC. Un comprador podría manipularlo. No hay riesgo financiero porque el draft cierra en EUR igualmente, pero ensucia el campo informativo. Documentado en [D13](adrs/d13-multicurrency.md) §9 como Fase 2.
 
 ## Cambios
 
-- **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.
+- **v2.0** (03-jun-2026): reescritura completa tras la reversión del modelo Markets en [PR #142](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/142). Vigente el modelo cosmético (cookie + asset JS + metafield BCE).
+- **v1.0** (17-may-2026): primera publicación describiendo el modelo Markets nativo con `localCurrencies`. **Obsoleto desde el 31-may-2026** — ver D13/D16.

@@ -147,12 +147,13 @@ Procesar un row de `private.import_runs` que ya está en `status='downloaded'`. 
 
 ### Cierre del row (paso 7)
 
-Tres caminos en función del estado de `writer-result.json`:
+Cuatro caminos en función del estado de `writer-result.json`:
 
 | Estado | UPDATE aplicado | Razón |
 |---|---|---|
 | `ok: true` | `status='completed', completed_at=now(), counts, report_storage_prefix` | Run exitoso. |
 | `ok: false, stage='writer'` | `status='failed', failed_at=now(), error_stage='writer', error_message, report_storage_prefix, counts` | Fallo del writer en sí — el row ya estaba en `processing`. |
+| Sin `writer-result.json` y row en `processing` | `status='failed', failed_at=now(), error_stage='timeout', error_message, report_storage_prefix` | **Cancelación externa** (timeout GHA, cancel manual). El writer no llegó a escribir su resultado. Añadido 02-jun-2026 ([PR #147](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/147)) para que estos runs no queden colgados en `processing` indefinidamente. |
 | `ok: false, stage='fetch_metadata' \| 'download' \| 'mark_processing'` | **No toca el row** | Fallo pre-writer — el row sigue en su estado original (`downloaded`). El operador puede re-disparar `workflow_dispatch` con el mismo `run_id`. |
 
 El `where status = 'processing'` evita pisar rows que ya cambió otra ejecución concurrente. Si afecta 0 rows, log `warn` pero no falla el workflow (la operación ya hizo lo que tenía que hacer).
@@ -175,8 +176,11 @@ El `where status = 'processing'` evita pisar rows que ya cambió otra ejecución
 
 | Atributo | Valor |
 |---|---|
-| `timeout-minutes` | 60. Si el writer tarda más, hay un problema (full run típico: ~12 min). |
+| `timeout-minutes` | **180** (subido desde 60 el 02-jun-2026, [PR #147](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/147)). Full run típico tras la optimización del image_cache: ~17 min. Los 180 min son margen 10× para crecimiento de catálogo o degradación del CDN. |
 | `permissions.contents` | `read`. El workflow no necesita escribir nada al repo. |
+
+!!! warning "Historial del timeout"
+    Entre el 22-may-2026 y el 02-jun-2026, **12 noches consecutivas** se cancelaron al alcanzar los 60 minutos. El run típico era ~58 min CDN-bound, justo al límite, y al menor crecimiento del catálogo o degradación del CDN del proveedor el writer moría a media iteración (procesaba ~325/445 SKUs antes del kill). Cada noche perdía ~120 SKUs sin actualizar (stock, precio, traducciones); el drift acumulado motivó el incidente de ~200 productos en categoría decorative. Solución doble: short-circuit por `source_url` en `image_cache` (reduce el run a ~17 min) + subir el timeout a 180 min. **No bajar de 180 sin haber retirado primero el cache por URL** — el cache es lo que mantiene el run en régimen rápido.
 
 ## 4. Schema `private.import_runs`
 
@@ -433,7 +437,20 @@ Esto re-descarga el SFTP, crea un row nuevo y dispara el workflow. **No se puede
 
 ### Resetear un run colgado en `processing`
 
-Si el workflow se cayó sin escribir el row (cancelación, runner muerto, etc.), el row queda en `processing` indefinidamente:
+Desde [PR #147](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/147) (02-jun-2026) **esto ya no debería pasar** en el caso típico (timeout GHA, cancel manual): el step `Close import_runs row` corre con `if: always()` y detecta los casos donde no hay `writer-result.json` y la fila sigue en `processing`, marcándola `failed` con `error_stage='timeout'`.
+
+El caso residual donde sí queda colgado es si **el runner GHA muere antes incluso de ejecutar el step de cierre** (matada bestial del runner, kill -9 del shell, etc.). Detección:
+
+```sql
+SELECT id, kind, started_at,
+       EXTRACT(EPOCH FROM (now() - started_at))::int AS edad_s
+  FROM private.import_runs
+ WHERE status = 'processing'
+   AND started_at < now() - interval '4 hours'  -- 180min timeout + margen
+ ORDER BY started_at;
+```
+
+Reset manual:
 
 ```sql
 UPDATE private.import_runs

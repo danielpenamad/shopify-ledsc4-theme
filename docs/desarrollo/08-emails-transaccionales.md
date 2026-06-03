@@ -32,6 +32,9 @@ Cualquier `.flow.json` que veas en `flows/` es un snapshot histórico de Fase B 
 
 W4 fue movido a Supabase (edge function `promote-whitelist-matches`) porque la re-evaluación de whitelist sobre customers existentes no encaja en triggers de Flow. Su `.md` queda como contexto histórico — no es un flow vivo.
 
+!!! note "Comportamiento del cron — candidatos sin `b2b.empresa`"
+    Si un email whitelisted aún **no tiene `b2b.empresa` setteado** (porque el cliente no ha completado el formulario de registro, o lo completó parcialmente), el cron **lo salta con log `skip (no b2b.empresa): <email>`** y espera a la siguiente pasada cuando el cliente complete el formulario. **Esto no es un fallo del cron**, es comportamiento esperado desde [PR #145](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/145) (01-jun-2026). Antes de ese PR, el cron intentaba ejecutar el paso W2 → `create-company-for-customer` para esos candidatos y recibía HTTP 400 en bucle, ensuciando los logs sin avanzar.
+
 W5 está operativo en producción pero falta su `W5-walkthrough.md`. Es deuda menor.
 
 Patrón común a los 4 workflows activos:

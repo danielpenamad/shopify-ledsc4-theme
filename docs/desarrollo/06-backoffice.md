@@ -147,10 +147,13 @@ Las cuatro comparten:
 2. Lowercase + dedup intra-input.
 3. Valida cada entrada con regex razonable (email completo o `@dominio`).
 4. Merge con la whitelist actual sin duplicar.
-5. Escribe `b2b.whitelist_emails` (list) + `b2b.whitelist_last_update` (date_time).
+5. Escribe `b2b.whitelist_emails` (**tipo `json`**, no `list.*`) + `b2b.whitelist_last_update` (date_time).
 6. POST fire-and-forget a `PROMOTE_WHITELIST_FUNCTION_URL` (env var). Si el POST falla, no se reintenta — el cron `promote-whitelist-matches` cada 30 min recoge el slack.
 
 Output: `promote_triggered: true` si el POST salió OK; `false` si falló (el caller sabe que la promoción esperará al cron).
+
+!!! warning "Tipo `json` para superar el límite de 128 entradas"
+    Antes de [PR #139](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/139) (28-may-2026) el metafield era `list.single_line_text_field`. Shopify cap esos tipos a **128 entradas**, y al pegar listas más grandes el `metafieldsSet` fallaba. Ahora es `type: "json"` — el formato del valor sigue siendo un array JSON de strings, así que los lectores (`promote-whitelist-matches`, `list-pending-customers`, `readWhitelist`) no se tocaron. Techo efectivo nuevo: ~5 MB del valor (decenas de miles de emails). **No recrear como `list.*`** si en algún re-setup la migración aparece por defecto así.
 
 ### 3.3 `approve-customer`
 
