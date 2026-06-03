@@ -33,6 +33,17 @@ verify_jwt = false
 # clásico que Shopify rompió al forzar new customer accounts.
 verify_jwt = false
 
+[functions.complete-b2b-registration]
+# Carril gemelo de register-b2b-customer para customers que YA existen en
+# Shopify (alta nativa por New Customer Accounts sin pasar por el form
+# B2B). Llamada desde /pages/completar-registro al pulsar enviar.
+# Auth real: HMAC-SHA256 de `<timestamp>:<nonce>:<customerId>` firmado por
+# Liquid SSR con settings.register_b2b_hmac_secret (MISMO secret que
+# register-b2b-customer; el customerId en la firma evita reuso entre
+# carriles). TTL 1 hora. Hace customerUpdate (no Create) + tagsAdd
+# 'pendiente'; guardia: si tag aprobado/rechazado responde noop sin tocar.
+verify_jwt = false
+
 # --- Backoffice (Fase BO) ---
 # Las 4 funciones siguientes sirven /pages/admin-backoffice. Auth real
 # en todas: HMAC-SHA256 del approver.id firmado por Liquid SSR con
