@@ -327,11 +327,12 @@ Antes de tocar productos, el run full **reconcilia el caché de imágenes** (`re
 
 Después, por cada URL de `files.ledsc4.com`:
 
-1. **Rate limit CDN**: `cdnBucket.acquire(1)` — bucket compartido del run que serializa las descargas a **1 req cada 1.5 s** (SLA de cortesía probado en diagnóstico: 337 HEADs sin un solo 429).
-2. **Fetch del binario** a memoria (timeout 15 s) + `sha256` + sniff MIME (header → fallback magic-byte).
-3. **Cache lookup** en `private.image_cache(sha256 → shopify_file_id)`. Hit → reusar el File existente, salir.
+0. **Short-circuit por URL** (añadido 02-jun-2026, PR #147): lookup en `private.image_cache` por `source_url`. **Hit → devolvemos el `shopify_file_id` sin tocar el CDN ni hashear**. En régimen estacionario (catálogo estable) este paso resuelve ~99,9 % de los slots y reduce el writer de ~80 min a ~17 min. Asume URLs inmutables del proveedor — ver [D15](adrs/d15-image-cache-reconcile.md) §"Lookup pre-fetch por source_url".
+1. **Miss en (0) → Rate limit CDN**: `cdnBucket.acquire(1)` — bucket compartido del run que serializa las descargas a **1 req cada 3 s en runs full** (subido desde 1/1.5s tras el incidente de 12 noches consecutivas de timeout, ver [02b §Timeout](02b-importer-deploy.md)) o **1 req cada 1.5 s en stock-only**.
+2. **Fetch del binario** a memoria (timeout 30 s en full, 15 s en stock-only) + `sha256` + sniff MIME (header → fallback magic-byte).
+3. **Cache lookup por `sha256`** en `private.image_cache`. Hit (URL nueva pero binario ya cacheado) → reusar el File existente, salir.
 4. **Miss** → `stagedUploadsCreate(resource:IMAGE)` → POST multipart al target → `fileCreate(originalSource: resourceUrl)` → polling de `MediaImage.status` hasta `READY` o `FAILED` (techo 15 s).
-5. **Cache write**: `INSERT … ON CONFLICT (sha256) DO UPDATE last_used_at=now()`.
+5. **Cache write**: `INSERT … ON CONFLICT (sha256) DO UPDATE last_used_at=now()`. La fila escribe también `source_url` para que el próximo run pueda hacer el short-circuit del paso (0).
 
 El helper vive en `scripts/lib/image-upload.mjs`. **Nunca lanza** — cada modo de fallo (`fetch_failed`, `fetch_timeout`, `unsupported_mime`, `staged_upload_failed`, `file_create_failed`, `file_status_failed`) devuelve `{ ok:false, kind, message }` y el slot pasa a `null` en `productSet.input.files[]` (no se borra la imagen existente del producto).
 
@@ -489,7 +490,7 @@ Además de las fotos comerciales que vienen como URL en las columnas 58-63 del C
 
 ### `private.image_cache`
 
-Tabla Postgres en Supabase. Keyed por `sha256` del binario:
+Tabla Postgres en Supabase. Keyed por `sha256` del binario, con índice secundario en `source_url`:
 
 | Columna | Tipo |
 |---|---|
@@ -497,13 +498,20 @@ Tabla Postgres en Supabase. Keyed por `sha256` del binario:
 | `shopify_file_id` | text |
 | `mime_type` | text |
 | `byte_size` | bigint |
-| `source_url` | text |
+| `source_url` | text (índice parcial `WHERE source_url IS NOT NULL`, añadido 02-jun-2026) |
 | `created_at` | timestamptz |
 | `last_used_at` | timestamptz |
 
 Sobrevive a la descatalogación de SKUs y permite que dos SKUs distintos con la misma foto compartan el mismo File en Shopify. La escritura es **write-once sobre `shopify_file_id`** (`ON CONFLICT` solo refresca `last_used_at`). Sin política de eviction por volumen — al volumen actual (~455 productos × hasta 6 imgs) la tabla cabe holgada.
 
-Migration: `supabase/migrations/20260510120000_image_cache.sql`.
+**Dos caminos de lookup**:
+
+1. **Por `source_url`** (paso 0 del pipeline §7.0). Hit → devolvemos el GID directamente, sin tocar el CDN. Asume URLs inmutables (LedsC4 renombra el path cuando la imagen cambia). Esta es la vía de coste cero en runs estables.
+2. **Por `sha256`** (paso 3). Solo se ejecuta si (1) falló. Requiere haber descargado el binario.
+
+Migrations:
+- `supabase/migrations/20260510120000_image_cache.sql` (tabla base)
+- `supabase/migrations/20260602120000_image_cache_source_url_index.sql` (índice para lookup pre-fetch)
 
 #### Reconciliación (`reconcileImageCache`)
 
@@ -511,9 +519,14 @@ Como `cacheLookup` no verifica existencia, un GID que muere fuera del pipeline (
 
 ### Rate limit a la CDN del cliente
 
-`cdnBucket.acquire(1)` serializa las descargas a **1 req cada 1.5 s**. Es el SLA de cortesía probado en diagnóstico: 337 HEADs sin un solo 429.
+`cdnBucket.acquire(1)` serializa las descargas. Cadencia por modo:
 
-Tunable vía `options.cdnRateLimit`. Tirar para abajo cuando la telemetría confirme que la CDN aguanta más.
+- **Full run**: 1 req cada 3 s, `imageFetchTimeoutMs = 30000` (subido 02-jun-2026 tras incidente — el rate más lento dejaba más margen ante saturación esporádica del CDN).
+- **Stock-only**: 1 req cada 1.5 s. No hace resolución de imágenes, pero el bucket existe por simetría con el writer.
+
+Es el SLA de cortesía probado en diagnóstico: 337 HEADs sin un solo 429 a 1/1.5s. Tras subir al short-circuit por `source_url`, el rate del CDN solo afecta a uploads frescos (URLs nuevas), que son ~12 por run en régimen estacionario.
+
+Tunable vía `options.cdnRateLimit` y `options.imageFetchTimeoutMs`.
 
 ### Polling de status post-upload
 

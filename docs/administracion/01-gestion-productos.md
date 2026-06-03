@@ -105,7 +105,7 @@ Tres metafields a nivel de tienda. Algunos son editables; otros los mantiene el 
 | Metafield | Tipo | Descripción | ¿Lo edita el admin? |
 | --- | --- | --- | --- |
 | `b2b.email_backoffice` | single_line_text | Destinatario de los avisos automáticos de nuevo registro B2B | Sí, si el destinatario cambia. Se edita desde Settings → Custom data → Shop. Si no se ha rellenado, el sistema usa una dirección de fallback definida en el theme. |
-| `b2b.whitelist_emails` | list.single_line_text | Lista de emails pre-aprobados | **No editar desde Settings.** Se gestiona desde el backoffice B2B (ver [Gestionar whitelist](../operador/02-gestionar-whitelist.md)). Editar a mano funciona pero se pisa la próxima vez que el operador toque la whitelist desde el backoffice. |
+| `b2b.whitelist_emails` | json (array de emails) | Lista de emails pre-aprobados | **No editar desde Settings.** Se gestiona desde el backoffice B2B (ver [Gestionar whitelist](../operador/02-gestionar-whitelist.md)). Editar a mano funciona pero se pisa la próxima vez que el operador toque la whitelist desde el backoffice. |
 | `b2b.whitelist_last_update` | date_time | Timestamp de la última actualización de la whitelist | **No tocar.** Lo escribe el sistema automáticamente cada vez que la whitelist cambia. Se muestra en el KPI "Última actualización" del backoffice. |
 
 ### Página

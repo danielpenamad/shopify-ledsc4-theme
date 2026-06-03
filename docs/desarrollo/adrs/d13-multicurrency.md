@@ -1,13 +1,18 @@
 # D13 · Multidivisa con auto-rates de Shopify Markets
 
 !!! info "Estado del documento"
-    **Versión:** 1.0 · 17-may-2026
-    **Estado:** ✅ aceptada
+    **Versión:** 1.1 · 03-jun-2026
+    **Estado:** ⛔ **SUPERSEDED por [D16](d16-multicurrency-cosmetic.md)** (03-jun-2026)
     **Audiencia:** Equipo de desarrollo
+
+!!! danger "Decisión revertida"
+    El modelo descrito en este ADR (multidivisa nativa con `localCurrencies` en Shopify Markets) **se revirtió el 31-may-2026** en [PR #142](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/142) porque rompía la sesión cross-domain del B2B logueado. La ADR vigente es [D16 · Multidivisa cosmética sin tocar Markets](d16-multicurrency-cosmetic.md). Este documento se conserva como histórico para explicar el contexto y las decisiones intermedias (PRs #140, #141 fueron parches que no aguantaron) — **no** describe el comportamiento actual.
 
 ## Estado
 
-Aceptada · PR-CURRENCY-B (mayo 2026) · vigente. Supersede a la implementación de PR-CURRENCY-A v1 (revertida en PR #78).
+⛔ Superseded por [D16](d16-multicurrency-cosmetic.md) · 03-jun-2026.
+
+Aceptada inicialmente · PR-CURRENCY-B (mayo 2026). Supersedió a la implementación de PR-CURRENCY-A v1 (revertida en PR #78).
 
 ## Contexto
 

@@ -385,16 +385,19 @@ Esto es una capa más en el gate, no un comportamiento nuevo aquí — pero es r
 
 Inventario completo en [14-secrets](14-secrets.md).
 
-## 10. Currency-B (multicurrency)
+## 10. Currency cosmético (multicurrency)
 
-Detalle en [10-multicurrency](10-multicurrency.md) y [D13](adrs/d13-multicurrency.md). Resumen del impacto en Fase D:
+Detalle en [10-multicurrency](10-multicurrency.md) y [D16](adrs/d16-multicurrency-cosmetic.md). Resumen del impacto en Fase D:
 
-- El form `b2b-solicitud-form.liquid` lee la moneda activa del Customer (Shopify Markets) y la incluye en el POST como `currencyCode`.
+- El form `b2b-solicitud-form.liquid` lee la **cookie `ledsc4_currency`** (no Shopify Markets) en el momento del submit y la incluye en el POST como `currencyCode`.
 - La edge `submit-order-request` la valida contra `["EUR", "USD", "GBP"]`; si llega inválida o ausente → default `EUR`.
 - Se persiste como custom attributes `Moneda mostrada` + `Símbolo moneda` en el Draft Order ([01-data-model](01-data-model.md) §8).
-- **No se persiste rate numérico** — decisión consciente: el backoffice no necesita recalcular precios, solo saber qué divisa veía el comprador. El rate real lo aplica Shopify Markets en checkout (que aquí no aplica) y, en su lugar, en la conversión a orden real desde el draft.
+- **No se persiste rate numérico** — el draft se cierra siempre en EUR, no hay nada que reconciliar. La divisa es informativa para el equipo comercial.
 
-PR-CURRENCY-A original (tabla `currency_rates` + edge OXR + cron diario) fue **revertido en PR #78** y sustituido por este modelo más simple — está en la sección "obsoleto" del historial.
+!!! warning "Modelo de multicurrency revisado (03-jun-2026)"
+    Hasta el 31-may-2026 el form leía la divisa del Market activo en Shopify (multicurrency nativa). **El modelo nativo se revirtió** en [PR #142](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/142) porque rompía la sesión cross-domain del B2B logueado. El form actual lee la cookie `ledsc4_currency` que setea el switcher cosmético del theme. La edge `submit-order-request` **no se ha tocado** — sigue aceptando los mismos valores y emitiendo los mismos `customAttributes`. Ver [D16](adrs/d16-multicurrency-cosmetic.md) para el contexto completo.
+
+PR-CURRENCY-A original (tabla `currency_rates` + edge OXR + cron diario) fue **revertido en PR #78** y sustituido por el modelo Currency-B con Markets nativos; ese a su vez fue **revertido en PR #142** (motivo: sesión cross-domain B2B). El estado actual es el de Currency cosmético descrito arriba.
 
 ## 11. Gotchas conocidos
 

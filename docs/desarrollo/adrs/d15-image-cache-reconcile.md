@@ -34,6 +34,17 @@ desactualizados hasta que la caché se invalidó.
 
 ## Decisión
 
+**0 · Lookup pre-fetch por `source_url`** (añadido 02-jun-2026 en [PR #147](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/147)).
+Antes del GET al CDN, `resolveImageToShopifyFileId` consulta `private.image_cache` por `source_url`. Hit → devuelve el `shopify_file_id` y `sha256` cacheados sin tocar el CDN. Miss → flujo histórico (fetch → hash → cache lookup por sha256 → upload).
+
+Motivación: el cache por sha256 existente exige descargar el binario en cada slot (~2.700 GETs paginados a 1/3s en un full = ~80 min). En régimen estacionario (catálogo estable, URLs invariantes) el 99,9 % de los slots ya tienen entrada en `image_cache` con su `source_url`, así que ese GET es trabajo perdido. El short-circuit por URL reduce el writer de ~80 min a ~17 min, eliminando la causa raíz del incidente de 12 noches consecutivas con timeout 60 min ([02b §Timeout](../02b-importer-deploy.md#timeout-y-permisos)).
+
+Asunción: **las URLs del CDN del proveedor son inmutables**. Cuando la imagen cambia, LedsC4 renombra el path (consistente con su comportamiento histórico observado). Si en el futuro detectamos URLs que mutan en sitio sin renombrar, el lookup por URL devolvería un GID obsoleto y habría que añadir verificación HEAD condicional (ETag/Last-Modified). La asunción ya estaba implícita en el resto del cache — `reconcileImageCache` (decisión §1 abajo) solo verifica que el File de Shopify exista, no que el binario del CDN coincida con el binario que produjo el sha256 original.
+
+Migration del índice: [`supabase/migrations/20260602120000_image_cache_source_url_index.sql`](../../../supabase/migrations/20260602120000_image_cache_source_url_index.sql) (índice parcial `WHERE source_url IS NOT NULL`).
+
+---
+
 **1 · Reconciliación en lote al inicio de cada run full.**
 `reconcileImageCache({ ctx, dbConnection, onProgress, batchSize=250 })` se
 ejecuta en `runFullImport` tras `fetchShopContext` y antes del worker pool,
@@ -124,5 +135,6 @@ cambio de schema.
 
 ## Cambios
 
+- **v1.1** (03-jun-2026): añadida la decisión §0 (lookup pre-fetch por `source_url`) tras [PR #147](https://github.com/danielpenamad/shopify-ledsc4-theme/pull/147). Mantiene el resto de la decisión inalterado — la reconciliación por GIDs sigue siendo el mecanismo de salud del cache; el lookup por URL solo cambia el orden de los caminos de hit.
 - **v1.0** (18-may-2026): primera publicación. Decisión implementada y
   desplegada en `main` (PR #127).
