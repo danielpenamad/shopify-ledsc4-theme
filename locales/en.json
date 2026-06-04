@@ -637,13 +637,13 @@
       },
       "hero": {
         "eyebrow": "Professional access",
-        "heading_html": "<p>The LEDS C4 B2B Outlet, <em>for professionals only</em></p>",
+        "heading_html": "<p>The LedsC4 B2B Outlet, <em>for professionals only</em></p>",
         "lead": "Here we explain what the portal is, who can access it, and how the approval process works. If after reading this you think you're a good fit, we'll take you to the application form."
       },
       "keep_reading": "Still not clear? Keep reading ↓",
       "que_es": {
         "heading": "What is this portal",
-        "body_html": "LEDS C4 Outlet B2B is a private wholesale portal for lighting professionals to liquidate surplus and discontinued LEDS C4 stock. It is independent from the public website <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, aimed at the end consumer): neither the catalog, nor the prices, nor the user account are shared."
+        "body_html": "LedsC4 Outlet B2B is a private wholesale portal for lighting professionals to liquidate surplus and discontinued LedsC4 stock. It is independent from the public website <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, aimed at the end consumer): neither the catalog, nor the prices, nor the user account are shared."
       },
       "quien": {
         "heading": "Who can access",
@@ -660,13 +660,13 @@
       },
       "como": {
         "heading": "How access works",
-        "intro_html": "There are <strong>two ways</strong> depending on whether LEDS C4 already knows you:",
+        "intro_html": "There are <strong>two ways</strong> depending on whether LedsC4 already knows you:",
         "fast_tag": "Fast track",
         "fast_title": "Pre-approved",
-        "fast_desc": "If your email is on the LEDS C4 pre-approved professionals list, your account will be activated automatically upon registration. You'll gain access to the catalog in minutes, without any waiting.",
+        "fast_desc": "If your email is on the LedsC4 pre-approved professionals list, your account will be activated automatically upon registration. You'll gain access to the catalog in minutes, without any waiting.",
         "std_tag": "Standard track",
         "std_title": "Manual approval",
-        "std_desc_html": "If your email is not pre-approved, the LEDS C4 team will manually review your request. Estimated response time: <strong>24–48 business hours</strong>. You will receive an email once it has been resolved, whether approved or denied.",
+        "std_desc_html": "If your email is not pre-approved, the LedsC4 team will manually review your request. Estimated response time: <strong>24–48 business hours</strong>. You will receive an email once it has been resolved, whether approved or denied.",
         "steps_aria": "Access process steps",
         "step1_title": "You register",
         "step1_desc": "You fill out the form with your company details, NIF, and sector.",
@@ -750,7 +750,7 @@
       "f3_desc": "Iberian warehouse with stock available. Direct shipping without intermediaries for professional orders."
     },
     "aprobado_home": {
-      "lead": "Explore the LEDS C4 outlet catalog, prepare your order request, and check the status of your shipments.",
+      "lead": "Explore the LedsC4 outlet catalog, prepare your order request, and check the status of your shipments.",
       "solicitudes": {
         "eyebrow": "Your activity",
         "title": "My order requests",
@@ -805,7 +805,7 @@
       },
       "lista": {
         "loading": "Loading requests…",
-        "empty_lead": "You haven't submitted any requests yet. Explore the LEDS C4 outlet catalog and prepare your first order — it will appear here as soon as you submit it.",
+        "empty_lead": "You haven't submitted any requests yet. Explore the LedsC4 outlet catalog and prepare your first order — it will appear here as soon as you submit it.",
         "subheading": "Your Requests",
         "th_fecha": "Date",
         "th_importe_est": "Estimated amount",
@@ -849,7 +849,7 @@
           "one": "1 product available",
           "other": "{{ count }} products available"
         },
-        "fallback_meta_default": "Excess and discontinued stock from LEDS C4"
+        "fallback_meta_default": "Excess and discontinued stock from LedsC4"
       }
     },
     "common": {
@@ -883,7 +883,7 @@
         "privacidad": "Privacy",
         "condiciones": "Terms and Conditions",
         "canal_etico": "Ethics channel",
-        "copyright_html": "© {{ year }} LEDS C4, SA · Tax ID A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
+        "copyright_html": "© {{ year }} LedsC4, SA · Tax ID A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
       },
       "form": {
         "option_select": "Select…",

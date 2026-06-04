@@ -590,13 +590,13 @@
         "step3_title": "Accès au catalogue",
         "step3_desc": "Vous recevrez un e-mail de bienvenue avec le lien vers le catalogue Outlet.",
         "heading": "Comment fonctionne l'accès",
-        "intro_html": "Il y a <strong>deux possibilités</strong> selon que LEDS C4 vous connaisse déjà :",
+        "intro_html": "Il y a <strong>deux possibilités</strong> selon que LedsC4 vous connaisse déjà :",
         "fast_tag": "Voie rapide",
         "fast_title": "Pré-approuvés",
-        "fast_desc": "Si votre adresse e-mail figure sur la liste des professionnels pré-approuvés de LEDS C4, votre compte sera automatiquement activé lors de l'enregistrement. Vous accédez au catalogue en quelques minutes, sans attente.",
+        "fast_desc": "Si votre adresse e-mail figure sur la liste des professionnels pré-approuvés de LedsC4, votre compte sera automatiquement activé lors de l'enregistrement. Vous accédez au catalogue en quelques minutes, sans attente.",
         "std_tag": "Voie standard",
         "std_title": "Approbation manuelle",
-        "std_desc_html": "Si votre e-mail n'est pas pré-approuvé, l'équipe LEDS C4 examinera votre demande manuellement. Délai de réponse estimé : <strong>24 à 48 heures ouvrables</strong>. Vous recevrez un e-mail une fois la demande traitée, qu'elle soit approuvée ou refusée.",
+        "std_desc_html": "Si votre e-mail n'est pas pré-approuvé, l'équipe LedsC4 examinera votre demande manuellement. Délai de réponse estimé : <strong>24 à 48 heures ouvrables</strong>. Vous recevrez un e-mail une fois la demande traitée, qu'elle soit approuvée ou refusée.",
         "steps_aria": "Étapes du processus d'accès",
         "step1_title": "Vous vous inscrivez",
         "step1_desc": "Vous remplissez le formulaire avec les informations de votre entreprise, votre numéro d'identification fiscale et votre secteur d'activité.",
@@ -677,13 +677,13 @@
       },
       "hero": {
         "eyebrow": "Accès professionnel",
-        "heading_html": "L'Outlet B2B de LEDS C4, <em>réservé aux professionnels</em>",
+        "heading_html": "L'Outlet B2B de LedsC4, <em>réservé aux professionnels</em>",
         "lead": "Ici, nous expliquons ce qu'est le portail, qui peut y accéder et comment fonctionne le processus d'approbation. Si après l'avoir lu, vous pensez correspondre, nous vous dirigerons vers le formulaire de candidature."
       },
       "keep_reading": "Vous n'êtes toujours pas sûr ? Lisez la suite ↓",
       "que_es": {
         "heading": "Qu'est-ce que ce portail",
-        "body_html": "LEDS C4 Outlet B2B est un portail de vente en gros privé pour liquider les stocks excédentaires et les articles en fin de vie de LEDS C4 aux professionnels du secteur de l'éclairage. Il est indépendant du site public <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, destiné au consommateur final) : ni le catalogue, ni les prix, ni le compte utilisateur ne sont partagés."
+        "body_html": "LedsC4 Outlet B2B est un portail de vente en gros privé pour liquider les stocks excédentaires et les articles en fin de vie de LedsC4 aux professionnels du secteur de l'éclairage. Il est indépendant du site public <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, destiné au consommateur final) : ni le catalogue, ni les prix, ni le compte utilisateur ne sont partagés."
       },
       "quien": {
         "heading": "Qui peut y accéder",
@@ -750,7 +750,7 @@
       "f3_desc": "Entrepôt ibérique avec stock disponible. Envoi direct et sans intermédiaires pour les commandes professionnelles."
     },
     "aprobado_home": {
-      "lead": "Explorez le catalogue outlet de LEDS C4, préparez votre demande de commande et consultez l'état de vos envois.",
+      "lead": "Explorez le catalogue outlet de LedsC4, préparez votre demande de commande et consultez l'état de vos envois.",
       "solicitudes": {
         "eyebrow": "Votre activité",
         "title": "Mes demandes de commande",
@@ -798,7 +798,7 @@
         "privacidad": "Confidentialité",
         "condiciones": "Conditions générales",
         "canal_etico": "Canal éthique",
-        "copyright_html": "© {{ year }} LEDS C4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
+        "copyright_html": "© {{ year }} LedsC4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
       },
       "form": {
         "option_select": "Sélectionner…",
@@ -901,7 +901,7 @@
       },
       "lista": {
         "loading": "Chargement des requêtes…",
-        "empty_lead": "Vous n'avez pas encore envoyé de demande. Parcourez le catalogue outlet de LEDS C4 et préparez votre première commande – elle apparaîtra ici dès que vous l'aurez envoyée.",
+        "empty_lead": "Vous n'avez pas encore envoyé de demande. Parcourez le catalogue outlet de LedsC4 et préparez votre première commande – elle apparaîtra ici dès que vous l'aurez envoyée.",
         "subheading": "Vos demandes",
         "th_fecha": "Date",
         "th_ref": "Réf",
@@ -936,7 +936,7 @@
           "one": "1 produit disponible",
           "other": "{{ count }} produits disponibles"
         },
-        "fallback_meta_default": "Stocks excédentaires et déréférencés de LEDS C4"
+        "fallback_meta_default": "Stocks excédentaires et déréférencés de LedsC4"
       }
     },
     "cart": {
