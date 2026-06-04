@@ -616,7 +616,7 @@
         "privacidad": "Privacidad",
         "condiciones": "Condiciones",
         "canal_etico": "Canal ético",
-        "copyright_html": "© {{ year }} LEDS C4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
+        "copyright_html": "© {{ year }} LedsC4, SA · CIF A59410910 · Carretera de Rubí 88, Sant Cugat del Vallés"
       },
       "form": {
         "option_select": "Selecciona…",
@@ -675,13 +675,13 @@
     "acceso": {
       "hero": {
         "eyebrow": "Acceso profesional",
-        "heading_html": "El Outlet B2B de LEDS C4, <em>solo para profesionales</em>",
+        "heading_html": "El Outlet B2B de LedsC4, <em>solo para profesionales</em>",
         "lead": "Aquí explicamos qué es el portal, quién puede acceder y cómo funciona el proceso de aprobación. Si después de leerlo crees que encajas, te llevamos al formulario de solicitud."
       },
       "keep_reading": "¿Aún no lo tienes claro? Sigue leyendo ↓",
       "que_es": {
         "heading": "Qué es este portal",
-        "body_html": "LEDS C4 Outlet B2B es un portal mayorista privado para liquidar stocks excedentes y descatalogados de LEDS C4 a profesionales del sector iluminación. Es independiente de la web pública <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, dirigida al consumidor final): ni el catálogo, ni los precios, ni la cuenta de usuario se comparten."
+        "body_html": "LedsC4 Outlet B2B es un portal mayorista privado para liquidar stocks excedentes y descatalogados de LedsC4 a profesionales del sector iluminación. Es independiente de la web pública <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C, dirigida al consumidor final): ni el catálogo, ni los precios, ni la cuenta de usuario se comparten."
       },
       "quien": {
         "heading": "Quién puede acceder",
@@ -698,13 +698,13 @@
       },
       "como": {
         "heading": "Cómo funciona el acceso",
-        "intro_html": "Hay <strong>dos caminos</strong> según si LEDS C4 ya te conoce:",
+        "intro_html": "Hay <strong>dos caminos</strong> según si LedsC4 ya te conoce:",
         "fast_tag": "Vía rápida",
         "fast_title": "Pre-aprobados",
-        "fast_desc": "Si tu email está en la lista de profesionales pre-aprobados de LEDS C4, al registrarte tu cuenta se activa automáticamente. Entras al catálogo en cuestión de minutos, sin esperas.",
+        "fast_desc": "Si tu email está en la lista de profesionales pre-aprobados de LedsC4, al registrarte tu cuenta se activa automáticamente. Entras al catálogo en cuestión de minutos, sin esperas.",
         "std_tag": "Vía estándar",
         "std_title": "Aprobación manual",
-        "std_desc_html": "Si tu email no está pre-aprobado, el equipo de LEDS C4 revisa tu solicitud manualmente. Tiempo estimado de respuesta: <strong>24–48 horas hábiles</strong>. Recibirás un email cuando esté resuelta, tanto si se aprueba como si se deniega.",
+        "std_desc_html": "Si tu email no está pre-aprobado, el equipo de LedsC4 revisa tu solicitud manualmente. Tiempo estimado de respuesta: <strong>24–48 horas hábiles</strong>. Recibirás un email cuando esté resuelta, tanto si se aprueba como si se deniega.",
         "steps_aria": "Pasos del proceso de acceso",
         "step1_title": "Te registras",
         "step1_desc": "Rellenas el formulario con tus datos de empresa, NIF y sector.",
@@ -838,7 +838,7 @@
       "f3_desc": "Almacén ibérico con stock disponible. Envío directo y sin intermediarios para pedidos profesionales."
     },
     "aprobado_home": {
-      "lead": "Explora el catálogo outlet de LEDS C4, prepara tu solicitud de pedido y consulta el estado de tus envíos.",
+      "lead": "Explora el catálogo outlet de LedsC4, prepara tu solicitud de pedido y consulta el estado de tus envíos.",
       "solicitudes": {
         "eyebrow": "Tu actividad",
         "title": "Mis solicitudes de pedido",
@@ -893,7 +893,7 @@
       },
       "lista": {
         "loading": "Cargando solicitudes…",
-        "empty_lead": "Aún no has enviado ninguna solicitud. Explora el catálogo outlet de LEDS C4 y prepara tu primer pedido — aparecerá aquí en cuanto la envíes.",
+        "empty_lead": "Aún no has enviado ninguna solicitud. Explora el catálogo outlet de LedsC4 y prepara tu primer pedido — aparecerá aquí en cuanto la envíes.",
         "subheading": "Tus solicitudes",
         "th_fecha": "Fecha",
         "th_ref": "Ref",
@@ -937,7 +937,7 @@
           "one": "1 producto disponible",
           "other": "{{ count }} productos disponibles"
         },
-        "fallback_meta_default": "Stocks excedentes y descatalogados de LEDS C4"
+        "fallback_meta_default": "Stocks excedentes y descatalogados de LedsC4"
       }
     },
     "cart": {
