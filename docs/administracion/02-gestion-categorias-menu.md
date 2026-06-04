@@ -1,7 +1,7 @@
 # Categorías y menú
 
 !!! info "Estado del documento"
-    **Versión:** 0.2 · 16-may-2026
+    **Versión:** 0.3 · 04-jun-2026
     **Estado:** ✅ completo
     **Audiencia:** Administrador del negocio
     **Bloqueado por:** —
@@ -20,13 +20,13 @@ El menú del portal tiene una **estructura cerrada de 5 categorías padre**, cad
 | Architectural | `cat-architectural` | Sí |
 | Decorative | `cat-decorative` | Sí |
 | Outdoor | `cat-outdoor` | Sí |
-| Emergency | `cat-emergency` | No |
+| Emergency | `cat-emergency` | Sí |
 
-Los **5 padres son fijos**: no se añaden, no se quitan, no se renombran. El número y nombre de los **hijos** dentro de cada padre lo define el equipo técnico desde código. En total el portal tiene del orden de 38 colecciones con handle `cat-*` (los 5 padres más los 33 hijos).
+Los **5 padres son fijos**: no se añaden, no se quitan, no se renombran. El número y nombre de los **hijos** dentro de cada padre lo define el equipo técnico desde código. En total el portal tiene del orden de 53 colecciones con handle `cat-*` (los 5 padres más los 48 hijos).
 
 ### Cómo se ve desde fuera y desde dentro
 
-- **Desde el portal** (lo que ve el cliente logado): los 5 padres aparecen en el header como un menú de navegación. Al pasar el ratón por encima de un padre con hijos, se despliega su submenú con los hijos. `Emergency` aparece como enlace plano sin dropdown (3 productos, no llega al umbral para tener sub-categorías por tipo).
+- **Desde el portal** (lo que ve el cliente logado): los 5 padres aparecen en el header como un menú de navegación. Al pasar el ratón por encima de un padre, se despliega su submenú con los hijos (Emergency también, desde el alta de sus tipos en jun-2026).
 - **Desde Shopify Admin → Products → Collections**: verás todas las colecciones `cat-*` listadas. Son **smart collections** definidas por reglas (no las pueblas tú a mano: los productos entran o salen automáticamente según sus campos del CSV de surtido).
 
 ### Sobre el orden dentro de los dropdowns
@@ -63,5 +63,6 @@ La documentación técnica de estos scripts está en el eje [Desarrollo](../desa
 
 ## Cambios
 
+- **v0.3** (04-jun-2026): añadidos 15 hijos faltantes detectados en auditoría del feed Coleccion:2026 (Decorative: Superficie de Techo, Pie, Proyector, Pantalla Accesorio · Outdoor: Baliza, Empotrable de techo, Componente · Forlight: Luz de lectura, Chillout, Flexo, Módulo, Empotrable de pared · Architectural: Perfil · Emergency: Superficie de Pared, Superficie de Techo). Recuento actualizado a 5 + 48 = 53. Emergency pasa a tener dropdown.
 - **v0.2** (16-may-2026): corregida una incongruencia interna — el cuerpo decía "los 6 padres" mientras la tabla lista 5. Son 5 (Forlight, Architectural, Decorative, Outdoor, Emergency). Precisado el conteo de colecciones (5 padres + 33 hijos). El eje Desarrollo, antes pendiente, ya está publicado.
 - **v0.1** (12-may-2026): primera publicación
