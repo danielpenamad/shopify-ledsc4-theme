@@ -69,22 +69,36 @@
     if (/[0-9]/.test(p)) return parseInt(p, 10) === ctrl;
     return CIF_CONTROL_LETTERS[ctrl] === p;
   }
-  function validateTaxId(raw) {
-    if (!raw) return { ok: false };
-    var v = String(raw).toUpperCase().replace(/[\s-]/g, '');
-    if (isValidDNI(v) || isValidNIE(v) || isValidCIF(v)) {
-      return { ok: true, normalized: v };
+  // Normalización compartida: uppercase + strip espacios/puntos/guiones.
+  // Misma transformación que aplica el backend antes de validar.
+  function normalizeTaxId(raw) {
+    return String(raw || '').toUpperCase().replace(/[\s.\-]/g, '');
+  }
+
+  // Validación ramificada por país. Paridad con la edge function:
+  //   - country === 'ES' → DNI / NIE / CIF con dígito de control.
+  //   - resto (o null) → saneo mínimo 4–20 alfanuméricos.
+  function validateTaxId(raw, country) {
+    var v = normalizeTaxId(raw);
+    if (!v) return { ok: false, reason: country === 'ES' ? 'es' : 'format' };
+    if (country === 'ES') {
+      if (isValidDNI(v) || isValidNIE(v) || isValidCIF(v)) {
+        return { ok: true, normalized: v };
+      }
+      return { ok: false, reason: 'es' };
     }
-    return { ok: false };
+    if (/^[A-Z0-9]{4,20}$/.test(v)) return { ok: true, normalized: v };
+    return { ok: false, reason: 'format' };
   }
 
   // --- Field error UI ---
 
   var ERRORS = {
-    required: I18N_ERR.required || 'Este campo es obligatorio.',
-    email:    I18N_ERR.email    || 'Email no válido.',
-    nif:      I18N_ERR.nif      || 'NIF / CIF / NIE no válido (revisa formato y dígito de control).',
-    terms:    I18N_ERR.terms    || 'Debes aceptar las condiciones para continuar.',
+    required:   I18N_ERR.required   || 'Este campo es obligatorio.',
+    email:      I18N_ERR.email      || 'Email no válido.',
+    nif:        I18N_ERR.nif        || 'NIF / CIF / NIE no válido (revisa formato y dígito de control).',
+    nif_format: I18N_ERR.nif_format || 'Introduce un identificador fiscal válido (4–20 caracteres, sin símbolos).',
+    terms:      I18N_ERR.terms      || 'Debes aceptar las condiciones para continuar.',
   };
 
   function findErrorNode(fieldName) {
@@ -150,8 +164,10 @@
       errors.email = ERRORS.email;
     }
     if (!values.empresa) errors.empresa = ERRORS.required;
-    var taxRes = validateTaxId(values.nif);
-    if (!taxRes.ok) errors.nif = ERRORS.nif;
+    var taxRes = validateTaxId(values.nif, values.pais);
+    if (!taxRes.ok) {
+      errors.nif = taxRes.reason === 'es' ? ERRORS.nif : ERRORS.nif_format;
+    }
     if (!values.sector) errors.sector = ERRORS.required;
     if (!values.pais) errors.pais = ERRORS.required;
     if (!values.condiciones) errors.condiciones = ERRORS.terms;
@@ -179,17 +195,16 @@
 
   // --- NIF live validation on blur ---
 
+  // En blur SOLO normalizamos (uppercase + strip puntuación). No validamos
+  // contra reglas por país porque cuando el usuario sale del campo NIF el
+  // país puede no estar elegido todavía y daríamos un falso negativo.
+  // La validación dura ocurre en submit, donde ya tenemos values.pais.
   var nifInput = document.getElementById('reg-nif');
   if (nifInput) {
     nifInput.addEventListener('blur', function () {
-      if (!nifInput.value) return; // no validar campo vacío al perder foco
-      var res = validateTaxId(nifInput.value);
-      if (res.ok) {
-        nifInput.value = res.normalized;
-        setFieldError(nifInput, 'nif', null);
-      } else {
-        setFieldError(nifInput, 'nif', ERRORS.nif);
-      }
+      if (!nifInput.value) return;
+      nifInput.value = normalizeTaxId(nifInput.value);
+      setFieldError(nifInput, 'nif', null);
     });
   }
 

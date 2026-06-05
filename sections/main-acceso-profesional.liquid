@@ -315,18 +315,102 @@
           <input type="hidden" name="sector" value="otro">
           <div class="b2b-acceso__field">
             <label for="reg-pais">{{ 'ledsc4.acceso.form.label_pais' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+            {%- comment -%}
+              Lista de 89 países (Europa + América + N. África + Oriente Medio),
+              orden: España primero, resto alfabético por nombre en español.
+              Label "UK" literal para GB en todos los locales. Backend
+              normalizeCountry acepta cualquier ISO-2 sin allowlist.
+            {%- endcomment -%}
             <select name="pais" id="reg-pais" required>
               <option value="" disabled selected>{{ 'ledsc4.common.form.option_select' | t }}</option>
               <option value="ES">{{ 'ledsc4.common.country.es' | t }}</option>
-              <option value="PT">{{ 'ledsc4.common.country.pt' | t }}</option>
-              <option value="FR">{{ 'ledsc4.common.country.fr' | t }}</option>
-              <option value="IT">{{ 'ledsc4.common.country.it' | t }}</option>
+              <option value="AL">{{ 'ledsc4.common.country.al' | t }}</option>
               <option value="DE">{{ 'ledsc4.common.country.de' | t }}</option>
-              <option value="GB">{{ 'ledsc4.common.country.gb' | t }}</option>
-              <option value="NL">{{ 'ledsc4.common.country.nl' | t }}</option>
-              <option value="BE">{{ 'ledsc4.common.country.be' | t }}</option>
               <option value="AD">{{ 'ledsc4.common.country.ad' | t }}</option>
+              <option value="SA">{{ 'ledsc4.common.country.sa' | t }}</option>
+              <option value="DZ">{{ 'ledsc4.common.country.dz' | t }}</option>
+              <option value="AR">{{ 'ledsc4.common.country.ar' | t }}</option>
+              <option value="AT">{{ 'ledsc4.common.country.at' | t }}</option>
+              <option value="BS">{{ 'ledsc4.common.country.bs' | t }}</option>
+              <option value="BB">{{ 'ledsc4.common.country.bb' | t }}</option>
+              <option value="BH">{{ 'ledsc4.common.country.bh' | t }}</option>
+              <option value="BE">{{ 'ledsc4.common.country.be' | t }}</option>
+              <option value="BZ">{{ 'ledsc4.common.country.bz' | t }}</option>
+              <option value="BO">{{ 'ledsc4.common.country.bo' | t }}</option>
+              <option value="BA">{{ 'ledsc4.common.country.ba' | t }}</option>
+              <option value="BR">{{ 'ledsc4.common.country.br' | t }}</option>
+              <option value="BG">{{ 'ledsc4.common.country.bg' | t }}</option>
+              <option value="CA">{{ 'ledsc4.common.country.ca' | t }}</option>
+              <option value="QA">{{ 'ledsc4.common.country.qa' | t }}</option>
+              <option value="CZ">{{ 'ledsc4.common.country.cz' | t }}</option>
+              <option value="CL">{{ 'ledsc4.common.country.cl' | t }}</option>
+              <option value="CY">{{ 'ledsc4.common.country.cy' | t }}</option>
+              <option value="VA">{{ 'ledsc4.common.country.va' | t }}</option>
+              <option value="CO">{{ 'ledsc4.common.country.co' | t }}</option>
+              <option value="CR">{{ 'ledsc4.common.country.cr' | t }}</option>
+              <option value="HR">{{ 'ledsc4.common.country.hr' | t }}</option>
+              <option value="DK">{{ 'ledsc4.common.country.dk' | t }}</option>
+              <option value="EC">{{ 'ledsc4.common.country.ec' | t }}</option>
+              <option value="EG">{{ 'ledsc4.common.country.eg' | t }}</option>
+              <option value="SV">{{ 'ledsc4.common.country.sv' | t }}</option>
+              <option value="AE">{{ 'ledsc4.common.country.ae' | t }}</option>
+              <option value="SK">{{ 'ledsc4.common.country.sk' | t }}</option>
+              <option value="SI">{{ 'ledsc4.common.country.si' | t }}</option>
+              <option value="US">{{ 'ledsc4.common.country.us' | t }}</option>
+              <option value="EE">{{ 'ledsc4.common.country.ee' | t }}</option>
+              <option value="FI">{{ 'ledsc4.common.country.fi' | t }}</option>
+              <option value="FR">{{ 'ledsc4.common.country.fr' | t }}</option>
+              <option value="GR">{{ 'ledsc4.common.country.gr' | t }}</option>
+              <option value="GT">{{ 'ledsc4.common.country.gt' | t }}</option>
+              <option value="GY">{{ 'ledsc4.common.country.gy' | t }}</option>
+              <option value="HT">{{ 'ledsc4.common.country.ht' | t }}</option>
+              <option value="HN">{{ 'ledsc4.common.country.hn' | t }}</option>
+              <option value="HU">{{ 'ledsc4.common.country.hu' | t }}</option>
+              <option value="IQ">{{ 'ledsc4.common.country.iq' | t }}</option>
+              <option value="IE">{{ 'ledsc4.common.country.ie' | t }}</option>
+              <option value="IS">{{ 'ledsc4.common.country.is' | t }}</option>
+              <option value="IL">{{ 'ledsc4.common.country.il' | t }}</option>
+              <option value="IT">{{ 'ledsc4.common.country.it' | t }}</option>
+              <option value="JM">{{ 'ledsc4.common.country.jm' | t }}</option>
+              <option value="JO">{{ 'ledsc4.common.country.jo' | t }}</option>
+              <option value="KW">{{ 'ledsc4.common.country.kw' | t }}</option>
+              <option value="LV">{{ 'ledsc4.common.country.lv' | t }}</option>
+              <option value="LB">{{ 'ledsc4.common.country.lb' | t }}</option>
+              <option value="LY">{{ 'ledsc4.common.country.ly' | t }}</option>
+              <option value="LI">{{ 'ledsc4.common.country.li' | t }}</option>
+              <option value="LT">{{ 'ledsc4.common.country.lt' | t }}</option>
+              <option value="LU">{{ 'ledsc4.common.country.lu' | t }}</option>
+              <option value="MK">{{ 'ledsc4.common.country.mk' | t }}</option>
+              <option value="MT">{{ 'ledsc4.common.country.mt' | t }}</option>
               <option value="MA">{{ 'ledsc4.common.country.ma' | t }}</option>
+              <option value="MX">{{ 'ledsc4.common.country.mx' | t }}</option>
+              <option value="MD">{{ 'ledsc4.common.country.md' | t }}</option>
+              <option value="MC">{{ 'ledsc4.common.country.mc' | t }}</option>
+              <option value="ME">{{ 'ledsc4.common.country.me' | t }}</option>
+              <option value="NI">{{ 'ledsc4.common.country.ni' | t }}</option>
+              <option value="NO">{{ 'ledsc4.common.country.no' | t }}</option>
+              <option value="OM">{{ 'ledsc4.common.country.om' | t }}</option>
+              <option value="NL">{{ 'ledsc4.common.country.nl' | t }}</option>
+              <option value="PS">{{ 'ledsc4.common.country.ps' | t }}</option>
+              <option value="PA">{{ 'ledsc4.common.country.pa' | t }}</option>
+              <option value="PY">{{ 'ledsc4.common.country.py' | t }}</option>
+              <option value="PE">{{ 'ledsc4.common.country.pe' | t }}</option>
+              <option value="PL">{{ 'ledsc4.common.country.pl' | t }}</option>
+              <option value="PT">{{ 'ledsc4.common.country.pt' | t }}</option>
+              <option value="GB">{{ 'ledsc4.common.country.gb' | t }}</option>
+              <option value="DO">{{ 'ledsc4.common.country.do' | t }}</option>
+              <option value="RO">{{ 'ledsc4.common.country.ro' | t }}</option>
+              <option value="SM">{{ 'ledsc4.common.country.sm' | t }}</option>
+              <option value="RS">{{ 'ledsc4.common.country.rs' | t }}</option>
+              <option value="SE">{{ 'ledsc4.common.country.se' | t }}</option>
+              <option value="CH">{{ 'ledsc4.common.country.ch' | t }}</option>
+              <option value="SR">{{ 'ledsc4.common.country.sr' | t }}</option>
+              <option value="TT">{{ 'ledsc4.common.country.tt' | t }}</option>
+              <option value="TN">{{ 'ledsc4.common.country.tn' | t }}</option>
+              <option value="TR">{{ 'ledsc4.common.country.tr' | t }}</option>
+              <option value="UA">{{ 'ledsc4.common.country.ua' | t }}</option>
+              <option value="UY">{{ 'ledsc4.common.country.uy' | t }}</option>
+              <option value="YE">{{ 'ledsc4.common.country.ye' | t }}</option>
             </select>
             <span class="b2b-acceso__field-error" data-field="pais" hidden></span>
           </div>
@@ -1131,8 +1215,9 @@
     err: {
       required: {{ 'ledsc4.acceso.form.err.required' | t | json }},
       email:    {{ 'ledsc4.acceso.form.err.email' | t | json }},
-      nif:      {{ 'ledsc4.acceso.form.err.nif' | t | json }},
-      terms:    {{ 'ledsc4.acceso.form.err.terms' | t | json }}
+      nif:        {{ 'ledsc4.acceso.form.err.nif' | t | json }},
+      nif_format: {{ 'ledsc4.acceso.form.err.nif_format' | t | json }},
+      terms:      {{ 'ledsc4.acceso.form.err.terms' | t | json }}
     },
     submit:         {{ 'ledsc4.acceso.form.submit' | t | json }},
     submit_loading: {{ 'ledsc4.acceso.form.submit_loading' | t | json }},

@@ -166,13 +166,25 @@ function isValidCIF(value: string): boolean {
   return CIF_CONTROL_LETTERS[controlDigit] === provided;
 }
 
-function validateSpanishTaxId(raw: string): { ok: boolean; normalized?: string } {
-  if (!raw) return { ok: false };
-  const value = String(raw).toUpperCase().replace(/[\s-]/g, "");
-  if (isValidDNI(value)) return { ok: true, normalized: value };
-  if (isValidNIE(value)) return { ok: true, normalized: value };
-  if (isValidCIF(value)) return { ok: true, normalized: value };
-  return { ok: false };
+// Validación ramificada por país. Paridad con register-b2b-customer:
+//   - country === 'ES' → DNI / NIE / CIF con dígito de control.
+//   - resto (o country null) → saneo mínimo 4–20 alfanuméricos.
+function validateTaxId(
+  raw: string,
+  country: string | null,
+): { ok: boolean; normalized?: string; reason?: "es" | "format" } {
+  if (!raw) return { ok: false, reason: country === "ES" ? "es" : "format" };
+  const value = String(raw).toUpperCase().replace(/[\s.\-]/g, "");
+  if (country === "ES") {
+    if (isValidDNI(value) || isValidNIE(value) || isValidCIF(value)) {
+      return { ok: true, normalized: value };
+    }
+    return { ok: false, reason: "es" };
+  }
+  if (/^[A-Z0-9]{4,20}$/.test(value)) {
+    return { ok: true, normalized: value };
+  }
+  return { ok: false, reason: "format" };
 }
 
 // --- Helpers -----------------------------------------------------------
@@ -325,18 +337,22 @@ export async function handle(req: Request): Promise<Response> {
     if (!apellidos) fieldErrors.apellidos = "Los apellidos son obligatorios.";
     if (!empresa) fieldErrors.empresa = "La razón social es obligatoria.";
 
-    const nifResult = validateSpanishTaxId(nifRaw);
+    // País antes que NIF: validateTaxId ramifica por country (ES estricto,
+    // resto saneo mínimo). Ver register-b2b-customer para detalle.
+    const paisIso = normalizeCountry(paisRaw);
+    if (!paisIso) {
+      fieldErrors.pais = "Selecciona un país.";
+    }
+
+    const nifResult = validateTaxId(nifRaw, paisIso);
     if (!nifResult.ok) {
-      fieldErrors.nif = "El NIF / CIF / NIE no es válido (revisa formato y dígito de control).";
+      fieldErrors.nif = nifResult.reason === "es"
+        ? "El NIF / CIF / NIE no es válido (revisa formato y dígito de control)."
+        : "Introduce un identificador fiscal válido (4–20 caracteres, sin símbolos).";
     }
 
     if (!sector || !SECTOR_ENUM.has(sector)) {
       fieldErrors.sector = "Selecciona un sector válido.";
-    }
-
-    const paisIso = normalizeCountry(paisRaw);
-    if (!paisIso) {
-      fieldErrors.pais = "Selecciona un país.";
     }
 
     if (volumenEstimado && !VOLUMEN_ENUM.has(volumenEstimado)) {
