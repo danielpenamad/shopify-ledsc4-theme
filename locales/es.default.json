@@ -744,7 +744,8 @@
         "accesorio": "Información técnica accesorios",
         "ies": "Archivo IES",
         "ldt": "Archivo LDT",
-        "modelo_3d": "Modelo 3D"
+        "modelo_3d": "Modelo 3D",
+        "imc": "Instrucciones de montaje"
       },
       "pdf_ficha_link": "Ficha técnica",
       "tab_specs": "Especificaciones",
