@@ -1012,7 +1012,8 @@
         "accesorio": "Technical information accessories",
         "ies": "IES File",
         "ldt": "LDT file",
-        "modelo_3d": "3D Model"
+        "modelo_3d": "3D Model",
+        "imc": "Mounting instructions"
       },
       "pdf_ficha_link": "Datasheet",
       "tab_specs": "Specifications",
