@@ -184,13 +184,29 @@ function isValidCIF(value: string): boolean {
   return CIF_CONTROL_LETTERS[controlDigit] === provided;
 }
 
-function validateSpanishTaxId(raw: string): { ok: boolean; normalized?: string } {
-  if (!raw) return { ok: false };
-  const value = String(raw).toUpperCase().replace(/[\s-]/g, "");
-  if (isValidDNI(value)) return { ok: true, normalized: value };
-  if (isValidNIE(value)) return { ok: true, normalized: value };
-  if (isValidCIF(value)) return { ok: true, normalized: value };
-  return { ok: false };
+// Validación ramificada por país:
+//   - country === 'ES' → DNI / NIE / CIF con dígito de control (rama estricta).
+//   - resto (o country null) → saneo mínimo: 4–20 chars alfanuméricos en
+//     mayúsculas, sin algoritmo de control. Cubre VAT IDs de cualquier país
+//     (PT123456789, FR12345678901, etc.) sin tener que mantener un dataset
+//     por jurisdicción. La invariante real (cliente válido) la hace ops a
+//     mano al aprobar la solicitud.
+function validateTaxId(
+  raw: string,
+  country: string | null,
+): { ok: boolean; normalized?: string; reason?: "es" | "format" } {
+  if (!raw) return { ok: false, reason: country === "ES" ? "es" : "format" };
+  const value = String(raw).toUpperCase().replace(/[\s.\-]/g, "");
+  if (country === "ES") {
+    if (isValidDNI(value) || isValidNIE(value) || isValidCIF(value)) {
+      return { ok: true, normalized: value };
+    }
+    return { ok: false, reason: "es" };
+  }
+  if (/^[A-Z0-9]{4,20}$/.test(value)) {
+    return { ok: true, normalized: value };
+  }
+  return { ok: false, reason: "format" };
 }
 
 // --- Helpers -----------------------------------------------------------
@@ -345,18 +361,25 @@ Deno.serve(async (req: Request) => {
     else if (!isValidEmail(email)) fieldErrors.email = "El email no parece válido.";
     if (!empresa) fieldErrors.empresa = "La razón social es obligatoria.";
 
-    const nifResult = validateSpanishTaxId(nifRaw);
+    // Calculamos país primero porque validateTaxId ramifica por country:
+    // rama 'ES' = NIF/NIE/CIF estricto, rama resto = saneo mínimo. Si el
+    // país es null el error de país ya se reporta por su lado; pasamos
+    // null a validateTaxId para tratar el NIF por la rama "resto" en lugar
+    // de bloquear con un mensaje ES que no aplica.
+    const paisIso = normalizeCountry(paisRaw);
+    if (!paisIso) {
+      fieldErrors.pais = "Selecciona un país.";
+    }
+
+    const nifResult = validateTaxId(nifRaw, paisIso);
     if (!nifResult.ok) {
-      fieldErrors.nif = "El NIF / CIF / NIE no es válido (revisa formato y dígito de control).";
+      fieldErrors.nif = nifResult.reason === "es"
+        ? "El NIF / CIF / NIE no es válido (revisa formato y dígito de control)."
+        : "Introduce un identificador fiscal válido (4–20 caracteres, sin símbolos).";
     }
 
     if (!sector || !SECTOR_ENUM.has(sector)) {
       fieldErrors.sector = "Selecciona un sector válido.";
-    }
-
-    const paisIso = normalizeCountry(paisRaw);
-    if (!paisIso) {
-      fieldErrors.pais = "Selecciona un país.";
     }
 
     if (volumenEstimado && !VOLUMEN_ENUM.has(volumenEstimado)) {
