@@ -255,7 +255,7 @@
             form de login. return_to lleva prefijo locale para que el
             redirect post-login mantenga el contexto.
           {%- endcomment -%}
-          {%- assign login_return_to = locale_prefix | append: '/pages/mis-solicitudes' | url_encode -%}
+          {%- assign login_return_to = routes.root_url | url_encode -%}
           <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-portal__btn b2b-portal__btn--primary">
             {{ 'ledsc4.common.cta.login' | t }}
           </a>

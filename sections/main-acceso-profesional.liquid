@@ -37,7 +37,7 @@
   de login. Si en QA real falla el `?locale=`, eliminar SOLO el
   `&locale=...` de los hrefs — el return_to con prefijo se mantiene.
 {%- endcomment -%}
-{%- assign login_return_to = locale_prefix | append: '/pages/mis-solicitudes' | url_encode -%}
+{%- assign login_return_to = routes.root_url | url_encode -%}
 
 <section
   class="b2b-acceso"

@@ -590,7 +590,7 @@
           "generic_fallback": "Something went wrong while sending the request. Please try again.",
           "network_error": "We couldn't connect to the server. Please check your connection and try again.",
           "config_missing": "Incomplete theme configuration. Notify the team and try again later.",
-          "email_exists_html": "An account with this email already exists. <a href=\"/customer_authentication/login?return_to=%2Fpages%2Fmis-solicitudes\">Log in</a>.",
+          "email_exists_html": "An account with this email already exists. <a href=\"/customer_authentication/login?return_to=%2F\">Log in</a>.",
           "signature_expired_html": "Your form session has expired. <a href=\"\" onclick=\"window.location.reload(); return false;\">Reload the page</a> and try again.",
           "service_unavailable_html": "Service temporarily unavailable. Please try again in a few minutes. If the problem persists, write to <a href=\"mailto:soporte@ledsc4.com\">soporte@ledsc4.com</a>."
         },
