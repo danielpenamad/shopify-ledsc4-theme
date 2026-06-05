@@ -312,11 +312,11 @@
 
         if (s === 409 && b.code === 'EMAIL_ALREADY_EXISTS') {
           // Fallback hardcoded — solo se usa si I18N_BANNER.email_exists_html
-          // falta. URL outcome (b)+: ruta sin prefijo, return_to con prefijo,
-          // &locale para localizar form. Eliminar `&locale=...` para revert
-          // selectivo si Locksmith no respeta el query param.
+          // falta. URL outcome (b)+: ruta sin prefijo, return_to a home con
+          // prefijo locale, &locale para localizar form. Eliminar `&locale=...`
+          // para revert selectivo si Locksmith no respeta el query param.
           var fallbackLoginUrl = '/customer_authentication/login?return_to=' +
-            encodeURIComponent(LOCALE_PREFIX + '/pages/mis-solicitudes') +
+            encodeURIComponent(LOCALE_PREFIX || '/') +
             '&locale=' + LOCALE_ISO;
           setBanner(
             I18N_BANNER.email_exists_html ||
