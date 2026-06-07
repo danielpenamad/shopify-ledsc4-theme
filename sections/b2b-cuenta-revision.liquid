@@ -167,13 +167,22 @@
   }
 
   .b2b-status__btn--secondary {
-    background: transparent;
-    color: rgba(15, 18, 23, 0.7);
-    border: 1px solid rgba(15, 18, 23, 0.15);
+    background: #ffffff;
+    color: #0051FF;
+    border: 1px solid #0051FF;
   }
 
   .b2b-status__btn--secondary:hover {
-    background: rgba(15, 18, 23, 0.04);
+    background: #0051FF;
+    border-color: #0051FF;
+    color: #ffffff;
+  }
+
+  .b2b-status__btn--secondary:disabled,
+  .b2b-status__btn--secondary[aria-disabled='true'] {
+    background: #ffffff;
+    border-color: #CCCCCC;
+    color: #CCCCCC;
   }
 </style>
 

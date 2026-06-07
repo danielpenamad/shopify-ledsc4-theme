@@ -448,27 +448,39 @@
     }
 
     .b2b-portal__btn--primary {
-      background: var(--accent);
+      background: #0051FF;
       color: #ffffff;
-      border: 1px solid var(--accent);
+      border: 1px solid #0051FF;
     }
     .b2b-portal__btn--primary:hover {
-      background: var(--fg);
-      border-color: var(--fg);
-      color: var(--bg);
+      background: #000000;
+      border-color: #000000;
+      color: #ffffff;
       transform: translateY(-1px);
+    }
+    .b2b-portal__btn--primary:disabled,
+    .b2b-portal__btn--primary[aria-disabled='true'] {
+      background: #CCCCCC;
+      border-color: #CCCCCC;
+      color: #ffffff;
     }
 
     .b2b-portal__btn--secondary {
-      background: transparent;
-      color: var(--fg);
-      border: 1px solid var(--fg-dim);
+      background: #ffffff;
+      color: #0051FF;
+      border: 1px solid #0051FF;
     }
     .b2b-portal__btn--secondary:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: rgba(0, 81, 255, 0.04);
+      background: #0051FF;
+      border-color: #0051FF;
+      color: #ffffff;
       transform: translateY(-1px);
+    }
+    .b2b-portal__btn--secondary:disabled,
+    .b2b-portal__btn--secondary[aria-disabled='true'] {
+      background: #ffffff;
+      border-color: #CCCCCC;
+      color: #CCCCCC;
     }
 
     .b2b-portal__help-link {
