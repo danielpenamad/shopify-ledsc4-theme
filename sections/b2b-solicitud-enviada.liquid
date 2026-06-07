@@ -14,9 +14,13 @@
   .b2b-enviada__ref-value { font-family: 'Courier New', monospace; font-size: 1.9rem; font-weight: 600; color: #1a1f27; margin: 0; }
   .b2b-enviada__next { font-size: 1.4rem; color: #555; line-height: 1.6; margin: 0 0 40px 0; }
   .b2b-enviada__ctas { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-  .b2b-enviada__btn { display: inline-block; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 1.4rem; font-weight: 500; }
-  .b2b-enviada__btn--primary { background: #1a1f27; color: #fff; }
-  .b2b-enviada__btn--secondary { background: #fff; color: #1a1f27; border: 1px solid #1a1f27; }
+  .b2b-enviada__btn { display: inline-block; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-size: 1.4rem; font-weight: 500; border: 1px solid transparent; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease; }
+  .b2b-enviada__btn--primary { background: #0051FF; color: #fff; border-color: #0051FF; }
+  .b2b-enviada__btn--primary:hover { background: #000; border-color: #000; color: #fff; }
+  .b2b-enviada__btn--primary[aria-disabled='true'] { background: #CCCCCC; border-color: #CCCCCC; color: #fff; }
+  .b2b-enviada__btn--secondary { background: #fff; color: #0051FF; border: 1px solid #0051FF; }
+  .b2b-enviada__btn--secondary:hover { background: #0051FF; border-color: #0051FF; color: #fff; }
+  .b2b-enviada__btn--secondary[aria-disabled='true'] { background: #fff; border-color: #CCCCCC; color: #CCCCCC; }
 </style>
 
 {%- liquid

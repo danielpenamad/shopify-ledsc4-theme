@@ -298,7 +298,7 @@ h1,
   font-family: var(--font-ledsc4-heading);
   font-weight: 300;
   font-style: normal;
-  letter-spacing: -0.02em;
+  letter-spacing: normal;
 }
 
 h2,
@@ -306,7 +306,7 @@ h2,
   font-family: var(--font-ledsc4-heading);
   font-weight: 300;
   font-style: normal;
-  letter-spacing: -0.01em;
+  letter-spacing: normal;
 }
 
 h3,
