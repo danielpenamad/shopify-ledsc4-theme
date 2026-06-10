@@ -169,8 +169,14 @@ corporativo se **auto-une en silencio** a la Company existente de ese dominio
 - Si se borra a mano una Company que está en `company_domains`, **borrar
   también su fila** o los siguientes registros de ese dominio fallarán al
   intentar unirse a una Company inexistente.
-- Limpieza retroactiva de duplicados históricos (saltoki, pablocrespo, las
-  variantes LedsC4): fase aparte, pendiente.
+- Limpieza retroactiva de duplicados históricos: HECHA 2026-06-11 (25
+  variantes LedsC4 fusionadas a la madre, 11 huérfanas/tests borradas, 2
+  renombres, 5 dominios sembrados: coelca.com, iluminacioncoben.com,
+  hiperdeluz.es, bover.es, leds-c4.com). Restricción aprendida: un customer
+  NO puede ser contacto de dos companies → para fusionar hay que
+  companyContactDelete del viejo ANTES de companyAssignCustomerAsContact.
+  Pendientes de decisión: saltoki.es, sonepar.es, pablocrespo.com (cadenas
+  multi-delegación; no sembrar sin decisión de negocio).
 
 ## Whitelist B2B
 
