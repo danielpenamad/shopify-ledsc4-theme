@@ -889,6 +889,11 @@
         "lead": "No hace falta completar nada: tu solicitud ya fue tramitada por el equipo.",
         "cta": "Volver al inicio"
       },
+      "msg_ya_enviada": {
+        "heading": "Tu solicitud ya está registrada",
+        "lead": "Ya tenemos tus datos: tu solicitud está en proceso y pasará a revisión en unos minutos. No hace falta que vuelvas a rellenar nada. Te avisaremos por email cuando el equipo la haya revisado.",
+        "cta": "Volver al inicio"
+      },
       "banner": {
         "session_error": "No hemos podido identificar tu sesión. <a href=\"\" onclick=\"window.location.reload(); return false;\">Recarga la página</a> y vuelve a intentarlo.",
         "invalid_payload": "Faltan datos requeridos o son incorrectos. Revisa el formulario y vuelve a enviar."

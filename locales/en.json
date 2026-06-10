@@ -722,6 +722,11 @@
         "lead": "There is nothing to complete: your application has already been processed by the team.",
         "cta": "Back to home"
       },
+      "msg_ya_enviada": {
+        "heading": "Your application is already registered",
+        "lead": "We already have your details: your application is being processed and will enter review in a few minutes. There is no need to fill anything in again. We will email you once the team has reviewed it.",
+        "cta": "Back to home"
+      },
       "banner": {
         "session_error": "We could not identify your session. <a href=\"\" onclick=\"window.location.reload(); return false;\">Reload the page</a> and try again.",
         "invalid_payload": "Some required fields are missing or incorrect. Review the form and submit again."

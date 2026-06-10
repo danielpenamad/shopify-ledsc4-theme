@@ -722,6 +722,11 @@
         "lead": "Rien à compléter : votre demande a déjà été traitée par l'équipe.",
         "cta": "Retour à l'accueil"
       },
+      "msg_ya_enviada": {
+        "heading": "Votre demande est déjà enregistrée",
+        "lead": "Nous avons déjà vos informations : votre demande est en cours de traitement et passera en révision dans quelques minutes. Inutile de remplir à nouveau le formulaire. Nous vous préviendrons par e-mail dès que l'équipe l'aura examinée.",
+        "cta": "Retour à l'accueil"
+      },
       "banner": {
         "session_error": "Nous n'avons pas pu identifier votre session. <a href=\"\" onclick=\"window.location.reload(); return false;\">Rechargez la page</a> et réessayez.",
         "invalid_payload": "Certains champs requis sont manquants ou incorrects. Vérifiez le formulaire et renvoyez."

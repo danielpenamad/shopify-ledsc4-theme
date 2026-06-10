@@ -492,7 +492,19 @@
             gate_exempt_paths arriba, por lo que la redirección no genera
             bucle.
           {%- endcomment -%}
-          <script>window.location.replace({{ locale_prefix | append: '/pages/acceso-profesional' | json }});</script>
+          {%- comment -%}
+            ?dest= (2026-06-10): conserva el destino original (p. ej. un
+            producto compartido por WhatsApp) para que la landing lo use
+            como return_to del login. Solo si no estamos ya en home (dest
+            '/' no aporta). request.path lleva el prefijo de locale, lo
+            cual es correcto para un return_to.
+          {%- endcomment -%}
+          {%- assign anon_dest = '' -%}
+          {%- unless gate_path == '/' -%}
+            {%- assign anon_dest_enc = request.path | url_encode -%}
+            {%- assign anon_dest = '?dest=' | append: anon_dest_enc -%}
+          {%- endunless -%}
+          <script>window.location.replace({{ locale_prefix | append: '/pages/acceso-profesional' | append: anon_dest | json }});</script>
         {%- elsif customer.tags contains 'rechazado' -%}
           <script>window.location.replace({{ locale_prefix | append: '/pages/cuenta-rechazada' | json }});</script>
         {%- elsif customer.tags contains 'aprobado' -%}

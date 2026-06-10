@@ -1213,6 +1213,24 @@
   // i18n bundle inyectado antes del script defer del asset para garantizar
   // disponibilidad de window.LEDSC4_I18N.acceso_form cuando se ejecuta el IIFE.
   window.LEDSC4_I18N = window.LEDSC4_I18N || {};
+  // ?dest= (2026-06-10): el gate manda aquí a los anónimos conservando el
+  // destino original (enlace compartido a un producto, etc.). Si viene un
+  // dest válido (ruta relativa, sin '//' para evitar open redirect),
+  // reescribimos el return_to de los CTAs de login para que un usuario
+  // aprobado aterrice donde quería ir tras el OTP.
+  (function () {
+    try {
+      var dest = new URLSearchParams(window.location.search).get('dest');
+      if (!dest || dest.charAt(0) !== '/' || dest.indexOf('//') === 0) return;
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('a[href*="/customer_authentication/login"]').forEach(function (a) {
+          var url = new URL(a.getAttribute('href'), window.location.origin);
+          url.searchParams.set('return_to', dest);
+          a.setAttribute('href', url.pathname + url.search);
+        });
+      });
+    } catch (e) { /* dest es mejora opcional; nunca romper la landing */ }
+  })();
   // locale_prefix: '' en home, '/fr' en /fr (ver hotfix doc). Consumers
   // en JS hacen `LOCALE_PREFIX + '/path/X'` con slash inicial al path.
   window.LEDSC4_I18N.locale_prefix = {{ locale_prefix | json }};

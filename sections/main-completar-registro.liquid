@@ -86,6 +86,26 @@
       </div>
     </div>
 
+  {%- elsif customer.metafields.b2b.empresa != blank -%}
+
+    {%- comment -%}
+      Rama B2 (2026-06-10): logueado sin tag de estado pero CON b2b.empresa
+      — ya rellenó el formulario B2B y solo falló el tagsAdd 'pendiente'
+      (huérfano con datos). Pedirle los datos otra vez es confuso ("¿no os
+      los di ya?"). El cron de reconciliación de promote-whitelist-matches
+      le pondrá 'pendiente' en ≤30 min y el gate le llevará entonces a
+      cuenta-en-revision. Mensaje: solicitud ya registrada, en proceso.
+    {%- endcomment -%}
+    <div class="b2b-acceso__ctas-block">
+      <h2 class="b2b-acceso__h2">{{ 'ledsc4.completar.msg_ya_enviada.heading' | t }}</h2>
+      <p class="b2b-acceso__ctas-lead">{{ 'ledsc4.completar.msg_ya_enviada.lead' | t }}</p>
+      <div class="b2b-acceso__ctas">
+        <a href="{{ locale_prefix }}/" class="b2b-acceso__btn b2b-acceso__btn--primary">
+          {{ 'ledsc4.completar.msg_ya_enviada.cta' | t }}
+        </a>
+      </div>
+    </div>
+
   {%- else -%}
 
     {%- comment -%}
