@@ -151,6 +151,27 @@ sesión cross-domain (ya pasó dos veces, ver PRs #140 y #141).
 Verificar a la semana que `updated_at` del metafield `ledsc4.fx_rates` cambió
 (que el cron sigue vivo).
 
+## Unificación de Companies por dominio (`create-company-for-customer` v33+)
+
+Decisión de negocio (Víctor, 2026-06-10): el segundo registro de un dominio
+corporativo se **auto-une en silencio** a la Company existente de ese dominio
+(antes se creaba una Company nueva por cada customer → ~22 variantes "LedsC4").
+
+- Tabla árbitro: `public.company_domains` (PK `domain`; RLS sin policies,
+  solo service role). Seed: `ledsc4.com` → Company madre LedsC4 SA.
+- Dominios genéricos (gmail, hotmail…) en la constante `GENERIC_DOMAINS`
+  del código: siempre crean Company propia, sin tocar la tabla.
+- Race de creación concurrente: el INSERT con `ON CONFLICT (domain)` decide;
+  el perdedor une el customer a la Company ganadora y borra la suya
+  (`joined: true, via: "domain_race"`).
+- La función ya NO toca catálogos ("Outlet general" ARCHIVED, Fase D) y
+  asigna SOLO el rol admin de sistema (no el ordering-only).
+- Si se borra a mano una Company que está en `company_domains`, **borrar
+  también su fila** o los siguientes registros de ese dominio fallarán al
+  intentar unirse a una Company inexistente.
+- Limpieza retroactiva de duplicados históricos (saltoki, pablocrespo, las
+  variantes LedsC4): fase aparte, pendiente.
+
 ## Whitelist B2B
 
 ### Metafield `b2b.whitelist_emails` es tipo `json` (no `list.*`)
