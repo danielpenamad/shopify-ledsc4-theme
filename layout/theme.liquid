@@ -416,7 +416,44 @@
       {%- if gate_path contains '/account/activate' -%}{%- assign gate_exempt = true -%}{%- endif -%}
       {%- if gate_path contains '/account/reset_password' -%}{%- assign gate_exempt = true -%}{%- endif -%}
 
-      {%- unless gate_exempt -%}
+      {%- comment -%}
+        Sub-estado huérfano: cliente LOGUEADO sin ningún tag de estado
+        ('aprobado'/'pendiente'/'rechazado'). Alta nativa por New Customer
+        Accounts que no pasó por el formulario B2B. El gate por path de abajo
+        (gate_blocks_route) solo lo atrapa en rutas comerciales, así que en
+        home ('/') y en /pages/acceso-profesional se queda atascado tras el
+        login y nunca completa el registro (la EF complete-b2b-registration
+        recibe 0 tráfico). Aquí lo empujamos a /pages/completar-registro desde
+        CUALQUIER ruta salvo la allow-list imprescindible para completar el
+        registro o salir/activar. Emite UN solo redirect (cr_redirected) y
+        corta el resto del bloque del gate.
+
+        Allow-list (NO redirigir): la propia /pages/completar-registro (evita
+        bucle), logout/sign_out (salir), activate*/reset_password* (no romper
+        activación), /policies/* y las páginas legales.
+      {%- endcomment -%}
+      {%- assign cr_redirected = false -%}
+      {%- if customer != nil -%}
+        {%- unless customer.tags contains 'aprobado' or customer.tags contains 'pendiente' or customer.tags contains 'rechazado' -%}
+          {%- assign cr_allow = false -%}
+          {%- assign cr_allow_paths = '/pages/completar-registro,/account/logout,/account/sign_out,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias' | split: ',' -%}
+          {%- for p in cr_allow_paths -%}
+            {%- if gate_path == p -%}
+              {%- assign cr_allow = true -%}
+              {%- break -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- if gate_path contains '/account/activate' -%}{%- assign cr_allow = true -%}{%- endif -%}
+          {%- if gate_path contains '/account/reset_password' -%}{%- assign cr_allow = true -%}{%- endif -%}
+          {%- if gate_path contains '/policies/' -%}{%- assign cr_allow = true -%}{%- endif -%}
+          {%- unless cr_allow -%}
+            <script>window.location.replace({{ locale_prefix | append: '/pages/completar-registro' | json }});</script>
+            {%- assign cr_redirected = true -%}
+          {%- endunless -%}
+        {%- endunless -%}
+      {%- endif -%}
+
+      {%- unless gate_exempt or cr_redirected -%}
         {%- if customer == nil -%}
           {%- comment -%}
             Anónimo → /pages/acceso-profesional (landing informativa B2B con
