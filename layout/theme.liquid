@@ -404,6 +404,28 @@
       {%- assign locale_prefix = routes.root_url -%}
       {%- if locale_prefix == '/' -%}{%- assign locale_prefix = '' -%}{%- endif -%}
       {%- assign gate_path = request.path -%}
+      {%- comment -%}
+        request.path INCLUYE el prefijo de locale ('/fr/pages/...' en FR) —
+        verificado empíricamente 2026-06-10: anónimo en
+        /fr/pages/acceso-profesional recibía replace() a sí misma (bucle
+        infinito) porque ningún `==` de las listas matcheaba. Recortamos el
+        prefijo de gate_path para que TODAS las comparaciones de abajo
+        (gate_exempt_paths, cr_allow_paths, contains) trabajen con el path
+        canónico sin locale. Los redirects siguen usando locale_prefix para
+        construir la URL destino localizada. El slice con '/fr/' (con barra)
+        evita falsos positivos tipo '/fresas'.
+      {%- endcomment -%}
+      {%- if locale_prefix != '' -%}
+        {%- if gate_path == locale_prefix -%}
+          {%- assign gate_path = '/' -%}
+        {%- else -%}
+          {%- assign lp_slash = locale_prefix | append: '/' -%}
+          {%- assign lp_head = gate_path | slice: 0, lp_slash.size -%}
+          {%- if lp_head == lp_slash -%}
+            {%- assign gate_path = gate_path | remove_first: locale_prefix -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endif -%}
       {%- assign gate_exempt = false -%}
       {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional,/pages/registro-recibido,/pages/completar-registro' | split: ',' -%}
       {%- for p in gate_exempt_paths -%}
