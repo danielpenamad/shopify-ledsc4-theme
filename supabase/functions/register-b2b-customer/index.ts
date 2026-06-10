@@ -514,44 +514,58 @@ Deno.serve(async (req: Request) => {
       }, 502);
     }
 
-    // --- 4. tagsAdd: 'pendiente' (best-effort, separado del create) ---
+    // --- 4. tagsAdd: 'pendiente' (separado del create, con retries) ---
     //
     // Shopify Admin API 2025-10 removió `tags` de CustomerInput, así que se
-    // hace en una segunda mutación. Si falla, el customer ya está creado y
-    // Flow W1 no disparará por el tag → backoffice debe taguear a mano. No
-    // bloqueamos la respuesta al usuario.
+    // hace en una segunda mutación. Sin el tag, Flow W1 no dispara y el
+    // cliente queda invisible para el backoffice (huérfano), así que
+    // reintentamos hasta 3 veces con backoff ante errores transitorios
+    // (red/5xx). Los userErrors NO se reintentan (deterministas). Si aun
+    // así falla, no bloqueamos la respuesta: el cron de reconciliación
+    // (promote-whitelist-matches) lo recoge en la pasada siguiente.
     let tagsAdded = true;
-    try {
+    {
       interface TagsAddResp {
         tagsAdd: {
           node: { id: string } | null;
           userErrors: Array<{ field: string[] | null; message: string }>;
         };
       }
-      const tagsData = await gql<TagsAddResp>(
-        `
+      const TAGS_ADD_MUTATION = `
         mutation($id: ID!, $tags: [String!]!) {
           tagsAdd(id: $id, tags: $tags) {
             node { ... on Customer { id } }
             userErrors { field message }
           }
         }
-        `,
-        { id: customer.id, tags: ["pendiente"] },
-      );
-      if (tagsData.tagsAdd.userErrors.length > 0) {
-        tagsAdded = false;
-        console.log(JSON.stringify({
-          requestId, startedAt, emailHash, outcome: "tags_add_failed",
-          customerId: customer.id, userErrors: tagsData.tagsAdd.userErrors,
-        }));
+      `;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        tagsAdded = true;
+        try {
+          const tagsData = await gql<TagsAddResp>(
+            TAGS_ADD_MUTATION,
+            { id: customer.id, tags: ["pendiente"] },
+          );
+          if (tagsData.tagsAdd.userErrors.length > 0) {
+            tagsAdded = false;
+            console.log(JSON.stringify({
+              requestId, startedAt, emailHash, outcome: "tags_add_failed",
+              attempt, customerId: customer.id,
+              userErrors: tagsData.tagsAdd.userErrors,
+            }));
+          }
+          break; // éxito o userError determinista: no reintentar
+        } catch (e) {
+          tagsAdded = false;
+          console.log(JSON.stringify({
+            requestId, startedAt, emailHash, outcome: "tags_add_failed",
+            attempt, customerId: customer.id, error: (e as Error).message,
+          }));
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+          }
+        }
       }
-    } catch (e) {
-      tagsAdded = false;
-      console.log(JSON.stringify({
-        requestId, startedAt, emailHash, outcome: "tags_add_failed",
-        customerId: customer.id, error: (e as Error).message,
-      }));
     }
 
     // --- 5. customerSendAccountInviteEmail (best-effort) ---

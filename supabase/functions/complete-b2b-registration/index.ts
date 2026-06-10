@@ -489,39 +489,54 @@ export async function handle(req: Request): Promise<Response> {
       }, 502);
     }
 
-    // --- 5. tagsAdd: 'pendiente' (best-effort) ---
+    // --- 5. tagsAdd: 'pendiente' (con retries; ver register-b2b-customer) ---
+    //
+    // Sin el tag, Flow W1 no dispara y el cliente queda huérfano (invisible
+    // para el backoffice). Reintentos 3× con backoff ante errores
+    // transitorios; userErrors no se reintentan. Failsafe final: cron de
+    // reconciliación en promote-whitelist-matches.
     let tagsAdded = true;
-    try {
+    {
       interface TagsAddResp {
         tagsAdd: {
           node: { id: string } | null;
           userErrors: Array<{ field: string[] | null; message: string }>;
         };
       }
-      const tagsData = await gql<TagsAddResp>(
-        `
+      const TAGS_ADD_MUTATION = `
         mutation($id: ID!, $tags: [String!]!) {
           tagsAdd(id: $id, tags: $tags) {
             node { ... on Customer { id } }
             userErrors { field message }
           }
         }
-        `,
-        { id: customerId, tags: ["pendiente"] },
-      );
-      if (tagsData.tagsAdd.userErrors.length > 0) {
-        tagsAdded = false;
-        console.log(JSON.stringify({
-          requestId, startedAt, customerIdHash, outcome: "tags_add_failed",
-          customerId, userErrors: tagsData.tagsAdd.userErrors,
-        }));
+      `;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        tagsAdded = true;
+        try {
+          const tagsData = await gql<TagsAddResp>(
+            TAGS_ADD_MUTATION,
+            { id: customerId, tags: ["pendiente"] },
+          );
+          if (tagsData.tagsAdd.userErrors.length > 0) {
+            tagsAdded = false;
+            console.log(JSON.stringify({
+              requestId, startedAt, customerIdHash, outcome: "tags_add_failed",
+              attempt, customerId, userErrors: tagsData.tagsAdd.userErrors,
+            }));
+          }
+          break;
+        } catch (e) {
+          tagsAdded = false;
+          console.log(JSON.stringify({
+            requestId, startedAt, customerIdHash, outcome: "tags_add_failed",
+            attempt, customerId, error: (e as Error).message,
+          }));
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+          }
+        }
       }
-    } catch (e) {
-      tagsAdded = false;
-      console.log(JSON.stringify({
-        requestId, startedAt, customerIdHash, outcome: "tags_add_failed",
-        customerId, error: (e as Error).message,
-      }));
     }
 
     console.log(JSON.stringify({

@@ -1221,8 +1221,14 @@
     para inyectarlo en email_exists_html via t: login_url:. Si en QA
     real falla `?locale=`, eliminar SOLO el sufijo `&locale=...` de la
     línea de abajo — return_to con prefijo se mantiene.
+
+    return_to → /pages/completar-registro (2026-06-10): el 409 suele ser
+    una cuenta fantasma (newsletter/alta nativa) sin datos B2B; aterrizar
+    ahí cierra el ciclo directamente. La página maneja todos los estados:
+    aprobado/rechazado ven "cuenta ya gestionada", el resto el form.
   {%- endcomment -%}
-  {%- assign login_url_full = '/customer_authentication/login?return_to=' | append: login_return_to | append: '&locale=' | append: request.locale.iso_code -%}
+  {%- assign exists_return_to = locale_prefix | append: '/pages/completar-registro' | url_encode -%}
+  {%- assign login_url_full = '/customer_authentication/login?return_to=' | append: exists_return_to | append: '&locale=' | append: request.locale.iso_code -%}
   window.LEDSC4_I18N.acceso_form = {
     err: {
       required: {{ 'ledsc4.acceso.form.err.required' | t | json }},

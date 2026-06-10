@@ -246,16 +246,8 @@ Deno.serve(async (_req) => {
   const startedAt = new Date().toISOString();
   try {
     const whitelist = await readWhitelist();
-    if (whitelist.length === 0) {
-      return jsonResponse({
-        startedAt,
-        promoted: 0,
-        reason: "empty_whitelist",
-      });
-    }
-
     const candidates = await listCandidates();
-    const toPromote = candidates.filter(
+    const toPromote = whitelist.length === 0 ? [] : candidates.filter(
       (c) => whitelist.includes(c.email) && !c.tags.includes("aprobado"),
     );
 
@@ -280,14 +272,56 @@ Deno.serve(async (_req) => {
       }
     }
 
+    // --- Reconciliación de huérfanos (2026-06-10) ---
+    //
+    // Huérfano: customer SIN ningún tag de estado (ni pendiente ni
+    // aprobado ni rechazado) pero CON b2b.empresa — rellenó el formulario
+    // B2B pero el tagsAdd de register-/complete-b2b-registration falló
+    // (era best-effort; ahora reintenta 3×, esto es el failsafe final).
+    // Sin tag, Flow W1 no disparó y el backoffice no lo ve. Le ponemos
+    // 'pendiente' para reintroducirlo en el circuito normal de revisión.
+    //
+    // Los huérfanos SIN b2b.empresa se dejan estar a propósito: son altas
+    // nativas (OAuth/newsletter) que no han pasado por el form; el gate
+    // del tema ya los empuja a /pages/completar-registro, que al completar
+    // setea empresa + pendiente. Taguearlos aquí los colaría en la cola de
+    // revisión sin datos.
+    //
+    // Los whitelisted ya promovidos arriba quedan con 'aprobado' en
+    // `promoted` y no entran en este filtro (se evalúa sobre el snapshot
+    // de tags pre-promoción, por eso excluimos los emails ya promovidos).
+    const promotedEmails = new Set(
+      toPromote.filter((c) => c.hasEmpresa).map((c) => c.email),
+    );
+    const orphans = candidates.filter(
+      (c) =>
+        c.hasEmpresa &&
+        !promotedEmails.has(c.email) &&
+        !c.tags.some((t) => STATE_TAGS.has(t)),
+    );
+    let reconciled = 0;
+    const reconciledEmails: string[] = [];
+    for (const orphan of orphans) {
+      try {
+        await addPendienteTag(orphan.id);
+        reconciled++;
+        reconciledEmails.push(orphan.email);
+        console.log(`reconciled (tag pendiente añadido): ${orphan.email}`);
+      } catch (e) {
+        errors.push(`reconcile ${orphan.email}: ${(e as Error).message}`);
+      }
+    }
+
     return jsonResponse({
       startedAt,
       promoted,
+      reconciled,
       totalCandidates: candidates.length,
       whitelistSize: whitelist.length,
       promotedEmails: toPromote
         .filter((c) => c.hasEmpresa)
         .map((c) => c.email),
+      reconciledEmails,
       skippedNoEmpresa,
       errors,
     });
