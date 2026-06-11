@@ -435,10 +435,11 @@ export async function handle(req: Request): Promise<Response> {
             firstName: nombre,
             lastName: apellidos,
             phone: telefonoRaw || null,
-            emailMarketingConsent: {
-              marketingState: "SUBSCRIBED",
-              marketingOptInLevel: "SINGLE_OPT_IN",
-            },
+            // OJO: emailMarketingConsent NO se puede pasar en customerUpdate
+            // (Shopify lo rechaza con userError "use the
+            // customerEmailMarketingConsentUpdate Mutation instead"; causó
+            // el 400 sistemático del 2026-06-11, primer día con tráfico
+            // real). Se setea en una mutación aparte tras este update.
             metafields: [
               { namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa },
               { namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized! },
@@ -487,6 +488,54 @@ export async function handle(req: Request): Promise<Response> {
         code: "SHOPIFY_UNAVAILABLE",
         message: "Servicio no disponible, vuelve a intentarlo en unos minutos.",
       }, 502);
+    }
+
+    // --- 4.5 emailMarketingConsent (mutación dedicada, best-effort) ---
+    //
+    // Necesario para que los emails de Flow (W1 acuse, W2 aprobación)
+    // lleguen: van por marketing activity y se descartan si el customer no
+    // está SUBSCRIBED. Va aparte porque customerUpdate no acepta el campo.
+    // Best-effort: si falla, el registro sigue (mismo criterio que el
+    // invite email en register-b2b-customer); promote-whitelist-matches
+    // re-asegura el consent al promover.
+    let consentSet = true;
+    try {
+      const consentData = await gql<{
+        customerEmailMarketingConsentUpdate: {
+          userErrors: Array<{ field: string[] | null; message: string }>;
+        };
+      }>(
+        `
+        mutation($input: CustomerEmailMarketingConsentUpdateInput!) {
+          customerEmailMarketingConsentUpdate(input: $input) {
+            userErrors { field message }
+          }
+        }
+        `,
+        {
+          input: {
+            customerId,
+            emailMarketingConsent: {
+              marketingState: "SUBSCRIBED",
+              marketingOptInLevel: "SINGLE_OPT_IN",
+            },
+          },
+        },
+      );
+      const consentErrs = consentData.customerEmailMarketingConsentUpdate?.userErrors ?? [];
+      if (consentErrs.length > 0) {
+        consentSet = false;
+        console.log(JSON.stringify({
+          requestId, startedAt, customerIdHash, outcome: "consent_failed",
+          userErrors: consentErrs,
+        }));
+      }
+    } catch (e) {
+      consentSet = false;
+      console.log(JSON.stringify({
+        requestId, startedAt, customerIdHash, outcome: "consent_failed",
+        error: (e as Error).message,
+      }));
     }
 
     // --- 5. tagsAdd: 'pendiente' (con retries; ver register-b2b-customer) ---
@@ -546,6 +595,7 @@ export async function handle(req: Request): Promise<Response> {
 
     const warnings: string[] = [];
     if (!tagsAdded) warnings.push("TAG_PENDIENTE_FAILED");
+    if (!consentSet) warnings.push("CONSENT_FAILED");
 
     return jsonResponse({
       ok: true,

@@ -190,7 +190,7 @@ Deno.test("rechaza campos inválidos (400, VALIDATION_ERROR)", async () => {
   installFetchMock(() => ({}));
   try {
     const body = await signedBody({
-      nif: "12345678Z", // DNI inválido (letra mala)
+      nif: "12345678A", // DNI inválido (la letra de 12345678 es Z, no A)
       sector: "no_existe",
       condiciones: false,
     });
@@ -280,6 +280,9 @@ Deno.test("happy path: customerUpdate + tagsAdd 'pendiente' con input correcto",
     if (call.query.includes("tagsAdd")) {
       return { tagsAdd: { node: { id: CUSTOMER_GID }, userErrors: [] } };
     }
+    if (call.query.includes("customerEmailMarketingConsentUpdate")) {
+      return { customerEmailMarketingConsentUpdate: { userErrors: [] } };
+    }
     throw new Error("unexpected call: " + call.query);
   });
   try {
@@ -292,8 +295,8 @@ Deno.test("happy path: customerUpdate + tagsAdd 'pendiente' con input correcto",
     assertEquals(json.status, "pendiente");
     assertEquals(json.tagsAdded, true);
 
-    // Verifica calls: lookup + update + tagsAdd
-    assertEquals(calls.length, 3);
+    // Verifica calls: lookup + update + consent + tagsAdd
+    assertEquals(calls.length, 4);
 
     const update = calls[1];
     assert(update.query.includes("customerUpdate"));
@@ -302,9 +305,17 @@ Deno.test("happy path: customerUpdate + tagsAdd 'pendiente' con input correcto",
     assertEquals(input.firstName, "Juan");
     assertEquals(input.lastName, "Pérez García");
     assertEquals(input.phone, "+34600000000");
-    const consent = input.emailMarketingConsent as Record<string, string>;
-    assertEquals(consent.marketingState, "SUBSCRIBED");
-    assertEquals(consent.marketingOptInLevel, "SINGLE_OPT_IN");
+    // Regresión 2026-06-11: emailMarketingConsent NO puede ir en
+    // customerUpdate (Shopify lo rechaza con userError → 400 sistemático).
+    assertEquals(input.emailMarketingConsent, undefined);
+
+    const consentCall = calls[2];
+    assert(consentCall.query.includes("customerEmailMarketingConsentUpdate"));
+    const consentInput = (consentCall.variables as { input: Record<string, unknown> }).input;
+    assertEquals(consentInput.customerId, CUSTOMER_GID);
+    const emc = consentInput.emailMarketingConsent as Record<string, string>;
+    assertEquals(emc.marketingState, "SUBSCRIBED");
+    assertEquals(emc.marketingOptInLevel, "SINGLE_OPT_IN");
 
     const metafields = input.metafields as Array<Record<string, string>>;
     const byKey = Object.fromEntries(metafields.map((m) => [m.key, m]));
@@ -317,7 +328,7 @@ Deno.test("happy path: customerUpdate + tagsAdd 'pendiente' con input correcto",
     assert(byKey.fecha_registro.value.match(/^\d{4}-\d{2}-\d{2}$/));
     assertEquals(byKey.fecha_registro.type, "date");
 
-    const tagsCall = calls[2];
+    const tagsCall = calls[3];
     assert(tagsCall.query.includes("tagsAdd"));
     assertEquals((tagsCall.variables as Record<string, unknown>).id, CUSTOMER_GID);
     assertEquals(
@@ -334,6 +345,9 @@ Deno.test("happy path: customer con tag 'pendiente' previo permite reintento", a
     if (call.query.includes("customer(id:")) {
       return { customer: { id: CUSTOMER_GID, tags: ["pendiente"] } };
     }
+    if (call.query.includes("customerEmailMarketingConsentUpdate")) {
+      return { customerEmailMarketingConsentUpdate: { userErrors: [] } };
+    }
     if (call.query.includes("customerUpdate")) {
       return { customerUpdate: { customer: { id: CUSTOMER_GID }, userErrors: [] } };
     }
@@ -349,7 +363,7 @@ Deno.test("happy path: customer con tag 'pendiente' previo permite reintento", a
     const json = await res.json();
     assertEquals(json.ok, true);
     assertEquals(json.status, "pendiente");
-    assertEquals(calls.length, 3); // procesa normal
+    assertEquals(calls.length, 4); // procesa normal (lookup+update+consent+tags)
   } finally {
     restoreFetch();
   }
