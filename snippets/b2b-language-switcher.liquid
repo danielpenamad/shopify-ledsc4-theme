@@ -1,0 +1,91 @@
+{%- comment -%}
+  Selector de idioma para los footers locales de las páginas pre-login
+  (b2b-portal-home, main-acceso-profesional, main-completar-registro).
+
+  Solo enlaces <a> al root_url de cada idioma publicado + path actual.
+  NO usa {% form 'localization' %} ni toca país/Market: el cambio de
+  Market rompió la sesión cross-domain dos veces (PRs #140 y #141).
+  Cambiar de idioma mantiene el Market ES; solo cambia el prefijo
+  de locale de la URL.
+
+  bare_path: request.path INCLUYE el prefijo de locale ('/fr/pages/...'
+  en FR) — mismo recorte guardado con barra que el gate de
+  layout/theme.liquid para evitar falsos positivos tipo '/fresas'.
+{%- endcomment -%}
+{%- if localization.available_languages.size > 1 -%}
+  {%- liquid
+    assign locale_prefix = routes.root_url
+    if locale_prefix == '/'
+      assign locale_prefix = ''
+    endif
+    assign bare_path = request.path
+    if locale_prefix != ''
+      if bare_path == locale_prefix
+        assign bare_path = '/'
+      else
+        assign lp_slash = locale_prefix | append: '/'
+        assign lp_head = bare_path | slice: 0, lp_slash.size
+        if lp_head == lp_slash
+          assign bare_path = bare_path | remove_first: locale_prefix
+        endif
+      endif
+    endif
+  -%}
+  <nav class="b2b-lang-switcher" aria-label="{{ 'ledsc4.common.footer.aria_language' | t }}">
+    {%- for language in localization.available_languages -%}
+      {%- liquid
+        assign lang_root = language.root_url
+        if lang_root == '/'
+          assign lang_root = ''
+        endif
+        assign target = lang_root | append: bare_path
+        if target == ''
+          assign target = '/'
+        endif
+      -%}
+      {%- if language.iso_code == localization.language.iso_code -%}
+        <span class="b2b-lang-switcher__item b2b-lang-switcher__item--current" lang="{{ language.iso_code }}">{{ language.endonym_name | capitalize }}</span>
+      {%- else -%}
+        <a class="b2b-lang-switcher__item" href="{{ target }}" hreflang="{{ language.iso_code }}" lang="{{ language.iso_code }}">{{ language.endonym_name | capitalize }}</a>
+      {%- endif -%}
+      {%- unless forloop.last %}<span class="b2b-lang-switcher__sep" aria-hidden="true">·</span>{% endunless -%}
+    {%- endfor -%}
+  </nav>
+  <style>
+    .b2b-lang-switcher {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem 0.75rem;
+      margin: 1rem 0 0;
+      font-size: 1.3rem;
+      letter-spacing: 0.01em;
+    }
+    .b2b-lang-switcher__item {
+      color: inherit;
+      opacity: 0.6;
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+    }
+    a.b2b-lang-switcher__item:hover {
+      opacity: 1;
+    }
+    .b2b-lang-switcher__item--current {
+      opacity: 1;
+      font-weight: 600;
+    }
+    .b2b-lang-switcher__sep {
+      opacity: 0.4;
+    }
+  </style>
+  <script>
+    /* Conserva la query actual (p. ej. ?dest= en acceso-profesional) al cambiar de idioma. */
+    (function () {
+      var q = window.location.search;
+      if (!q) return;
+      document.querySelectorAll('.b2b-lang-switcher a').forEach(function (a) {
+        a.href += q;
+      });
+    })();
+  </script>
+{%- endif -%}

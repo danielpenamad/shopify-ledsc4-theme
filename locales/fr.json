@@ -878,6 +878,7 @@
       },
       "footer": {
         "aria_legal": "Mentions légales",
+        "aria_language": "Langue",
         "aviso_legal": "Mention légale",
         "privacidad": "Confidentialité",
         "condiciones": "Conditions générales",

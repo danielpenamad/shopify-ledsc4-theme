@@ -306,6 +306,7 @@
         <span aria-hidden="true">·</span>
         <a href="{{ locale_prefix }}/pages/canal-de-denuncias">{{ 'ledsc4.common.footer.canal_etico' | t }}</a>
       </nav>
+      {%- render 'b2b-language-switcher' -%}
       <p class="b2b-portal__footer-note">
         {%- assign current_year = 'now' | date: '%Y' -%}
         {{ 'ledsc4.common.footer.copyright_html' | t: year: current_year }}

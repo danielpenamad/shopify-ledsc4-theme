@@ -963,6 +963,7 @@
       },
       "footer": {
         "aria_legal": "Legal links",
+        "aria_language": "Language",
         "aviso_legal": "Legal notice",
         "privacidad": "Privacy",
         "condiciones": "Terms and Conditions",
