@@ -207,6 +207,78 @@ Deno.test("rechaza campos inválidos (400, VALIDATION_ERROR)", async () => {
   }
 });
 
+Deno.test("teléfono inválido → 400 fieldErrors.telefono SIN llegar a Shopify", async () => {
+  installFetchMock(() => ({}));
+  try {
+    const body = await signedBody({ telefono: "no-es-un-telefono" });
+    const res = await handle(makeReq(body));
+    assertEquals(res.status, 400);
+    const json = await res.json();
+    assertEquals(json.code, "VALIDATION_ERROR");
+    assertExists(json.fieldErrors.telefono);
+    assertEquals(calls.length, 0);
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test("teléfono con separadores se normaliza y pasa", async () => {
+  installFetchMock((call) => {
+    if (call.query.includes("customer(id:")) {
+      return { customer: { id: CUSTOMER_GID, tags: [] } };
+    }
+    if (call.query.includes("customerEmailMarketingConsentUpdate")) {
+      return { customerEmailMarketingConsentUpdate: { userErrors: [] } };
+    }
+    if (call.query.includes("customerUpdate")) {
+      return { customerUpdate: { customer: { id: CUSTOMER_GID }, userErrors: [] } };
+    }
+    if (call.query.includes("tagsAdd")) {
+      return { tagsAdd: { node: { id: CUSTOMER_GID }, userErrors: [] } };
+    }
+    throw new Error("unexpected call: " + call.query);
+  });
+  try {
+    const body = await signedBody({ telefono: "+34 600.11-22(33)" });
+    const res = await handle(makeReq(body));
+    assertEquals(res.status, 200);
+    const update = calls.find((c) => c.query.includes("customerUpdate"))!;
+    const input = (update.variables as { input: Record<string, unknown> }).input;
+    assertEquals(input.phone, "+34600112233");
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test("userError de Shopify en field 'phone' → se mapea a 'telefono'", async () => {
+  installFetchMock((call) => {
+    if (call.query.includes("customer(id:")) {
+      return { customer: { id: CUSTOMER_GID, tags: [] } };
+    }
+    if (call.query.includes("customerUpdate")) {
+      return {
+        customerUpdate: {
+          customer: null,
+          userErrors: [{ field: ["customer", "phone"], message: "Phone is invalid" }],
+        },
+      };
+    }
+    throw new Error("unexpected call: " + call.query);
+  });
+  try {
+    const body = await signedBody();
+    const res = await handle(makeReq(body));
+    assertEquals(res.status, 400);
+    const json = await res.json();
+    assertEquals(json.code, "VALIDATION_ERROR");
+    // Regresión 2026-06-11: el front pinta por name="telefono", no "phone".
+    assertExists(json.fieldErrors.telefono);
+    assertEquals(json.fieldErrors.phone, undefined);
+  } finally {
+    restoreFetch();
+  }
+});
+
 Deno.test("guard: customer no existe → 404", async () => {
   installFetchMock((call) => {
     if (call.query.includes("customer(id:")) return { customer: null };

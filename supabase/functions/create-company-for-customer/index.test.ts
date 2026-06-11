@@ -122,10 +122,14 @@ function customerData(email: string) {
   };
 }
 
-function shopifyHandler(opts: { email: string }) {
+function shopifyHandler(opts: { email: string; profilesAfterRace?: Array<{ id: string; company: { id: string } }> }) {
   return (call: RecordedCall): unknown => {
     const q = call.query ?? "";
     if (q.includes("defaultEmailAddress")) return customerData(opts.email);
+    if (q.includes("companyContactProfiles") && !q.includes("metafields")) {
+      // Re-lectura de perfiles en el camino de race (post-deleteCompany).
+      return { customer: { companyContactProfiles: opts.profilesAfterRace ?? [] } };
+    }
     if (q.includes("companyCreate")) {
       return {
         companyCreate: {
@@ -262,9 +266,9 @@ Deno.test("dominio existente → une sin crear company", async () => {
   }
 });
 
-Deno.test("conflicto de insert (race) → une a la ganadora y borra la propia", async () => {
+Deno.test("conflicto de insert (race) → borra la propia ANTES y une a la ganadora", async () => {
   installFetchMock({
-    shopify: shopifyHandler({ email: "race@empresa-race.es" }),
+    shopify: shopifyHandler({ email: "race@empresa-race.es", profilesAfterRace: [] }),
     lookupRows: [
       [], // lookup pre-create: aún sin fila
       [{ company_id: WINNER_COMPANY, company_location_id: WINNER_LOCATION }], // re-read post-conflicto
@@ -279,10 +283,46 @@ Deno.test("conflicto de insert (race) → une a la ganadora y borra la propia", 
     assertEquals(json.via, "domain_race");
     assertEquals(json.companyId, WINNER_COMPANY);
     assertEquals(json.deletedCompanyId, OWN_COMPANY);
-    // Se creó la propia, se unió a la ganadora y se borró la propia
+    // Se creó la propia, se BORRÓ la propia y después se unió a la ganadora
     assert(shopifyCalls().some((c) => c.query!.includes("companyCreate")));
-    const assign = shopifyCalls().find((c) => c.query!.includes("companyAssignCustomerAsContact"))!;
-    assertEquals(assign.variables!.companyId, WINNER_COMPANY);
+    const sq = shopifyCalls();
+    const delIdx = sq.findIndex((c) => c.query!.includes("companyDelete"));
+    const assignIdx = sq.findIndex((c) => c.query!.includes("companyAssignCustomerAsContact"));
+    assert(delIdx >= 0 && assignIdx >= 0);
+    // Orden crítico (fix iluvi 2026-06-11): delete propio antes del assign
+    assert(delIdx < assignIdx, "companyDelete debe ir ANTES del assign a la ganadora");
+    assertEquals(sq[delIdx].variables!.id, OWN_COMPANY);
+    assertEquals(sq[assignIdx].variables!.companyId, WINNER_COMPANY);
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test("race con customer YA contacto de la ganadora (caso iluvi) → borra la propia y NO re-asigna", async () => {
+  installFetchMock({
+    shopify: shopifyHandler({
+      email: "iluvi@iluvi.com",
+      // La invocación ganadora ya unió a este mismo customer a su company.
+      profilesAfterRace: [{ id: "cc-w", company: { id: WINNER_COMPANY } }],
+    }),
+    lookupRows: [
+      [],
+      [{ company_id: WINNER_COMPANY, company_location_id: WINNER_LOCATION }],
+    ],
+    insertRows: [[]],
+  });
+  try {
+    const res = await handle(makeReq({ customerId: CUSTOMER_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.joined, true);
+    assertEquals(json.via, "domain_race");
+    assertEquals(json.alreadyContact, true);
+    assertEquals(json.companyId, WINNER_COMPANY);
+    assertEquals(json.deletedCompanyId, OWN_COMPANY);
+    // NO hubo assign ni roles (ya era contacto); sí delete de la propia
+    assert(!shopifyCalls().some((c) => c.query!.includes("companyAssignCustomerAsContact")));
+    assert(!shopifyCalls().some((c) => c.query!.includes("companyContactAssignRoles")));
     const del = shopifyCalls().find((c) => c.query!.includes("companyDelete"))!;
     assertEquals(del.variables!.id, OWN_COMPANY);
   } finally {

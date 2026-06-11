@@ -451,8 +451,14 @@ export async function handle(req: Request): Promise<Response> {
 
     // 6.5 Registrar el dominio ANTES de unir el contact: el PK sobre domain
     // es el árbitro de la race. Si el insert conflicta, otra invocación
-    // concurrente ganó (caso josepinas): unimos el customer a SU company y
-    // borramos la nuestra para no dejar duplicado.
+    // concurrente ganó (caso josepinas/iluvi): borramos NUESTRA company
+    // ANTES de tocar al customer (1. así no queda residuo aunque el resto
+    // falle — el 500 de iluvi.com 2026-06-11 dejó una company huérfana; y
+    // 2. un customer solo puede ser contacto de UNA company, así que
+    // cualquier assign con contacto previo falla). La race típica son DOS
+    // invocaciones para el MISMO customer (Flow W1+W2): cuando llegamos
+    // aquí la ganadora probablemente YA lo unió a su company → en ese caso
+    // no hay nada que asignar (idempotente).
     if (isCorporateDomain) {
       const won = await insertDomain(domain, company.id, companyLocationId);
       if (!won) {
@@ -467,12 +473,59 @@ export async function handle(req: Request): Promise<Response> {
             companyId: company.id,
           }));
         } else if (winner.company_id !== company.id) {
+          await deleteCompany(company.id);
+
+          // Releer el estado del customer: la invocación ganadora puede
+          // haberlo unido ya (mismo customer) o no (customer distinto,
+          // mismo dominio).
+          const profRes = await gql<{
+            customer: {
+              companyContactProfiles: Array<{
+                id: string;
+                company: { id: string };
+              }>;
+            } | null;
+          }>(
+            `
+            query($id: ID!) {
+              customer(id: $id) {
+                companyContactProfiles { id company { id } }
+              }
+            }
+            `,
+            { id: customerId },
+          );
+          const profiles = profRes.customer?.companyContactProfiles ?? [];
+          const alreadyInWinner = profiles.some(
+            (p) => p.company.id === winner.company_id,
+          );
+
+          if (alreadyInWinner) {
+            console.log(JSON.stringify({
+              startedAt,
+              outcome: "domain_race_already_joined",
+              domain,
+              winnerCompanyId: winner.company_id,
+              deletedCompanyId: company.id,
+            }));
+            return jsonResponse({
+              startedAt,
+              joined: true,
+              via: "domain_race",
+              alreadyContact: true,
+              customerId,
+              domain,
+              companyId: winner.company_id,
+              companyLocationId: winner.company_location_id,
+              deletedCompanyId: company.id,
+            });
+          }
+
           const joined = await joinCustomerToCompany(
             winner.company_id,
             winner.company_location_id,
             customerId,
           );
-          await deleteCompany(company.id);
           return jsonResponse({
             startedAt,
             joined: true,
@@ -504,6 +557,13 @@ export async function handle(req: Request): Promise<Response> {
       assignedRoleIds: joined.assignedRoleIds,
     });
   } catch (e) {
+    // Log explícito: el 500 de la race de iluvi.com (2026-06-11) fue
+    // invisible en function_logs porque este catch no logueaba.
+    console.log(JSON.stringify({
+      startedAt,
+      outcome: "unhandled_error",
+      error: (e as Error).message,
+    }));
     return jsonResponse({ startedAt, error: (e as Error).message }, 500);
   }
 }

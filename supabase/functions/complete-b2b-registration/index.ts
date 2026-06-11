@@ -337,6 +337,16 @@ export async function handle(req: Request): Promise<Response> {
     if (!apellidos) fieldErrors.apellidos = "Los apellidos son obligatorios.";
     if (!empresa) fieldErrors.empresa = "La razón social es obligatoria.";
 
+    // Teléfono (opcional): Shopify rechaza formatos no E.164-ables con
+    // userError field=["phone"] que el front no sabía pintar (input
+    // name="telefono") → ráfagas de reintentos a ciegas (2026-06-11).
+    // Normalizamos separadores típicos y validamos AQUÍ con mensaje útil.
+    const telefonoNorm = telefonoRaw.replace(/[\s.\-()\/]/g, "");
+    if (telefonoNorm && !/^\+?[0-9]{7,15}$/.test(telefonoNorm)) {
+      fieldErrors.telefono =
+        "Teléfono no válido: usa solo dígitos, con prefijo internacional opcional (ej. +34600112233), o déjalo vacío.";
+    }
+
     // País antes que NIF: validateTaxId ramifica por country (ES estricto,
     // resto saneo mínimo). Ver register-b2b-customer para detalle.
     const paisIso = normalizeCountry(paisRaw);
@@ -434,7 +444,7 @@ export async function handle(req: Request): Promise<Response> {
             id: customerId,
             firstName: nombre,
             lastName: apellidos,
-            phone: telefonoRaw || null,
+            phone: telefonoNorm || null,
             // OJO: emailMarketingConsent NO se puede pasar en customerUpdate
             // (Shopify lo rechaza con userError "use the
             // customerEmailMarketingConsentUpdate Mutation instead"; causó
@@ -470,7 +480,10 @@ export async function handle(req: Request): Promise<Response> {
     if (errs.length > 0) {
       const mapped: Record<string, string> = {};
       for (const ue of errs) {
-        const f = ue.field?.[ue.field.length - 1] ?? "_form";
+        let f = ue.field?.[ue.field.length - 1] ?? "_form";
+        // Shopify habla inglés; el form español. Sin este mapeo el front
+        // no encuentra el input y el error queda invisible (2026-06-11).
+        if (f === "phone") f = "telefono";
         mapped[f] = ue.message;
       }
       console.log(JSON.stringify({

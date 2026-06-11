@@ -361,6 +361,15 @@ Deno.serve(async (req: Request) => {
     else if (!isValidEmail(email)) fieldErrors.email = "El email no parece válido.";
     if (!empresa) fieldErrors.empresa = "La razón social es obligatoria.";
 
+    // Teléfono (opcional): pre-validación con mensaje útil; sin ella
+    // Shopify rechaza el customerCreate con userError field=["phone"] que
+    // el front no pinta (input name="telefono"). Ver complete-b2b (2026-06-11).
+    const telefonoNorm = telefonoRaw.replace(/[\s.\-()\/]/g, "");
+    if (telefonoNorm && !/^\+?[0-9]{7,15}$/.test(telefonoNorm)) {
+      fieldErrors.telefono =
+        "Teléfono no válido: usa solo dígitos, con prefijo internacional opcional (ej. +34600112233), o déjalo vacío.";
+    }
+
     // Calculamos país primero porque validateTaxId ramifica por country:
     // rama 'ES' = NIF/NIE/CIF estricto, rama resto = saneo mínimo. Si el
     // país es null el error de país ya se reporta por su lado; pasamos
@@ -427,7 +436,7 @@ Deno.serve(async (req: Request) => {
             email,
             firstName: nombre,
             lastName: apellidos,
-            phone: telefonoRaw || null,
+            phone: telefonoNorm || null,
             // Sin opt-in, la action `Send marketing email` de Flow descarta
             // el envío en silencio (no hay error en el run history): los 5
             // emails al cliente —W1-acuse, W1-bienvenida, W2-aprobacion,
@@ -492,7 +501,10 @@ Deno.serve(async (req: Request) => {
 
       const mapped: Record<string, string> = {};
       for (const ue of errs) {
-        const f = ue.field?.[ue.field.length - 1] ?? "_form";
+        let f = ue.field?.[ue.field.length - 1] ?? "_form";
+        // Mapeo Shopify→form: sin esto el front no encuentra el input y
+        // el error queda invisible para el usuario (2026-06-11).
+        if (f === "phone") f = "telefono";
         mapped[f] = ue.message;
       }
       console.log(JSON.stringify({

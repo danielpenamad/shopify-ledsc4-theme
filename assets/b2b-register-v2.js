@@ -330,11 +330,24 @@
         }
 
         if (s === 400 && b.code === 'VALIDATION_ERROR' && b.fieldErrors) {
+          // Failsafe (2026-06-11): si ningún fieldError matchea un campo
+          // del form (nombre de campo desconocido), enseñamos los mensajes
+          // en el banner — sin esto el usuario reintenta a ciegas.
+          var painted = 0;
           Object.keys(b.fieldErrors).forEach(function (field) {
             var input = form.querySelector('[name="' + field + '"]') ||
                         form.querySelector('#reg-' + field);
+            if (input || findErrorNode(field)) painted++;
             setFieldError(input, field, b.fieldErrors[field]);
           });
+          if (painted === 0) {
+            var unmatchedMsgs = Object.keys(b.fieldErrors).map(function (k) {
+              return b.fieldErrors[k];
+            }).join('<br>');
+            setBanner(unmatchedMsgs ||
+              I18N_BANNER.generic_fallback ||
+              'Algo ha ido mal al enviar la solicitud. Vuelve a intentarlo.');
+          }
           focusFirstError();
           return;
         }
