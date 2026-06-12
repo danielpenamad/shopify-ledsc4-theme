@@ -40,9 +40,14 @@
 const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
 const SHOPIFY_ADMIN_TOKEN = Deno.env.get("SHOPIFY_ADMIN_TOKEN");
 const SHOPIFY_API_VERSION = Deno.env.get("SHOPIFY_API_VERSION") ?? "2025-10";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_TOKEN) {
   throw new Error("Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ADMIN_TOKEN env vars");
+}
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars");
 }
 
 const endpoint =
@@ -100,23 +105,25 @@ async function readWhitelist(): Promise<string[]> {
   }
 }
 
+interface CustomersPage {
+  customers: {
+    pageInfo: { hasNextPage: boolean; endCursor: string };
+    edges: Array<{
+      node: {
+        id: string;
+        tags: string[];
+        defaultEmailAddress: { emailAddress: string } | null;
+        empresa: { value: string } | null;
+      };
+    }>;
+  };
+}
+
 async function listCandidates(): Promise<Candidate[]> {
   const out: Candidate[] = [];
   let cursor: string | null = null;
   do {
-    const data = await gql<{
-      customers: {
-        pageInfo: { hasNextPage: boolean; endCursor: string };
-        edges: Array<{
-          node: {
-            id: string;
-            tags: string[];
-            defaultEmailAddress: { emailAddress: string } | null;
-            empresa: { value: string } | null;
-          };
-        }>;
-      };
-    }>(
+    const data: CustomersPage = await gql<CustomersPage>(
       `
       query($cursor: String) {
         customers(first: 100, after: $cursor, query: "-tag:aprobado AND -tag:rechazado") {
@@ -242,7 +249,76 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-Deno.serve(async (_req) => {
+// --- Rescate por dominio sembrado (2026-06-12) ---------------------------
+//
+// El guard "skip (no b2b.empresa)" protegía contra aprobar sin nombre de
+// empresa porque create-company necesitaba el dato. Con la unificación por
+// dominio (create-company v34) eso ya no aplica cuando el dominio está
+// sembrado en public.company_domains: la company NO se crea, el customer
+// se une a la canónica. Para esos casos copiamos el nombre de la company
+// canónica a b2b.empresa y dejamos que la promoción siga su curso normal.
+// Dominios sin fila → skip como siempre (su company necesita el nombre
+// real del formulario).
+
+type DomainRow = { company_id: string; company_location_id: string };
+
+const sbHeaders = {
+  apikey: SERVICE_ROLE_KEY!,
+  Authorization: `Bearer ${SERVICE_ROLE_KEY!}`,
+};
+
+async function lookupDomain(domain: string): Promise<DomainRow | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/company_domains?domain=eq.${encodeURIComponent(domain)}&select=company_id,company_location_id`,
+    { headers: sbHeaders },
+  );
+  if (!res.ok) {
+    throw new Error(`company_domains lookup HTTP ${res.status}: ${await res.text()}`);
+  }
+  const rows = (await res.json()) as DomainRow[];
+  return rows[0] ?? null;
+}
+
+async function getCompanyName(companyId: string): Promise<string> {
+  const data = await gql<{ company: { name: string } | null }>(
+    `query($id: ID!) { company(id: $id) { name } }`,
+    { id: companyId },
+  );
+  const name = data.company?.name?.trim();
+  if (!name) {
+    throw new Error(`company canónica no encontrada o sin nombre: ${companyId}`);
+  }
+  return name;
+}
+
+async function setEmpresaMetafield(customerId: string, empresa: string): Promise<void> {
+  const data = await gql<{
+    metafieldsSet: { userErrors: Array<{ field: string[] | null; message: string }> };
+  }>(
+    `
+    mutation($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        userErrors { field message }
+      }
+    }
+    `,
+    {
+      metafields: [{
+        ownerId: customerId,
+        namespace: "b2b",
+        key: "empresa",
+        type: "single_line_text_field",
+        value: empresa,
+      }],
+    },
+  );
+  const errs = data.metafieldsSet?.userErrors ?? [];
+  if (errs.length) {
+    throw new Error(`metafieldsSet b2b.empresa errors: ${JSON.stringify(errs)}`);
+  }
+}
+
+export async function handle(_req: Request): Promise<Response> {
   const startedAt = new Date().toISOString();
   try {
     const whitelist = await readWhitelist();
@@ -254,11 +330,42 @@ Deno.serve(async (_req) => {
     let promoted = 0;
     const errors: string[] = [];
     const skippedNoEmpresa: string[] = [];
+    const promotedViaDomain: string[] = [];
     for (const customer of toPromote) {
       if (!customer.hasEmpresa) {
-        console.log(`skip (no b2b.empresa): ${customer.email}`);
-        skippedNoEmpresa.push(customer.email);
-        continue;
+        // Rescate por dominio sembrado: si el dominio del email está en
+        // company_domains, copiamos el nombre de la company canónica a
+        // b2b.empresa y la promoción sigue normal (create-company v34 lo
+        // unirá a la canónica, no creará company nueva). Sin fila → skip
+        // como siempre.
+        let rescued = false;
+        const domain = customer.email.split("@")[1]?.trim().toLowerCase() ?? "";
+        if (domain) {
+          try {
+            const row = await lookupDomain(domain);
+            if (row) {
+              const empresaName = await getCompanyName(row.company_id);
+              await setEmpresaMetafield(customer.id, empresaName);
+              console.log(JSON.stringify({
+                outcome: "promoted_via_domain",
+                email: customer.email,
+                domain,
+                companyId: row.company_id,
+                empresa: empresaName,
+              }));
+              promotedViaDomain.push(customer.email);
+              rescued = true;
+            }
+          } catch (e) {
+            errors.push(`${customer.email}: rescate domain falló: ${(e as Error).message}`);
+            continue;
+          }
+        }
+        if (!rescued) {
+          console.log(`skip (no b2b.empresa): ${customer.email}`);
+          skippedNoEmpresa.push(customer.email);
+          continue;
+        }
       }
       try {
         await setMarketingConsent(customer.id);
@@ -321,6 +428,7 @@ Deno.serve(async (_req) => {
       promotedEmails: toPromote
         .filter((c) => c.hasEmpresa)
         .map((c) => c.email),
+      promotedViaDomain,
       reconciledEmails,
       skippedNoEmpresa,
       errors,
@@ -331,4 +439,8 @@ Deno.serve(async (_req) => {
       500,
     );
   }
-});
+}
+
+if (!Deno.env.get("PROMOTE_WL_TEST_MODE")) {
+  Deno.serve(handle);
+}
