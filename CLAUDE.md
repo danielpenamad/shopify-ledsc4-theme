@@ -151,32 +151,50 @@ sesión cross-domain (ya pasó dos veces, ver PRs #140 y #141).
 Verificar a la semana que `updated_at` del metafield `ledsc4.fx_rates` cambió
 (que el cron sigue vivo).
 
-## Unificación de Companies por dominio (`create-company-for-customer` v33+)
+## Unión de Companies por dominio (`create-company-for-customer` v35+)
 
-Decisión de negocio (Víctor, 2026-06-10): el segundo registro de un dominio
-corporativo se **auto-une en silencio** a la Company existente de ese dominio
-(antes se creaba una Company nueva por cada customer → ~22 variantes "LedsC4").
+**Modelo INVERTIDO 2026-06-14 (Víctor vía Dani): cadenas multi-delegación van
+como Companies SEPARADAS.** La función ya **NO auto-siembra** dominios. Por
+defecto **siempre crea Company nueva**; solo une si el dominio ya está en
+`public.company_domains`, fila puesta **a mano** por un humano para fusionar.
+
+El modelo anterior (v33-v34, auto-siembra de cada dominio nuevo) colapsaba las
+cadenas: saltoki.es llegó a tener 3 contactos fusionados que no debían estarlo,
+elektracat.com estaba a punto de lo mismo, y grupoelectrostocks.com (~60
+buzones) / sonepar.es (~19) eran bombas latentes.
 
 - Tabla árbitro: `public.company_domains` (PK `domain`; RLS sin policies,
-  solo service role). Seed: `ledsc4.com` → Company madre LedsC4 SA.
-- Dominios genéricos (gmail, hotmail…) en la constante `GENERIC_DOMAINS`
-  del código: siempre crean Company propia, sin tocar la tabla.
-- Race de creación concurrente: el INSERT con `ON CONFLICT (domain)` decide;
-  el perdedor une el customer a la Company ganadora y borra la suya
-  (`joined: true, via: "domain_race"`).
+  solo service role). **Gestión MANUAL**: añadir filas a mano solo para
+  fusionar deliberadamente.
+- Dominio con fila → unir a esa company (`joined: true, via: "domain"`,
+  assign + rol admin). Dominio sin fila → crear company nueva, **sin sembrar**.
+  Un segundo alias del mismo dominio no sembrado crea OTRA company.
+- Dominios genéricos (gmail, hotmail…) en `GENERIC_DOMAINS` del código:
+  siempre crean Company propia, sin tocar la tabla.
+- **Race del MISMO customer** (Flow W1+W2 concurrentes, caso iluvi): ya no la
+  cubre el `ON CONFLICT` de la siembra (eliminada). Ahora se serializa con un
+  `pg_advisory_lock(hashtext(customerId))` session-level (conexión directa
+  `npm:postgres` vía `SUPABASE_DB_URL`) sostenido durante toda la sección
+  crítica; se re-leen `companyContactProfiles` DENTRO del lock antes de crear.
+  La 2ª invocación entra al lock cuando la 1ª ya creó → `skipped`.
 - La función ya NO toca catálogos ("Outlet general" ARCHIVED, Fase D) y
   asigna SOLO el rol admin de sistema (no el ordering-only).
 - Si se borra a mano una Company que está en `company_domains`, **borrar
   también su fila** o los siguientes registros de ese dominio fallarán al
   intentar unirse a una Company inexistente.
+- Filas vigentes en `company_domains` (2026-06-14): manuales de fusión
+  `ledsc4.com`, `leds-c4.com`, `coelca.com`, `iluminacioncoben.com`,
+  `hiperdeluz.es`, `bover.es`; sedes únicas `velax.com.pe`, `techluz.com`,
+  `iluvi.com`; pendientes de confirmación Víctor `thelux.es`, `gascon.es`.
+  Semillas de cadena `saltoki.es` y `elektracat.com` BORRADAS 2026-06-14
+  (migración `20260614120000_unseed_chain_domains.sql`). Los contactos ya
+  fusionados de la company "Saltoki" (9946497351) y las dos SALTOKI VIGO **no**
+  se reorganizan todavía: pasa aparte cuando Víctor defina la estructura.
 - Limpieza retroactiva de duplicados históricos: HECHA 2026-06-11 (25
   variantes LedsC4 fusionadas a la madre, 11 huérfanas/tests borradas, 2
-  renombres, 5 dominios sembrados: coelca.com, iluminacioncoben.com,
-  hiperdeluz.es, bover.es, leds-c4.com). Restricción aprendida: un customer
-  NO puede ser contacto de dos companies → para fusionar hay que
-  companyContactDelete del viejo ANTES de companyAssignCustomerAsContact.
-  Pendientes de decisión: saltoki.es, sonepar.es, pablocrespo.com (cadenas
-  multi-delegación; no sembrar sin decisión de negocio).
+  renombres). Restricción aprendida: un customer NO puede ser contacto de dos
+  companies → para fusionar hay que companyContactDelete del viejo ANTES de
+  companyAssignCustomerAsContact.
 
 ## Whitelist B2B
 

@@ -3,8 +3,8 @@
 // Invocada desde Flow W1 (rama Then, auto-aprobación) y W2 (aprobación manual)
 // tras tagear al customer como 'aprobado'. Crea Company B2B + Contact +
 // Location, o UNE el customer a la Company existente de su dominio
-// corporativo (tabla public.company_domains; decisión de negocio Víctor
-// 2026-06-10 para frenar la duplicación de Companies por organización).
+// corporativo SOLO si ese dominio fue sembrado A MANO en
+// public.company_domains.
 //
 // Ya NO asigna catálogo: el catálogo "Outlet general" quedó ARCHIVED y es
 // arquitectura abandonada desde Fase D (checkout nativo deshabilitado,
@@ -14,17 +14,23 @@
 // Roles: SOLO "System-defined Location admin role" (decisión registrada
 // project_b2b_contact_roles; el ordering-only se eliminó 2026-06-11).
 //
-// Unificación por dominio:
-//   - Dominios genéricos (GENERIC_DOMAINS) → crear company normal, sin tabla.
-//   - Dominio corporativo con fila en company_domains → NO crear: unir el
+// Modelo de dominio (INVERTIDO 2026-06-14, decisión Víctor vía Dani):
+// las cadenas multi-delegación van como Companies SEPARADAS. La función
+// ya NO auto-siembra dominios. company_domains pasa a ser una tabla de
+// gestión MANUAL: un humano añade una fila solo cuando quiere fusionar.
+//   - Dominios genéricos (GENERIC_DOMAINS) → crear company normal.
+//   - Dominio corporativo con fila YA en company_domains → NO crear: unir el
 //     customer a esa company ({ joined: true, via: "domain" }).
-//   - Dominio corporativo sin fila → crear company + INSERT con
-//     ON CONFLICT DO NOTHING. Si el insert no inserta (otra invocación
-//     concurrente ganó — caso josepinas), unir el customer a la company
-//     ganadora y borrar la recién creada (companyDelete).
+//   - Dominio corporativo SIN fila → crear company nueva, sin sembrar nada.
+//     (Un segundo alias del mismo dominio no sembrado crea OTRA company.)
 //
-// Idempotente: si el customer ya tiene companyContactProfiles, salta sin
-// crear nada.
+// Idempotencia + race del MISMO customer (Flow W1+W2 concurrentes, caso
+// iluvi): ya NO la cubre el ON CONFLICT de la siembra (eliminada). En su
+// lugar serializamos por customer con un pg_advisory_lock(hashtext(id))
+// session-level sostenido durante toda la sección crítica (incluidas las
+// mutaciones Shopify), y re-leemos companyContactProfiles DENTRO del lock
+// antes de decidir crear. Dos invocaciones del mismo customer: la segunda
+// entra al lock cuando la primera ya creó → ve profiles!=[] → skipped.
 //
 // Auth: header X-Webhook-Secret == env CREATE_COMPANY_WEBHOOK_SECRET.
 //
@@ -33,7 +39,7 @@
 //
 // Output (200 en todos los caminos felices):
 //   { created: true, companyId, companyLocationId, ... }
-//   { joined: true, companyId, via: "domain" | "domain_race", ... }
+//   { joined: true, companyId, via: "domain", ... }
 //   { skipped: true, reason: "already_has_company", companyId }
 //   { error: "...", ... }                                       (4xx/5xx)
 //
@@ -42,7 +48,10 @@
 //   SHOPIFY_ADMIN_TOKEN                 (scopes: read/write_companies)
 //   SHOPIFY_API_VERSION                 (opcional, default 2025-10)
 //   CREATE_COMPANY_WEBHOOK_SECRET       (mismo valor en el header de Flow)
-//   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (inyectadas por el runtime)
+//   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_DB_URL
+//                                       (inyectadas por el runtime)
+
+import postgres from "npm:postgres@3.4.4";
 
 const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
 const SHOPIFY_ADMIN_TOKEN = Deno.env.get("SHOPIFY_ADMIN_TOKEN");
@@ -129,33 +138,40 @@ async function lookupDomain(domain: string): Promise<DomainRow | null> {
   return rows[0] ?? null;
 }
 
-// true = esta invocación registró el dominio; false = conflicto (otra ganó).
-async function insertDomain(
-  domain: string,
-  companyId: string,
-  companyLocationId: string,
-): Promise<boolean> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/company_domains?on_conflict=domain`,
-    {
-      method: "POST",
-      headers: {
-        ...sbHeaders,
-        "Content-Type": "application/json",
-        Prefer: "resolution=ignore-duplicates,return=representation",
-      },
-      body: JSON.stringify({
-        domain,
-        company_id: companyId,
-        company_location_id: companyLocationId,
-      }),
-    },
-  );
-  if (!res.ok) {
-    throw new Error(`company_domains insert HTTP ${res.status}: ${await res.text()}`);
+// --- Serialización por customer (advisory lock session-level) ------------
+
+// Serializa invocaciones concurrentes del MISMO customer (Flow W1+W2). Un
+// pg_advisory_xact_lock no sirve aquí: la sección crítica incluye mutaciones
+// Shopify (HTTP), no cabe en una sola transacción. Usamos un lock session-
+// level sobre una conexión dedicada y corta, sostenido durante todo `fn` y
+// liberado en finally (el cierre de la conexión libera el lock igualmente).
+// La clave es hashtext(customerId), igual que pediría pg_advisory_xact_lock.
+async function withCustomerLock<T>(
+  customerId: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  // En test no hay DB; el lock no aporta nada y no queremos conexión real.
+  if (Deno.env.get("CREATE_COMPANY_TEST_MODE")) {
+    return await fn();
   }
-  const rows = (await res.json()) as unknown[];
-  return rows.length > 0;
+  const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+  if (!dbUrl) {
+    throw new Error("Missing SUPABASE_DB_URL env var (needed for customer lock)");
+  }
+  const sql = postgres(dbUrl, { max: 1, idle_timeout: 5, connect_timeout: 10 });
+  try {
+    // hashtext(text) → int4, que se promociona a la forma de clave única
+    // bigint de pg_advisory_lock. Bloquea hasta que la otra invocación suelte.
+    await sql`select pg_advisory_lock(hashtext(${customerId}))`;
+    return await fn();
+  } finally {
+    try {
+      await sql`select pg_advisory_unlock(hashtext(${customerId}))`;
+    } catch (_) {
+      // best-effort; el sql.end() de abajo libera el lock al cerrar la sesión.
+    }
+    await sql.end({ timeout: 5 });
+  }
 }
 
 // --- Shopify helpers -----------------------------------------------------
@@ -245,29 +261,6 @@ async function joinCustomerToCompany(
   return { companyContactId, assignedRoleIds };
 }
 
-async function deleteCompany(companyId: string): Promise<void> {
-  const res = await gql<{
-    companyDelete: {
-      deletedCompanyId: string | null;
-      userErrors: Array<{ field: string[]; message: string }>;
-    };
-  }>(
-    `
-    mutation($id: ID!) {
-      companyDelete(id: $id) {
-        deletedCompanyId
-        userErrors { field message }
-      }
-    }
-    `,
-    { id: companyId },
-  );
-  const errs = res.companyDelete.userErrors;
-  if (errs.length) {
-    throw new Error(`companyDelete userErrors: ${JSON.stringify(errs)}`);
-  }
-}
-
 // --- Handler -------------------------------------------------------------
 
 export async function handle(req: Request): Promise<Response> {
@@ -290,6 +283,10 @@ export async function handle(req: Request): Promise<Response> {
       }, 400);
     }
 
+    // 3-7. Sección crítica serializada por customer: re-leemos profiles
+    // DENTRO del lock y, si seguimos sin company, creamos. Dos invocaciones
+    // del mismo customer no pueden crear dos companies (caso iluvi).
+    return await withCustomerLock(customerId, async () => {
     // 3. Fetch customer + metafields + existing company profiles.
     const data = await gql<{
       customer: {
@@ -360,8 +357,10 @@ export async function handle(req: Request): Promise<Response> {
       return jsonResponse({ startedAt, error: "customer has no default email", customerId }, 400);
     }
 
-    // 5.5 Unificación por dominio: si el dominio es corporativo y ya tiene
-    // company registrada, unir en silencio (decisión Víctor 2026-06-10).
+    // 5.5 Unión por dominio SOLO si está sembrado a mano: si el dominio es
+    // corporativo y tiene fila en company_domains, unir a esa company. Si NO
+    // tiene fila, se crea company nueva sin sembrar nada (modelo invertido
+    // 2026-06-14: las cadenas multi-delegación van separadas).
     const domain = email.split("@")[1]?.trim().toLowerCase() ?? "";
     const isCorporateDomain = domain.length > 0 && !GENERIC_DOMAINS.has(domain);
 
@@ -449,100 +448,9 @@ export async function handle(req: Request): Promise<Response> {
       }, 500);
     }
 
-    // 6.5 Registrar el dominio ANTES de unir el contact: el PK sobre domain
-    // es el árbitro de la race. Si el insert conflicta, otra invocación
-    // concurrente ganó (caso josepinas/iluvi): borramos NUESTRA company
-    // ANTES de tocar al customer (1. así no queda residuo aunque el resto
-    // falle — el 500 de iluvi.com 2026-06-11 dejó una company huérfana; y
-    // 2. un customer solo puede ser contacto de UNA company, así que
-    // cualquier assign con contacto previo falla). La race típica son DOS
-    // invocaciones para el MISMO customer (Flow W1+W2): cuando llegamos
-    // aquí la ganadora probablemente YA lo unió a su company → en ese caso
-    // no hay nada que asignar (idempotente).
-    if (isCorporateDomain) {
-      const won = await insertDomain(domain, company.id, companyLocationId);
-      if (!won) {
-        const winner = await lookupDomain(domain);
-        if (!winner) {
-          // Conflicto pero la fila no aparece: estado inesperado; seguimos
-          // con nuestra company antes que dejar al cliente sin acceso.
-          console.log(JSON.stringify({
-            startedAt,
-            outcome: "domain_conflict_but_no_row",
-            domain,
-            companyId: company.id,
-          }));
-        } else if (winner.company_id !== company.id) {
-          await deleteCompany(company.id);
-
-          // Releer el estado del customer: la invocación ganadora puede
-          // haberlo unido ya (mismo customer) o no (customer distinto,
-          // mismo dominio).
-          const profRes = await gql<{
-            customer: {
-              companyContactProfiles: Array<{
-                id: string;
-                company: { id: string };
-              }>;
-            } | null;
-          }>(
-            `
-            query($id: ID!) {
-              customer(id: $id) {
-                companyContactProfiles { id company { id } }
-              }
-            }
-            `,
-            { id: customerId },
-          );
-          const profiles = profRes.customer?.companyContactProfiles ?? [];
-          const alreadyInWinner = profiles.some(
-            (p) => p.company.id === winner.company_id,
-          );
-
-          if (alreadyInWinner) {
-            console.log(JSON.stringify({
-              startedAt,
-              outcome: "domain_race_already_joined",
-              domain,
-              winnerCompanyId: winner.company_id,
-              deletedCompanyId: company.id,
-            }));
-            return jsonResponse({
-              startedAt,
-              joined: true,
-              via: "domain_race",
-              alreadyContact: true,
-              customerId,
-              domain,
-              companyId: winner.company_id,
-              companyLocationId: winner.company_location_id,
-              deletedCompanyId: company.id,
-            });
-          }
-
-          const joined = await joinCustomerToCompany(
-            winner.company_id,
-            winner.company_location_id,
-            customerId,
-          );
-          return jsonResponse({
-            startedAt,
-            joined: true,
-            via: "domain_race",
-            customerId,
-            domain,
-            companyId: winner.company_id,
-            companyLocationId: winner.company_location_id,
-            companyContactId: joined.companyContactId,
-            assignedRoleIds: joined.assignedRoleIds,
-            deletedCompanyId: company.id,
-          });
-        }
-      }
-    }
-
-    // 7. Unir el customer a la company recién creada (contact + rol admin)
+    // 7. Unir el customer a la company recién creada (contact + rol admin).
+    // Ya NO sembramos el dominio: la unión por dominio es solo para filas
+    // puestas a mano por un humano.
     const joined = await joinCustomerToCompany(company.id, companyLocationId, customerId);
 
     return jsonResponse({
@@ -555,6 +463,7 @@ export async function handle(req: Request): Promise<Response> {
       companyLocationId,
       companyContactId: joined.companyContactId,
       assignedRoleIds: joined.assignedRoleIds,
+    });
     });
   } catch (e) {
     // Log explícito: el 500 de la race de iluvi.com (2026-06-11) fue

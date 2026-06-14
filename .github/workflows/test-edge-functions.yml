@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v1
+      - uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          # v2.x: el deno.lock del repo es lockfile v5 (generado por Deno 2.x);
+          # Deno 1.x lo rechaza con "Unsupported lockfile version '5'".
+          deno-version: v2.x
       - run: deno test tests/edge-functions/ --allow-all
