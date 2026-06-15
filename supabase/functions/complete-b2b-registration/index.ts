@@ -47,6 +47,9 @@ const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
 const SHOPIFY_ADMIN_TOKEN = Deno.env.get("SHOPIFY_ADMIN_TOKEN");
 const SHOPIFY_API_VERSION = Deno.env.get("SHOPIFY_API_VERSION") ?? "2025-10";
 const HMAC_SECRET = Deno.env.get("REGISTER_B2B_HMAC_SECRET");
+// Rotación de secret sin downtime: si está presente, se acepta también una
+// firma válida contra el secret SALIENTE. Se retira al terminar la rotación.
+const HMAC_SECRET_PREV = Deno.env.get("REGISTER_B2B_HMAC_SECRET_PREV");
 const STOREFRONT_ORIGIN = Deno.env.get("STOREFRONT_ORIGIN") ?? "*";
 
 if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_TOKEN) {
@@ -122,6 +125,19 @@ function constantTimeEq(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+// Verifica una firma contra el secret vigente y, si está configurado, contra el
+// secret saliente (modo DUAL durante la rotación). Devuelve true si casa con
+// cualquiera de los dos. Sin REGISTER_B2B_HMAC_SECRET_PREV → solo el vigente.
+async function verifyHmacSignature(payload: string, signature: string): Promise<boolean> {
+  const sigPrimary = await hmacSha256Hex(payload, HMAC_SECRET!);
+  if (constantTimeEq(sigPrimary, signature)) return true;
+  if (HMAC_SECRET_PREV) {
+    const sigPrev = await hmacSha256Hex(payload, HMAC_SECRET_PREV);
+    if (constantTimeEq(sigPrev, signature)) return true;
+  }
+  return false;
 }
 
 // --- NIF / NIE / CIF ---------------------------------------------------
@@ -311,11 +327,7 @@ export async function handle(req: Request): Promise<Response> {
       }, 401);
     }
 
-    const expectedSig = await hmacSha256Hex(
-      `${timestamp}:${nonce}:${customerId}`,
-      HMAC_SECRET!,
-    );
-    if (!constantTimeEq(expectedSig, signature)) {
+    if (!(await verifyHmacSignature(`${timestamp}:${nonce}:${customerId}`, signature))) {
       return jsonResponse({ code: "INVALID_SIGNATURE", message: "Signature mismatch." }, 401);
     }
 
@@ -630,7 +642,7 @@ export async function handle(req: Request): Promise<Response> {
 }
 
 // Exports para tests (no afectan al runtime de Deno.serve).
-export { hmacSha256Hex, HMAC_TTL_SECONDS };
+export { hmacSha256Hex, HMAC_TTL_SECONDS, verifyHmacSignature };
 
 if (!Deno.env.get("COMPLETE_B2B_TEST_MODE")) {
   Deno.serve(handle);

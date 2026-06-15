@@ -22,6 +22,8 @@ Deno.env.set("COMPLETE_B2B_TEST_MODE", "1");
 Deno.env.set("SHOPIFY_STORE_DOMAIN", "test.myshopify.com");
 Deno.env.set("SHOPIFY_ADMIN_TOKEN", "shpat_test");
 Deno.env.set("REGISTER_B2B_HMAC_SECRET", "test_secret_unit");
+// Modo DUAL (rotación sin downtime): secret saliente que también debe aceptarse.
+Deno.env.set("REGISTER_B2B_HMAC_SECRET_PREV", "test_secret_prev");
 
 const mod = await import("./index.ts");
 const handle: (req: Request) => Promise<Response> = mod.handle;
@@ -115,6 +117,40 @@ Deno.test("rechaza firma inválida (401)", async () => {
     const json = await res.json();
     assertEquals(json.code, "INVALID_SIGNATURE");
     assertEquals(calls.length, 0);
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test("acepta firma del secret SALIENTE durante rotación dual (200)", async () => {
+  installFetchMock((call) => {
+    if (call.query.includes("customer(id:")) {
+      return { customer: { id: CUSTOMER_GID, tags: [] } };
+    }
+    if (call.query.includes("customerEmailMarketingConsentUpdate")) {
+      return { customerEmailMarketingConsentUpdate: { userErrors: [] } };
+    }
+    if (call.query.includes("customerUpdate")) {
+      return { customerUpdate: { customer: { id: CUSTOMER_GID }, userErrors: [] } };
+    }
+    if (call.query.includes("tagsAdd")) {
+      return { tagsAdd: { node: { id: CUSTOMER_GID }, userErrors: [] } };
+    }
+    throw new Error("unexpected call: " + call.query);
+  });
+  try {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const nonce = "nonce-12345678";
+    // Firmado con el secret SALIENTE (test_secret_prev), no el vigente.
+    const signature = await hmacSha256Hex(
+      `${timestamp}:${nonce}:${CUSTOMER_GID}`,
+      "test_secret_prev",
+    );
+    const body = await signedBody({ timestamp, nonce, signature });
+    const res = await handle(makeReq(body));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.ok, true);
   } finally {
     restoreFetch();
   }
