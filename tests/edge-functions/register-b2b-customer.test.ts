@@ -24,8 +24,10 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 Deno.env.set("SHOPIFY_STORE_DOMAIN", "test.myshopify.com");
 Deno.env.set("SHOPIFY_ADMIN_TOKEN", "shpat_test");
 Deno.env.set("REGISTER_B2B_HMAC_SECRET", "test_secret");
+// Modo DUAL (rotación sin downtime): secret saliente que también debe aceptarse.
+Deno.env.set("REGISTER_B2B_HMAC_SECRET_PREV", "test_secret_prev");
 
-const { sanitizeText, normalizeCountry } = await import(
+const { sanitizeText, normalizeCountry, hmacSha256Hex, verifyHmacSignature } = await import(
   "../../supabase/functions/register-b2b-customer/index.ts"
 );
 
@@ -62,6 +64,26 @@ Deno.test("normalizeCountry: alias 'España' → 'ES' vía map", () => {
 
 Deno.test("normalizeCountry: ISO 2-letter no-ES pasa sin alias", () => {
   assertEquals(normalizeCountry("US"), "US");
+});
+
+// --- verifyHmacSignature (rotación DUAL) ------------------------------
+
+Deno.test("verifyHmac: acepta firma del secret VIGENTE", async () => {
+  const payload = "1700000000:nonce-abcdefgh";
+  const sig = await hmacSha256Hex(payload, "test_secret");
+  assertEquals(await verifyHmacSignature(payload, sig), true);
+});
+
+Deno.test("verifyHmac: acepta firma del secret SALIENTE (dual)", async () => {
+  const payload = "1700000000:nonce-abcdefgh";
+  const sig = await hmacSha256Hex(payload, "test_secret_prev");
+  assertEquals(await verifyHmacSignature(payload, sig), true);
+});
+
+Deno.test("verifyHmac: rechaza firma de un secret desconocido", async () => {
+  const payload = "1700000000:nonce-abcdefgh";
+  const sig = await hmacSha256Hex(payload, "secret_que_no_existe");
+  assertEquals(await verifyHmacSignature(payload, sig), false);
 });
 
 // --- TODOs follow-up --------------------------------------------------
