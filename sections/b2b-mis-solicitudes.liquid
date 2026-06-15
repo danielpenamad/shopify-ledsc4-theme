@@ -20,7 +20,7 @@
   assign now_ts = 'now' | date: '%s'
   assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
   assign hmac_payload = customer_gid | append: ':' | append: now_ts
-  assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
+  assign hmac_sig = hmac_payload | hmac_sha256: shop.metafields.b2b.order_request_hmac_secret.value
   assign fallback_bienvenido = 'ledsc4.common.greeting.fallback_bienvenido' | t
   assign saludo = customer.metafields.b2b.empresa | default: customer.first_name | default: fallback_bienvenido
 

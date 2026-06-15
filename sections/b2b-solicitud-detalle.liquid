@@ -8,7 +8,7 @@
   assign now_ts = 'now' | date: '%s'
   assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
   assign hmac_payload = customer_gid | append: ':' | append: now_ts
-  assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
+  assign hmac_sig = hmac_payload | hmac_sha256: shop.metafields.b2b.order_request_hmac_secret.value
 
   assign iso = request.locale.iso_code
   assign locale_bcp47 = iso

@@ -20,6 +20,9 @@ const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
 const SHOPIFY_ADMIN_TOKEN = Deno.env.get("SHOPIFY_ADMIN_TOKEN");
 const SHOPIFY_API_VERSION = Deno.env.get("SHOPIFY_API_VERSION") ?? "2025-10";
 const HMAC_SECRET = Deno.env.get("ORDER_REQUEST_HMAC_SECRET");
+// Rotación sin downtime: durante la transición se acepta también una firma
+// válida contra el secret SALIENTE. Se retira al cerrar la rotación.
+const HMAC_SECRET_PREV = Deno.env.get("ORDER_REQUEST_HMAC_SECRET_PREV");
 
 if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_TOKEN || !HMAC_SECRET) {
   throw new Error("Missing required env vars");
@@ -112,8 +115,12 @@ Deno.serve(async (req) => {
     if (Math.abs(nowSec - timestamp) > HMAC_TTL_SECONDS) {
       return jsonResponse({ error: "signature_expired" }, 401);
     }
-    const expectedSig = await hmacSha256Hex(`${customerId}:${timestamp}`, HMAC_SECRET!);
-    if (!constantTimeEq(expectedSig, signature)) return jsonResponse({ error: "invalid_signature" }, 401);
+    const sigPayload = `${customerId}:${timestamp}`;
+    let sigValid = constantTimeEq(await hmacSha256Hex(sigPayload, HMAC_SECRET!), signature);
+    if (!sigValid && HMAC_SECRET_PREV) {
+      sigValid = constantTimeEq(await hmacSha256Hex(sigPayload, HMAC_SECRET_PREV), signature);
+    }
+    if (!sigValid) return jsonResponse({ error: "invalid_signature" }, 401);
 
     const custNumericId = customerId.split("/").pop();
 

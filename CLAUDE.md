@@ -216,31 +216,44 @@ fallo del cron**: antes (pre-PR #145) intentaba ejecutar W2 →
 `create-company-for-customer` y se llevaba HTTP 400 en bucle, que sí ensuciaba
 los logs.
 
-## Secret HMAC de registro (metafield de shop `b2b.hmac_secret`)
+## REGLA PERMANENTE: ningún secret en `settings_data.json`
 
-El secret que firma los formularios B2B de `register-b2b-customer` y
-`complete-b2b-registration` **ya NO vive en `config/settings_data.json`**
-(estaba quemado en el repo público; rotado 2026-06-14). Ahora:
+**NUNCA pongas un secret en `config/settings_data.json` ni en
+`settings_schema.json`.** Ese fichero se sincroniza siempre al repo (GitHub +
+"Update from Shopify"), así que cualquier secret ahí queda quemado — **nos ha
+mordido 3 veces** (register, order-request, backoffice). Todo secret de firma
+(HMAC u otro) va en un **metafield de shop con `access.storefront = NONE`** y se
+lee desde Liquid con `shop.metafields.<ns>.<key>.value`: legible en Liquid SSR,
+**NO** expuesto en la Storefront API pública ni en el HTML. Las URLs de endpoint
+y flags no-secretos sí pueden seguir en settings.
 
-- **Tema (firma):** `main-acceso-profesional.liquid` y
-  `main-completar-registro.liquid` firman con
-  `shop.metafields.b2b.hmac_secret.value`. La definición del metafield tiene
-  `access.storefront = NONE` → legible en Liquid SSR, **NO** expuesto en la
-  Storefront API pública ni en el HTML.
-- **Supabase (verifica):** env `REGISTER_B2B_HMAC_SECRET` (mismo valor que el
-  metafield). Ambas funciones verifican vía `verifyHmacSignature()`.
-- **Rotación sin downtime:** las funciones aceptan además
-  `REGISTER_B2B_HMAC_SECRET_PREV` (secret saliente) durante la transición.
-  Orden: (1) deploy dual con env viejo → (2) `secrets set` primary=NUEVO +
-  PREV=VIEJO → (3) redeploy → (4) tema firma con metafield NUEVO (merge) →
-  (5) verificar prod → (6) `secrets unset ..._PREV` + redeploy = solo-NUEVO.
-  Para escribir el valor del metafield sin que pase por logs/chat se usó una
-  edge function efímera que copia el env `REGISTER_B2B_HMAC_SECRET` → metafield
-  vía Admin token (desplegada, invocada y borrada).
+## Secrets HMAC en metafields de shop (`b2b.*`, `storefront:NONE`)
 
-> **DEUDA DE SEGURIDAD (reportada 2026-06-14, sin rotar aún):** en el mismo
-> `settings_data.json` quedan quemados en el repo público otros dos HMAC:
-> `order_request_hmac_secret` y `backoffice_hmac_secret` (este último de blast
-> radius alto: firma aprobar/rechazar en backoffice). Rotarlos con el mismo
-> patrón (env Supabase `ORDER_REQUEST_HMAC_SECRET` / `BACKOFFICE_HMAC_SECRET`
-> + metafields de shop dedicados, `access.storefront = NONE`).
+Los tres secrets HMAC de firma B2B viven en metafields de shop (rotados y
+sacados de `settings_data.json`, donde estaban quemados en el repo público;
+register/complete 2026-06-14, order-request + backoffice 2026-06-15):
+
+| Secret (metafield) | Env Supabase | Firma en (tema) | Verifica en (funciones) |
+|---|---|---|---|
+| `b2b.hmac_secret` | `REGISTER_B2B_HMAC_SECRET` | `main-acceso-profesional`, `main-completar-registro` | `register-b2b-customer`, `complete-b2b-registration` |
+| `b2b.order_request_hmac_secret` | `ORDER_REQUEST_HMAC_SECRET` | `b2b-solicitud-form`, `b2b-solicitud-detalle`, `b2b-mis-solicitudes` | `submit-order-request`, `list-order-requests` |
+| `b2b.backoffice_hmac_secret` | `BACKOFFICE_HMAC_SECRET` | `admin-backoffice-resumen` | `approve-customer`, `reject-customer`, `list-pending-customers`, `update-whitelist` |
+
+El segundo cerrojo del backoffice (`assertBackofficeTag`, tag `backoffice`
+server-side) es independiente del HMAC y **no se toca** en la rotación.
+
+**Rotación sin downtime** (verificada, mismo procedimiento para los tres):
+1. Deploy dual de las funciones con env viejo (leen `<ENV>_PREV` opcional →
+   aceptan secret vigente **o** saliente).
+2. `secrets set` primary=NUEVO + `<ENV>_PREV`=VIEJO → redeploy → dual vivo.
+3. Metafield: definición `storefront:NONE` + valor=NUEVO escrito por una **edge
+   function efímera** que copia el env → metafield vía Admin token (desplegada,
+   invocada, borrada); el valor nunca pasa por chat/logs/repo.
+4. Tema firma con el metafield NUEVO (merge del PR) + quitar el secret de
+   `settings_data.json`/`settings_schema.json`.
+5. Verificar en prod: firma NUEVA real → 2xx/4xx de validación; petición forjada
+   con el secret VIEJO → 401.
+6. `secrets unset <ENV>_PREV` + redeploy = solo-NUEVO (el viejo queda inservible).
+
+> El `X-Webhook-Secret` de `create-company` (Flow→función) NO está en el repo
+> (vive en la cabecera del paso HTTP de Flow) → no aplica esta regla.

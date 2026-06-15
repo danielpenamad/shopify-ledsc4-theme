@@ -61,6 +61,9 @@ const SHOPIFY_STORE_DOMAIN = Deno.env.get("SHOPIFY_STORE_DOMAIN");
 const SHOPIFY_ADMIN_TOKEN = Deno.env.get("SHOPIFY_ADMIN_TOKEN");
 const SHOPIFY_API_VERSION = Deno.env.get("SHOPIFY_API_VERSION") ?? "2025-10";
 const HMAC_SECRET = Deno.env.get("BACKOFFICE_HMAC_SECRET");
+// Rotación sin downtime: durante la transición se acepta también una firma
+// válida contra el secret SALIENTE. Se retira al cerrar la rotación.
+const HMAC_SECRET_PREV = Deno.env.get("BACKOFFICE_HMAC_SECRET_PREV");
 
 if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_TOKEN || !HMAC_SECRET) {
   throw new Error(
@@ -131,8 +134,12 @@ async function verifyHmac(customerId: string, timestamp: number, signature: stri
   if (!Number.isFinite(timestamp) || Math.abs(nowSec - timestamp) > HMAC_TTL_SECONDS) {
     return { ok: false, code: "SIGNATURE_EXPIRED" };
   }
-  const expected = await hmacSha256Hex(`${customerId}:${timestamp}`, HMAC_SECRET!);
-  if (!constantTimeEq(expected, signature)) return { ok: false, code: "INVALID_SIGNATURE" };
+  const payload = `${customerId}:${timestamp}`;
+  let valid = constantTimeEq(await hmacSha256Hex(payload, HMAC_SECRET!), signature);
+  if (!valid && HMAC_SECRET_PREV) {
+    valid = constantTimeEq(await hmacSha256Hex(payload, HMAC_SECRET_PREV), signature);
+  }
+  if (!valid) return { ok: false, code: "INVALID_SIGNATURE" };
   return { ok: true };
 }
 

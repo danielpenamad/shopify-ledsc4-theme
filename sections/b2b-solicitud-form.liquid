@@ -5,15 +5,15 @@
     2. Textarea comentario (max 1000)
     3. Checkbox aviso IVA/portes (required)
     4. Submit -> POST al edge function submit-order-request
-  Autenticacion: HMAC(customer.id:timestamp, settings.order_request_hmac_secret)
-  firmado server-side por Liquid. TTL 10 min.
+  Autenticacion: HMAC(customer.id:timestamp, shop.metafields.b2b.order_request_hmac_secret)
+  firmado server-side por Liquid (metafield storefront:NONE). TTL 10 min.
 {%- endcomment -%}
 
 {%- liquid
   assign now_ts = 'now' | date: '%s'
   assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
   assign hmac_payload = customer_gid | append: ':' | append: now_ts
-  assign hmac_sig = hmac_payload | hmac_sha256: settings.order_request_hmac_secret
+  assign hmac_sig = hmac_payload | hmac_sha256: shop.metafields.b2b.order_request_hmac_secret.value
 
   # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
   assign locale_prefix = routes.root_url

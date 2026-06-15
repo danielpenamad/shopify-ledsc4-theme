@@ -30,7 +30,7 @@
     assign customer_gid = 'gid://shopify/Customer/' | append: customer.id
     assign now_ts = 'now' | date: '%s'
     assign hmac_payload = customer_gid | append: ':' | append: now_ts
-    assign hmac_sig = hmac_payload | hmac_sha256: settings.backoffice_hmac_secret
+    assign hmac_sig = hmac_payload | hmac_sha256: shop.metafields.b2b.backoffice_hmac_secret.value
   endif
 -%}
 
