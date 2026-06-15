@@ -195,7 +195,7 @@ async function assertBackofficeTag(approverId: string): Promise<{ ok: true } | {
   return { ok: true };
 }
 
-Deno.serve(async (req) => {
+async function handle(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405);
 
@@ -341,4 +341,12 @@ Deno.serve(async (req) => {
     logJson("error", "approve_failed", { error: msg });
     return jsonResponse({ error: msg, code: "SHOPIFY_ERROR" }, 500);
   }
-});
+}
+
+// Guard env-sentinel: en tests se setea APPROVE_CUSTOMER_TEST_MODE antes del
+// import para que importar el módulo NO levante el server (evita colisión de
+// puerto al cargar varios módulos en la misma tanda de `deno test`). En el
+// runtime de Supabase Edge la sentinel no está → sirve normalmente.
+if (!Deno.env.get("APPROVE_CUSTOMER_TEST_MODE")) {
+  Deno.serve(handle);
+}

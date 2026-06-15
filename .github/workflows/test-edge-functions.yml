@@ -15,4 +15,9 @@ jobs:
           # v2.x: el deno.lock del repo es lockfile v5 (generado por Deno 2.x);
           # Deno 1.x lo rechaza con "Unsupported lockfile version '5'".
           deno-version: v2.x
-      - run: deno test tests/edge-functions/ --allow-all
+      # Corre TANTO la suite centralizada (tests/edge-functions/) como los
+      # tests colocados junto a cada función (supabase/functions/**/index.test.ts).
+      # Objetivo: "verde en local" == "verde en CI". Cada test setea su propio
+      # env-sentinel (<FN>_TEST_MODE) antes del import dinámico para que cargar
+      # el módulo NO levante Deno.serve (evita colisión del puerto 8000).
+      - run: deno test tests/edge-functions/ supabase/functions/ --allow-all
