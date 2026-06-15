@@ -127,11 +127,9 @@
     "cart_drawer_collection": "",
     "cart_color_scheme": "scheme-1",
     "order_request_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/submit-order-request",
-    "order_request_hmac_secret": "0d9a1540f4a3d2418427a4cd09075accc1bdb9b25cf77c7fdd833f8475b1de47",
     "list_order_requests_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
     "complete_b2b_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/complete-b2b-registration",
     "backoffice_base_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/",
-    "backoffice_hmac_secret": "045d25bf60069a3d63ad3556124d1d56ccd8ea044e021bff33bcfa31a0ec3817",
     "sections": {
       "main-password-header": {
         "type": "main-password-header",
@@ -382,10 +380,8 @@
       "cart_drawer_collection": "",
       "cart_color_scheme": "scheme-1",
       "order_request_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/submit-order-request",
-      "order_request_hmac_secret": "0d9a1540f4a3d2418427a4cd09075accc1bdb9b25cf77c7fdd833f8475b1de47",
       "list_order_requests_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
       "backoffice_base_endpoint": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/",
-      "backoffice_hmac_secret": "045d25bf60069a3d63ad3556124d1d56ccd8ea044e021bff33bcfa31a0ec3817",
       "sections": {
         "main-password-header": {
           "type": "main-password-header",

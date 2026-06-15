@@ -1464,12 +1464,6 @@
       },
       {
         "type": "text",
-        "id": "order_request_hmac_secret",
-        "label": "HMAC secret",
-        "info": "DEBE coincidir con ORDER_REQUEST_HMAC_SECRET en Supabase env. No compartir. Seteado en settings_data.json."
-      },
-      {
-        "type": "text",
         "id": "list_order_requests_endpoint",
         "label": "URL list-order-requests",
         "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/list-order-requests",
@@ -1500,12 +1494,6 @@
         "label": "Base URL edge functions backoffice",
         "default": "https://mbjvmhaglbhnxoccwyex.supabase.co/functions/v1/",
         "info": "Base URL de Supabase functions. La página backoffice añade list-pending-customers, update-whitelist, approve-customer, reject-customer. Debe terminar con barra."
-      },
-      {
-        "type": "text",
-        "id": "backoffice_hmac_secret",
-        "label": "HMAC secret · backoffice",
-        "info": "DEBE coincidir con BACKOFFICE_HMAC_SECRET en Supabase env. Distinto del HMAC de solicitudes y register: el blast radius de este es mucho mayor (operaciones de approver). Rotación independiente."
       }
     ]
   }
