@@ -313,7 +313,7 @@ interface IncomingBody {
   condiciones?: boolean;
 }
 
-Deno.serve(async (req: Request) => {
+async function handle(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
@@ -657,4 +657,12 @@ Deno.serve(async (req: Request) => {
       message: "Servicio no disponible, vuelve a intentarlo en unos minutos.",
     }, 502);
   }
-});
+}
+
+// Guard env-sentinel: en tests se setea REGISTER_B2B_TEST_MODE antes del import
+// para que importar el módulo NO levante el server (evita colisión de puerto al
+// cargar varios módulos en la misma tanda de `deno test`). En el runtime de
+// Supabase Edge la sentinel no está → sirve normalmente.
+if (!Deno.env.get("REGISTER_B2B_TEST_MODE")) {
+  Deno.serve(handle);
+}

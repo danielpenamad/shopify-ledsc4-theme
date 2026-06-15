@@ -6,6 +6,9 @@
 
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
+// Sentinel: evita que importar el módulo levante Deno.serve (colisión de
+// puerto 8000 al cargar varios módulos en la misma tanda de `deno test`).
+Deno.env.set("REJECT_CUSTOMER_TEST_MODE", "1");
 Deno.env.set("SHOPIFY_STORE_DOMAIN", "test.myshopify.com");
 Deno.env.set("SHOPIFY_ADMIN_TOKEN", "shpat_test");
 Deno.env.set("BACKOFFICE_HMAC_SECRET", "test_secret");

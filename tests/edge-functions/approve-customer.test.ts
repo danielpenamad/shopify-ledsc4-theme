@@ -12,6 +12,9 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 // throws si faltan SHOPIFY_STORE_DOMAIN / SHOPIFY_ADMIN_TOKEN /
 // BACKOFFICE_HMAC_SECRET. Para tests del builder puro no nos importan
 // los valores reales.
+// Sentinel: evita que importar el módulo levante Deno.serve (colisión de
+// puerto 8000 al cargar varios módulos en la misma tanda de `deno test`).
+Deno.env.set("APPROVE_CUSTOMER_TEST_MODE", "1");
 Deno.env.set("SHOPIFY_STORE_DOMAIN", "test.myshopify.com");
 Deno.env.set("SHOPIFY_ADMIN_TOKEN", "shpat_test");
 Deno.env.set("BACKOFFICE_HMAC_SECRET", "test_secret");
