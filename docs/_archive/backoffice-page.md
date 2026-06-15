@@ -299,7 +299,7 @@ cliente. Pasos:
 Con `supabase functions serve` levantado en local, curl con HMAC válida:
 
 ```bash
-SECRET=045d25bf60069a3d63ad3556124d1d56ccd8ea044e021bff33bcfa31a0ec3817
+SECRET=<BACKOFFICE_HMAC_SECRET>   # redactado: el valor vive solo en metafield b2b.backoffice_hmac_secret + env Supabase (ver CLAUDE.md)
 CID="gid://shopify/Customer/123456789"
 TS=$(date +%s)
 SIG=$(printf "%s:%s" "$CID" "$TS" | openssl dgst -sha256 -hmac "$SECRET" -hex | awk '{print $2}')

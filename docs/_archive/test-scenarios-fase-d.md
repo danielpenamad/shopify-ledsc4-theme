@@ -7,7 +7,8 @@ Tests manuales para validar el flujo de solicitudes de pedido B2B.
   admin → Themes → Add theme → Connect from GitHub → branch
   feature/b2b-order-request).
 - Secret `ORDER_REQUEST_HMAC_SECRET` seteado en Supabase env
-  (valor: `0d9a1540f4a3d2418427a4cd09075accc1bdb9b25cf77c7fdd833f8475b1de47`).
+  (valor redactado: vive solo en metafield `b2b.order_request_hmac_secret` +
+  env Supabase; ver CLAUDE.md).
 - Metafield `product.b2b.cbm_caja` definido y con valor en algunos
   productos para poder verificar el cálculo de CBM total.
 - Flow W5 creado y activo (ver `email-templates/WALKTHROUGH-W5.md`).
