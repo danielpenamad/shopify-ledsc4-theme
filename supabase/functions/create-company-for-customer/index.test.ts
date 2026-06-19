@@ -30,6 +30,7 @@ const OWN_COMPANY = "gid://shopify/Company/999";
 const OWN_LOCATION = "gid://shopify/CompanyLocation/9991";
 const WINNER_COMPANY = "gid://shopify/Company/777";
 const WINNER_LOCATION = "gid://shopify/CompanyLocation/7771";
+const NEW_LOCATION = "gid://shopify/CompanyLocation/88810"; // sede de overflow creada
 const ADMIN_ROLE_NOTE = "System-defined Location admin role";
 
 // --- Fetch mocking -------------------------------------------------------
@@ -122,13 +123,36 @@ function customerData(email: string) {
   };
 }
 
-function shopifyHandler(opts: { email: string; profilesAfterRace?: Array<{ id: string; company: { id: string } }> }) {
+function shopifyHandler(opts: {
+  email: string;
+  profilesAfterRace?: Array<{ id: string; company: { id: string } }>;
+  // roleAssignments que ya tiene el contacto (ensureAdminRole). Default [].
+  contactRoleEdges?: Array<{ node: { id: string; role: { note: string }; companyLocation: { id: string } } }>;
+  // Locations que devuelven LIMIT_REACHED al asignar rol pese a tener count<cap
+  // (simula carrera de concurrencia → la reactiva debe pasar a la siguiente).
+  fullLocationIds?: string[];
+  // Sedes existentes de la company con su ocupación (listCompanyLocationsWithCounts).
+  // Default según la company: una sede vacía (count 0).
+  companyLocations?: Array<{ id: string; name: string; count: number }>;
+  // Si true, companyAssignCustomerAsContact devuelve contacto null (ya existe);
+  // el código debe resolver el id vía companyContactProfiles.
+  assignReturnsNull?: boolean;
+}) {
+  const full = new Set(opts.fullLocationIds ?? []);
   return (call: RecordedCall): unknown => {
     const q = call.query ?? "";
     if (q.includes("defaultEmailAddress")) return customerData(opts.email);
     if (q.includes("companyContactProfiles") && !q.includes("metafields")) {
-      // Re-lectura de perfiles en el camino de race (post-deleteCompany).
+      // Re-lectura de perfiles / findExistingContactId.
       return { customer: { companyContactProfiles: opts.profilesAfterRace ?? [] } };
+    }
+    if (q.includes("companyLocationCreate")) {
+      return {
+        companyLocationCreate: {
+          companyLocation: { id: NEW_LOCATION, name: "Empresa Test SL — sede 2" },
+          userErrors: [],
+        },
+      };
     }
     if (q.includes("companyCreate")) {
       return {
@@ -145,8 +169,49 @@ function shopifyHandler(opts: { email: string; profilesAfterRace?: Array<{ id: s
     if (q.includes("companyAssignCustomerAsContact")) {
       return {
         companyAssignCustomerAsContact: {
-          companyContact: { id: "gid://shopify/CompanyContact/555" },
+          companyContact: opts.assignReturnsNull ? null : { id: "gid://shopify/CompanyContact/555" },
           userErrors: [],
+        },
+      };
+    }
+    // Lectura idempotente de roles del contacto (ensureAdminRole). Por defecto
+    // el contacto aún NO tiene rol → ensureAdminRole procederá a asignarlo.
+    if (q.includes("roleAssignments(first: 25)")) {
+      return {
+        companyContact: {
+          roleAssignments: { edges: opts.contactRoleEdges ?? [] },
+        },
+      };
+    }
+    // listCompanyLocationsWithCounts: name + sedes con ocupación + config.
+    if (q.includes("locations(first: 10)")) {
+      const companyId = call.variables?.id as string;
+      const locs = opts.companyLocations ??
+        (companyId === WINNER_COMPANY
+          ? [{ id: WINNER_LOCATION, name: "Winner L1", count: 0 }]
+          : [{ id: OWN_LOCATION, name: "Own L1", count: 0 }]);
+      return {
+        company: {
+          name: "Empresa Test SL",
+          locations: {
+            edges: locs.map((l) => ({
+              node: {
+                id: l.id,
+                name: l.name,
+                buyerExperienceConfiguration: {
+                  checkoutToDraft: false,
+                  editableShippingAddress: false,
+                  paymentTermsTemplate: null,
+                },
+                // count asignaciones → edges sintéticos para que el código las cuente.
+                roleAssignments: {
+                  edges: Array.from({ length: l.count }, (_, i) => ({
+                    node: { id: `ra-${l.id}-${i}` },
+                  })),
+                },
+              },
+            })),
+          },
         },
       };
     }
@@ -163,15 +228,25 @@ function shopifyHandler(opts: { email: string; profilesAfterRace?: Array<{ id: s
       };
     }
     if (q.includes("companyContactAssignRoles")) {
+      const locId = (call.variables?.rolesToAssign as Array<{ companyLocationId: string }>)[0].companyLocationId;
+      if (full.has(locId)) {
+        return {
+          companyContactAssignRoles: {
+            roleAssignments: [],
+            userErrors: [{
+              field: ["rolesToAssign", "0"],
+              message: "La sucursal de la empresa ha alcanzado el número máximo de 50 asignaciones de clientes.",
+              code: "LIMIT_REACHED",
+            }],
+          },
+        };
+      }
       return {
         companyContactAssignRoles: {
           roleAssignments: [{ id: "gid://shopify/CompanyContactRoleAssignment/1" }],
           userErrors: [],
         },
       };
-    }
-    if (q.includes("companyDelete")) {
-      return { companyDelete: { deletedCompanyId: OWN_COMPANY, userErrors: [] } };
     }
     throw new Error(`mock sin handler para query: ${q.slice(0, 80)}`);
   };
@@ -316,6 +391,176 @@ Deno.test("idempotencia (cubre race mismo customer): company existente → skipp
     const json = await res.json();
     assertEquals(json.skipped, true);
     assertEquals(restCalls().length, 0);
+  } finally {
+    restoreFetch();
+  }
+});
+
+// Auto-reparación: el camino de unión asegura el rol SIEMPRE. Un contacto sin
+// rol que vuelve a pasar por aquí termina con rol (no 500, no duplica).
+Deno.test("contacto ya existente SIN rol → asigna rol (no 500, no duplica)", async () => {
+  installFetchMock({
+    // companyAssignCustomerAsContact devuelve null (ya es contacto); el código
+    // resuelve el companyContactId vía companyContactProfiles y luego, como el
+    // contacto no tiene rol (contactRoleEdges=[]), lo asigna.
+    shopify: shopifyHandler({
+      email: "segundo@ledsc4.com",
+      assignReturnsNull: true,
+      profilesAfterRace: [{ id: "gid://shopify/CompanyContact/555", company: { id: WINNER_COMPANY } }],
+      contactRoleEdges: [],
+    }),
+    lookupRows: [[{ company_id: WINNER_COMPANY, company_location_id: WINNER_LOCATION }]],
+    insertRows: [],
+  });
+  try {
+    const res = await handle(makeReq({ customerId: CUSTOMER_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.joined, true);
+    assertEquals(json.companyContactId, "gid://shopify/CompanyContact/555");
+    // Se asignó exactamente UNA vez (no duplica).
+    const assignCalls = shopifyCalls().filter((c) => c.query!.includes("companyContactAssignRoles"));
+    assertEquals(assignCalls.length, 1);
+    assertEquals(json.assignedRoleIds.length, 1);
+  } finally {
+    restoreFetch();
+  }
+});
+
+// Idempotencia del rol: si el contacto YA tiene el rol admin en esa location,
+// ensureAdminRole hace no-op (no llama a companyContactAssignRoles).
+Deno.test("contacto ya existente CON rol → no-op (no re-asigna)", async () => {
+  installFetchMock({
+    shopify: shopifyHandler({
+      email: "segundo@ledsc4.com",
+      contactRoleEdges: [{
+        node: {
+          id: "gid://shopify/CompanyContactRoleAssignment/99",
+          role: { note: ADMIN_ROLE_NOTE },
+          companyLocation: { id: WINNER_LOCATION },
+        },
+      }],
+    }),
+    lookupRows: [[{ company_id: WINNER_COMPANY, company_location_id: WINNER_LOCATION }]],
+    insertRows: [],
+  });
+  try {
+    const res = await handle(makeReq({ customerId: CUSTOMER_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.joined, true);
+    // No se intentó re-asignar el rol (evita el error de rol duplicado).
+    const assignCalls = shopifyCalls().filter((c) => c.query!.includes("companyContactAssignRoles"));
+    assertEquals(assignCalls.length, 0);
+  } finally {
+    restoreFetch();
+  }
+});
+
+// Spill: cuando TODAS las sedes están al HARD_CAP (50), crea UNA sede de
+// overflow y asigna ahí (200, no 409). Replica la config de la 1ª sede.
+Deno.test("todas las sedes al tope (50) → crea sede de overflow y asigna ahí", async () => {
+  installFetchMock({
+    shopify: shopifyHandler({
+      email: "segundo@ledsc4.com",
+      companyLocations: [{ id: WINNER_LOCATION, name: "Madre", count: 50 }],
+    }),
+    lookupRows: [[{ company_id: WINNER_COMPANY, company_location_id: WINNER_LOCATION }]],
+    insertRows: [],
+  });
+  try {
+    const res = await handle(makeReq({ customerId: CUSTOMER_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.joined, true);
+    // Se creó UNA sede nueva y el rol cayó ahí; la llena (50) ni se intentó.
+    const creates = shopifyCalls().filter((c) => c.query!.includes("companyLocationCreate"));
+    assertEquals(creates.length, 1);
+    // La sede nueva replica buyerExperienceConfiguration de la 1ª.
+    const bec = (creates[0].variables!.input as { buyerExperienceConfiguration?: unknown })
+      .buyerExperienceConfiguration;
+    assert(bec !== undefined);
+    assertEquals(json.companyLocationId, NEW_LOCATION);
+    assertEquals(json.assignedRoleIds.length, 1);
+  } finally {
+    restoreFetch();
+  }
+});
+
+// No-sprawl: si hay una sede con hueco NO crea otra; concentra rellenando la
+// más llena por debajo del tope (no deja sedes casi vacías).
+Deno.test("sede principal llena pero sede 2 con hueco → reutiliza (no crea)", async () => {
+  const SEDE2 = "gid://shopify/CompanyLocation/7772";
+  installFetchMock({
+    shopify: shopifyHandler({
+      email: "tercero@ledsc4.com",
+      companyLocations: [
+        { id: WINNER_LOCATION, name: "Madre", count: 50 }, // llena
+        { id: SEDE2, name: "sede 2", count: 15 }, // con hueco
+      ],
+    }),
+    lookupRows: [[{ company_id: WINNER_COMPANY, company_location_id: WINNER_LOCATION }]],
+    insertRows: [],
+  });
+  try {
+    const res = await handle(makeReq({ customerId: CUSTOMER_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.companyLocationId, SEDE2);
+    assert(!shopifyCalls().some((c) => c.query!.includes("companyLocationCreate")));
+  } finally {
+    restoreFetch();
+  }
+});
+
+// Concentración: con dos sedes por debajo del soft cap, rellena la MÁS LLENA
+// primero (no reparte dejando ambas a medias).
+Deno.test("dos sedes bajo soft cap → elige la más llena (concentra)", async () => {
+  const SEDE_A = "gid://shopify/CompanyLocation/7773";
+  const SEDE_B = "gid://shopify/CompanyLocation/7774";
+  installFetchMock({
+    shopify: shopifyHandler({
+      email: "cuarto@ledsc4.com",
+      companyLocations: [
+        { id: SEDE_A, name: "A", count: 10 },
+        { id: SEDE_B, name: "B", count: 30 }, // más llena → preferida
+      ],
+    }),
+    lookupRows: [[{ company_id: WINNER_COMPANY, company_location_id: SEDE_A }]],
+    insertRows: [],
+  });
+  try {
+    const res = await handle(makeReq({ customerId: CUSTOMER_GID }));
+    assertEquals(res.status, 200);
+    assertEquals((await res.json()).companyLocationId, SEDE_B);
+  } finally {
+    restoreFetch();
+  }
+});
+
+// Carrera de concurrencia: el count decía hueco pero el assign devuelve
+// LIMIT_REACHED → la reactiva pasa a la siguiente sede sin fallar.
+Deno.test("carrera: assign LIMIT_REACHED pese a count<cap → cae a la siguiente", async () => {
+  const SEDE_A = "gid://shopify/CompanyLocation/7775";
+  const SEDE_B = "gid://shopify/CompanyLocation/7776";
+  installFetchMock({
+    shopify: shopifyHandler({
+      email: "quinto@ledsc4.com",
+      companyLocations: [
+        { id: SEDE_A, name: "A", count: 40 }, // se eligen por más-llena: A primero
+        { id: SEDE_B, name: "B", count: 20 },
+      ],
+      fullLocationIds: [SEDE_A], // A se llenó por carrera entre el count y el assign
+    }),
+    lookupRows: [[{ company_id: WINNER_COMPANY, company_location_id: SEDE_A }]],
+    insertRows: [],
+  });
+  try {
+    const res = await handle(makeReq({ customerId: CUSTOMER_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.companyLocationId, SEDE_B);
+    assert(!shopifyCalls().some((c) => c.query!.includes("companyLocationCreate")));
   } finally {
     restoreFetch();
   }
