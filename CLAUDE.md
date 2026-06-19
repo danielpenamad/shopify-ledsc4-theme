@@ -196,6 +196,61 @@ buzones) / sonepar.es (~19) eran bombas latentes.
   companies → para fusionar hay que companyContactDelete del viejo ANTES de
   companyAssignCustomerAsContact.
 
+### El rol admin SIEMPRE garantizado (auto-reparación, v40 2026-06-16)
+
+**En cualquier camino de alta/unión el contacto DEBE acabar con el rol admin
+sobre la location.** Un contacto con `roleAssignments=[]` no puede comprar
+("no tiene permisos para comprar"). El bug histórico: si el paso de assign-rol
+fallaba una vez, `joinCustomerToCompany` abortaba y el contacto quedaba creado
+pero sin rol, permanentemente (no se auto-reparaba).
+
+`create-company-for-customer` v40 lo arregla y es idempotente:
+- Si el customer YA es contacto, NO aborta: resuelve el `companyContactId`
+  existente vía `companyContactProfiles` y continúa.
+- `ensureAdminRole` lee los `roleAssignments` del contacto y **solo asigna si
+  falta** (no-op si ya está → evita el error de rol duplicado). Un reintento
+  sobre un contacto sin rol converge a "contacto + rol".
+
+### Modelo MULTI-SEDE de la madre: selección por ocupación (v42)
+
+Una `CompanyLocation` admite **máximo 50 asignaciones de cliente** (límite duro
+de la plataforma B2B, NO configurable; **confirmado empíricamente**: la primaria
+de la madre dio `LIMIT_REACHED` a 50 exactos). Para escalar más allá de 50 hay
+que usar **varias sedes** (50 × nº sedes); no existe "un bucket de 100".
+
+**La madre LedsC4 SA tiene, por diseño, varias sedes** (primaria + "sede 2" +
+las que haga falta). NO es un error ni hay que fusionarlas. Cada empleado es
+contacto de la company y admin sobre UNA sede.
+
+`create-company-for-customer` **v42** reparte location-aware en `ensureAdminRole`:
+- **NO se clava en una `company_location_id` fija.** Lee la ocupación real
+  (`roleAssignments` count) de cada sede y elige dinámicamente.
+- **Umbral con margen:** `LOCATION_HARD_CAP=50` (techo real), `LOCATION_SOFT_CAP=45`
+  (margen). Coloca en una sede bajo SOFT_CAP, **la más llena primero** (concentra,
+  no deja sedes casi vacías); solo cuando todas pasan SOFT rellena la franja
+  45–50. **Crea sede nueva SOLO si todas están al HARD_CAP (50)** — nunca una
+  sede por contacto.
+- **Sedes de overflow homogéneas:** `"<company> — sede N+1"` replica la
+  `buyerExperienceConfiguration` de la 1ª sede (mismo `checkoutToDraft`,
+  `editableShippingAddress`, payment terms), misma shippingAddress placeholder
+  Madrid/ES y **sin catálogo propio** → un contacto en sede 2/3/… compra idéntico
+  a la principal (mismo Market ES/EUR; el precio NO depende de la sede).
+- **Reactivo ante carreras:** si el count decía hueco pero el assign da
+  `LIMIT_REACHED`, prueba la siguiente sede. `LocationFullError`→409 solo como
+  red de seguridad (sede recién creada ya llena = imposible).
+
+Implicación: `company_domains.company_location_id` es solo una **pista** con
+multi-sede; la sede efectiva la decide la ocupación. La respuesta trae
+`companyLocationId` (la usada) y `hintLocationId` (la de la fila). **NO**
+reintroducir el targeting a una location fija ni "repuntar company_domains a
+mano" — ya no hace falta.
+
+**Caso real:** la primaria `8330346823` está a 50/50; "sede 2"
+(`CompanyLocation/11600101703`) absorbe el overflow. Cuando sede 2 llegue a 50,
+v42 abrirá sede 3 sola. Rol admin per-company `CompanyContactRole/14443512135`
+(mapeado por note). Históricos role-less reparados a mano (13 el 2026-06-16 +
+`karinferrer`/`josepsabate` el mismo día, cap de la primaria, no bug).
+
 ## Whitelist B2B
 
 ### Metafield `b2b.whitelist_emails` es tipo `json` (no `list.*`)

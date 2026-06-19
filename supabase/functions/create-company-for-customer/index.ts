@@ -14,6 +14,30 @@
 // Roles: SOLO "System-defined Location admin role" (decisión registrada
 // project_b2b_contact_roles; el ordering-only se eliminó 2026-06-11).
 //
+// Garantía del rol (auto-reparación, 2026-06-16): joinCustomerToCompany es
+// idempotente y asegura el rol SIEMPRE, en cualquier camino de alta/unión. Si
+// el customer ya es contacto, NO aborta: resuelve el companyContactId existente
+// y continúa. ensureAdminRole lee los roleAssignments y solo asigna si falta
+// (no-op si ya está). Esto repara el bug histórico: si el paso de assign-rol
+// fallaba una vez, el contacto quedaba con roleAssignments=[] permanentemente
+// ("no permisos para comprar"). Un reintento ahora converge a "contacto + rol".
+//
+// Límite de 50/location (Shopify) + SELECCIÓN POR OCUPACIÓN: una company
+// location admite máx. 50 asignaciones de cliente (límite duro confirmado
+// empíricamente, ver LOCATION_HARD_CAP). ensureAdminRole NO se clava en una
+// location fija: lee la ocupación de todas las sedes de la company y coloca al
+// contacto en una con hueco según política SOFT_CAP/HARD_CAP (concentra para
+// no dejar sedes casi vacías y deja margen ante concurrencia). Solo cuando
+// TODAS las sedes están al HARD_CAP crea UNA sede de overflow nueva
+// ("<company> — sede N+1"), replicando la buyerExperienceConfiguration de la
+// primera y sin catálogo propio → un contacto en sede 2/3/… compra idéntico a
+// la principal (mismo Market ES/EUR). Así la company escala a cualquier nº de
+// contactos sola, sin 409 ni repuntado manual de company_domains (cuya
+// company_location_id pasa a ser una pista obsoleta con multi-sede).
+// Modelo aplicado en la madre LedsC4 SA: primaria a 50/50, "sede 2" como
+// overflow. LocationFullError/409 queda solo como red de seguridad para el caso
+// imposible (una sede recién creada que ya esté llena).
+//
 // Modelo de dominio (INVERTIDO 2026-06-14, decisión Víctor vía Dani):
 // las cadenas multi-delegación van como Companies SEPARADAS. La función
 // ya NO auto-siembra dominios. company_domains pasa a ser una tabla de
@@ -73,6 +97,16 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 const endpoint = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
 const ADMIN_ROLE_NOTE = "System-defined Location admin role";
+
+// Límite duro de Shopify: una company location admite máx. 50 asignaciones de
+// cliente (CONFIRMADO empíricamente: la location primaria de la madre devolvió
+// LIMIT_REACHED a 50 exactos, 2026-06-16). HARD_CAP es ese techo real; SOFT_CAP
+// es un umbral con margen: durante operación normal colocamos contactos en
+// sedes por debajo de SOFT_CAP para dejar holgura ante concurrencia, y solo
+// rellenamos la franja SOFT..HARD cuando TODAS las sedes ya superaron SOFT.
+// Una sede de overflow nueva se crea SOLO cuando todas están al HARD_CAP.
+const LOCATION_HARD_CAP = 50;
+const LOCATION_SOFT_CAP = 45;
 
 // Dominios de email personales: nunca agrupan company. Constante en código
 // a propósito (lista corta y estable; un cambio es un deploy consciente).
@@ -176,41 +210,46 @@ async function withCustomerLock<T>(
 
 // --- Shopify helpers -----------------------------------------------------
 
-// Asigna el customer como contact de una company y le da el rol admin
-// sobre la location indicada. Lanza Error con detalle si algo falla.
-async function joinCustomerToCompany(
+// Error tipado para el límite duro de Shopify (50 asignaciones de cliente
+// por company location). No es un fallo transitorio ni un bug: la location
+// está llena y hay que abrir otra (o usar otra company). Lo distinguimos del
+// 500 genérico para que el handler devuelva un 409 accionable.
+class LocationFullError extends Error {
+  constructor(public companyLocationId: string, public detail: unknown) {
+    super(`company location ${companyLocationId} llena (límite de 50 contactos): ${JSON.stringify(detail)}`);
+    this.name = "LocationFullError";
+  }
+}
+
+// Busca el companyContactId de un customer DENTRO de una company concreta,
+// leyendo sus companyContactProfiles. Devuelve null si no es contacto de esa
+// company. Sirve para converger cuando companyAssignCustomerAsContact ya no
+// puede crear el contacto (porque ya existe) y no nos devuelve el id.
+async function findExistingContactId(
   companyId: string,
-  companyLocationId: string,
   customerId: string,
-): Promise<{ companyContactId: string; assignedRoleIds: string[] }> {
-  const assignRes = await gql<{
-    companyAssignCustomerAsContact: {
-      companyContact: { id: string } | null;
-      userErrors: Array<{ field: string[]; message: string; code: string }>;
-    };
+): Promise<string | null> {
+  const res = await gql<{
+    customer: {
+      companyContactProfiles: Array<{ id: string; company: { id: string } }>;
+    } | null;
   }>(
     `
-    mutation($companyId: ID!, $customerId: ID!) {
-      companyAssignCustomerAsContact(companyId: $companyId, customerId: $customerId) {
-        companyContact { id }
-        userErrors { field message code }
+    query($id: ID!) {
+      customer(id: $id) {
+        companyContactProfiles { id company { id } }
       }
     }
     `,
-    { companyId, customerId },
+    { id: customerId },
   );
-  const assignErrs = assignRes.companyAssignCustomerAsContact.userErrors;
-  if (assignErrs.length) {
-    throw new Error(`companyAssignCustomerAsContact userErrors: ${JSON.stringify(assignErrs)}`);
-  }
-  const companyContactId = assignRes.companyAssignCustomerAsContact.companyContact?.id;
-  if (!companyContactId) {
-    throw new Error("companyAssignCustomerAsContact no devolvió companyContact.id");
-  }
+  const profiles = res.customer?.companyContactProfiles ?? [];
+  return profiles.find((p) => p.company.id === companyId)?.id ?? null;
+}
 
-  // Los CompanyContactRole son per-Company (IDs distintos por company); se
-  // leen de la company destino y se mapean por `note` de sistema (estable),
-  // no por `name` (localizable/editable).
+// Lee el id del rol admin de sistema de una company (per-Company, mapeado por
+// `note` estable, no por `name` localizable).
+async function getAdminRoleId(companyId: string): Promise<string> {
   const rolesRes = await gql<{
     company: {
       contactRoles: { edges: Array<{ node: { id: string; name: string; note: string } }> };
@@ -232,8 +271,87 @@ async function joinCustomerToCompany(
       `rol admin de sistema no encontrado en company ${companyId}; roles: ${JSON.stringify(roleNodes)}`,
     );
   }
+  return adminRole.id;
+}
 
-  const roleAssignRes = await gql<{
+// Configuración de experiencia de compra de una location (para replicarla
+// en las sedes de overflow y que un contacto en sede 2/3/… compre idéntico).
+type BuyerExperienceConfig = {
+  checkoutToDraft: boolean;
+  editableShippingAddress: boolean;
+  paymentTermsTemplate: { id: string } | null;
+};
+
+type LocationInfo = {
+  id: string;
+  name: string;
+  count: number; // nº de asignaciones de rol (ocupación real, ≤ HARD_CAP)
+  buyerExperienceConfiguration: BuyerExperienceConfig | null;
+};
+
+// Lista las locations de una company con su OCUPACIÓN (nº de roleAssignments)
+// y su buyerExperienceConfiguration. La ocupación es lo que decide, de forma
+// dinámica, en qué sede colocar al contacto (no nos clavamos en una fija).
+async function listCompanyLocationsWithCounts(
+  companyId: string,
+): Promise<{ name: string; locations: LocationInfo[] }> {
+  const res = await gql<{
+    company: {
+      name: string;
+      locations: {
+        edges: Array<{
+          node: {
+            id: string;
+            name: string;
+            buyerExperienceConfiguration: BuyerExperienceConfig | null;
+            roleAssignments: { edges: Array<{ node: { id: string } }> };
+          };
+        }>;
+      };
+    } | null;
+  }>(
+    `
+    query($id: ID!) {
+      company(id: $id) {
+        name
+        locations(first: 10) {
+          edges {
+            node {
+              id
+              name
+              buyerExperienceConfiguration {
+                checkoutToDraft
+                editableShippingAddress
+                paymentTermsTemplate { id }
+              }
+              roleAssignments(first: 50) { edges { node { id } } }
+            }
+          }
+        }
+      }
+    }
+    `,
+    { id: companyId },
+  );
+  const locations = (res.company?.locations.edges ?? []).map((e) => ({
+    id: e.node.id,
+    name: e.node.name,
+    count: e.node.roleAssignments.edges.length,
+    buyerExperienceConfiguration: e.node.buyerExperienceConfiguration,
+  }));
+  return { name: res.company?.name ?? "Company", locations };
+}
+
+// Intenta asignar el rol admin al contacto sobre una location. Devuelve:
+//   { ok: true, roleId }  si se asignó,
+//   { ok: false }         si la location está llena (LIMIT_REACHED),
+// y lanza Error en cualquier otro userError.
+async function tryAssignRole(
+  companyContactId: string,
+  adminRoleId: string,
+  companyLocationId: string,
+): Promise<{ ok: boolean; roleId?: string }> {
+  const res = await gql<{
     companyContactAssignRoles: {
       roleAssignments: Array<{ id: string }> | null;
       userErrors: Array<{ field: string[]; message: string; code: string }>;
@@ -249,16 +367,217 @@ async function joinCustomerToCompany(
     `,
     {
       companyContactId,
-      rolesToAssign: [{ companyContactRoleId: adminRole.id, companyLocationId }],
+      rolesToAssign: [{ companyContactRoleId: adminRoleId, companyLocationId }],
     },
   );
-  const roleErrs = roleAssignRes.companyContactAssignRoles.userErrors;
-  if (roleErrs.length) {
-    throw new Error(`companyContactAssignRoles userErrors: ${JSON.stringify(roleErrs)}`);
+  const errs = res.companyContactAssignRoles.userErrors;
+  if (errs.length) {
+    if (errs.some((e) => e.code === "LIMIT_REACHED")) return { ok: false };
+    throw new Error(`companyContactAssignRoles userErrors: ${JSON.stringify(errs)}`);
   }
-  const assignedRoleIds =
-    (roleAssignRes.companyContactAssignRoles.roleAssignments ?? []).map((a) => a.id);
-  return { companyContactId, assignedRoleIds };
+  return { ok: true, roleId: res.companyContactAssignRoles.roleAssignments?.[0]?.id };
+}
+
+// Crea una location de overflow ("<company> — sede N") cuando todas las
+// existentes están al HARD_CAP. N = nº de locations actuales + 1. Replica la
+// buyerExperienceConfiguration de la sede plantilla (la primera de la company)
+// y usa la MISMA shippingAddress placeholder Madrid/ES, sin catálogo propio:
+// así un contacto en la sede nueva compra idéntico a la principal (mismo
+// Market ES/EUR, mismas reglas de checkout).
+async function createOverflowLocation(
+  companyId: string,
+  companyName: string,
+  currentLocationCount: number,
+  template: BuyerExperienceConfig | null,
+): Promise<{ id: string; name: string }> {
+  const name = `${companyName} — sede ${currentLocationCount + 1}`;
+  const buyerExperienceConfiguration = template
+    ? {
+      checkoutToDraft: template.checkoutToDraft,
+      editableShippingAddress: template.editableShippingAddress,
+      ...(template.paymentTermsTemplate?.id
+        ? { paymentTermsTemplateId: template.paymentTermsTemplate.id }
+        : {}),
+    }
+    : undefined;
+  const res = await gql<{
+    companyLocationCreate: {
+      companyLocation: { id: string; name: string } | null;
+      userErrors: Array<{ field: string[]; message: string; code: string }>;
+    };
+  }>(
+    `
+    mutation($companyId: ID!, $input: CompanyLocationInput!) {
+      companyLocationCreate(companyId: $companyId, input: $input) {
+        companyLocation { id name }
+        userErrors { field message code }
+      }
+    }
+    `,
+    {
+      companyId,
+      input: {
+        name,
+        shippingAddress: {
+          address1: "Por completar al primer pedido",
+          city: "Madrid",
+          zip: "28001",
+          countryCode: "ES",
+        },
+        billingSameAsShipping: true,
+        ...(buyerExperienceConfiguration ? { buyerExperienceConfiguration } : {}),
+      },
+    },
+  );
+  const errs = res.companyLocationCreate.userErrors;
+  if (errs.length) {
+    throw new Error(`companyLocationCreate userErrors: ${JSON.stringify(errs)}`);
+  }
+  const loc = res.companyLocationCreate.companyLocation;
+  if (!loc) throw new Error("companyLocationCreate no devolvió location");
+  return loc;
+}
+
+// Asegura que el contacto tenga el rol admin de sistema en una sede de la
+// company CON HUECO, elegida DINÁMICAMENTE por ocupación (no por una location
+// fija). Idempotente y con auto-rollover:
+//   1. Si ya tiene el rol admin en CUALQUIER sede → no-op (un solo rol basta
+//      para comprar; evita duplicar).
+//   2. Elige sede con la política de SOFT_CAP/HARD_CAP (ver más abajo) e
+//      intenta asignar; si la sede se llenó por una carrera (LIMIT_REACHED),
+//      prueba la siguiente.
+//   3. Si TODAS están al HARD_CAP, crea UNA sede de overflow (replicando la
+//      config de la primera) y asigna ahí — y solo entonces.
+// Devuelve la sede realmente usada.
+async function ensureAdminRole(
+  companyId: string,
+  companyContactId: string,
+): Promise<{ assignedRoleIds: string[]; companyLocationId: string; alreadyHadRole: boolean }> {
+  // 1. Idempotencia: ¿ya tiene el rol admin en alguna sede de la company?
+  const current = await gql<{
+    companyContact: {
+      roleAssignments: {
+        edges: Array<{ node: { id: string; role: { note: string }; companyLocation: { id: string } } }>;
+      };
+    } | null;
+  }>(
+    `
+    query($id: ID!) {
+      companyContact(id: $id) {
+        roleAssignments(first: 25) {
+          edges { node { id role { note } companyLocation { id } } }
+        }
+      }
+    }
+    `,
+    { id: companyContactId },
+  );
+  const existing = (current.companyContact?.roleAssignments.edges ?? [])
+    .map((e) => e.node)
+    .find((n) => n.role.note === ADMIN_ROLE_NOTE);
+  if (existing) {
+    return {
+      assignedRoleIds: [existing.id],
+      companyLocationId: existing.companyLocation.id,
+      alreadyHadRole: true,
+    };
+  }
+
+  // 2. Resolver rol admin + ocupación de cada sede.
+  const adminRoleId = await getAdminRoleId(companyId);
+  const { name, locations } = await listCompanyLocationsWithCounts(companyId);
+
+  // Política de colocación (concentrar para no dejar sedes casi vacías + margen):
+  //   - candidatas = sedes con hueco real (count < HARD_CAP).
+  //   - primero las que están bajo SOFT_CAP (margen), la más llena primero
+  //     (rellena antes de empezar otra); luego la franja SOFT..HARD, también
+  //     la más llena primero. Una sede nueva solo se crea si NO hay candidata.
+  const withRoom = locations.filter((l) => l.count < LOCATION_HARD_CAP);
+  const underSoft = withRoom
+    .filter((l) => l.count < LOCATION_SOFT_CAP)
+    .sort((a, b) => b.count - a.count);
+  const inBuffer = withRoom
+    .filter((l) => l.count >= LOCATION_SOFT_CAP)
+    .sort((a, b) => b.count - a.count);
+  const ordered = [...underSoft, ...inBuffer];
+
+  for (const loc of ordered) {
+    const res = await tryAssignRole(companyContactId, adminRoleId, loc.id);
+    if (res.ok) {
+      return {
+        assignedRoleIds: res.roleId ? [res.roleId] : [],
+        companyLocationId: loc.id,
+        alreadyHadRole: false,
+      };
+    }
+    // LIMIT_REACHED por carrera: esta sede acaba de llenarse, probar la siguiente.
+  }
+
+  // 3. Todas al HARD_CAP → crear sede de overflow (config = la de la 1ª sede).
+  const template = locations[0]?.buyerExperienceConfiguration ?? null;
+  const newLoc = await createOverflowLocation(companyId, name, locations.length, template);
+  const res = await tryAssignRole(companyContactId, adminRoleId, newLoc.id);
+  if (!res.ok) {
+    // Una sede recién creada NO puede estar llena: si pasa, algo es muy raro.
+    throw new LocationFullError(newLoc.id, "nueva location llena al instante (inesperado)");
+  }
+  return {
+    assignedRoleIds: res.roleId ? [res.roleId] : [],
+    companyLocationId: newLoc.id,
+    alreadyHadRole: false,
+  };
+}
+
+// Asigna el customer como contact de una company y le GARANTIZA el rol admin
+// sobre una sede CON HUECO (elegida dinámicamente por ocupación, no fija).
+// Idempotente y auto-reparador:
+//   - Si el customer YA es contacto (assign no devuelve id o da userError),
+//     resolvemos el companyContactId existente y continuamos en vez de abortar.
+//   - El rol se asegura SIEMPRE vía ensureAdminRole, con auto-rollover de sede.
+//     Devuelve la sede realmente usada.
+async function joinCustomerToCompany(
+  companyId: string,
+  customerId: string,
+): Promise<{ companyContactId: string; assignedRoleIds: string[]; companyLocationId: string }> {
+  const assignRes = await gql<{
+    companyAssignCustomerAsContact: {
+      companyContact: { id: string } | null;
+      userErrors: Array<{ field: string[]; message: string; code: string }>;
+    };
+  }>(
+    `
+    mutation($companyId: ID!, $customerId: ID!) {
+      companyAssignCustomerAsContact(companyId: $companyId, customerId: $customerId) {
+        companyContact { id }
+        userErrors { field message code }
+      }
+    }
+    `,
+    { companyId, customerId },
+  );
+
+  // Resolver el companyContactId con tolerancia a "ya es contacto": el assign
+  // puede devolver el id del contacto existente, null, o un userError. En los
+  // dos últimos casos lo buscamos por companyContactProfiles antes de rendirnos.
+  let companyContactId = assignRes.companyAssignCustomerAsContact.companyContact?.id ?? null;
+  const assignErrs = assignRes.companyAssignCustomerAsContact.userErrors;
+  if (!companyContactId) {
+    companyContactId = await findExistingContactId(companyId, customerId);
+  }
+  if (!companyContactId) {
+    // Ni se creó ni existe: sí es un fallo real. Propagar el userError si lo hubo.
+    if (assignErrs.length) {
+      throw new Error(`companyAssignCustomerAsContact userErrors: ${JSON.stringify(assignErrs)}`);
+    }
+    throw new Error("companyAssignCustomerAsContact no devolvió companyContact.id");
+  }
+
+  const ensured = await ensureAdminRole(companyId, companyContactId);
+  return {
+    companyContactId,
+    assignedRoleIds: ensured.assignedRoleIds,
+    companyLocationId: ensured.companyLocationId,
+  };
 }
 
 // --- Handler -------------------------------------------------------------
@@ -367,11 +686,7 @@ export async function handle(req: Request): Promise<Response> {
     if (isCorporateDomain) {
       const existingRow = await lookupDomain(domain);
       if (existingRow) {
-        const joined = await joinCustomerToCompany(
-          existingRow.company_id,
-          existingRow.company_location_id,
-          customerId,
-        );
+        const joined = await joinCustomerToCompany(existingRow.company_id, customerId);
         return jsonResponse({
           startedAt,
           joined: true,
@@ -379,7 +694,10 @@ export async function handle(req: Request): Promise<Response> {
           customerId,
           domain,
           companyId: existingRow.company_id,
-          companyLocationId: existingRow.company_location_id,
+          // Sede REALMENTE usada, elegida por ocupación (NO la company_location_id
+          // de company_domains, que con multi-sede es solo una pista obsoleta).
+          companyLocationId: joined.companyLocationId,
+          hintLocationId: existingRow.company_location_id,
           companyContactId: joined.companyContactId,
           assignedRoleIds: joined.assignedRoleIds,
         });
@@ -449,9 +767,8 @@ export async function handle(req: Request): Promise<Response> {
     }
 
     // 7. Unir el customer a la company recién creada (contact + rol admin).
-    // Ya NO sembramos el dominio: la unión por dominio es solo para filas
-    // puestas a mano por un humano.
-    const joined = await joinCustomerToCompany(company.id, companyLocationId, customerId);
+    // ensureAdminRole redescubre la location recién creada y asigna ahí.
+    const joined = await joinCustomerToCompany(company.id, customerId);
 
     return jsonResponse({
       startedAt,
@@ -460,12 +777,28 @@ export async function handle(req: Request): Promise<Response> {
       domain: isCorporateDomain ? domain : null,
       companyId: company.id,
       companyName: company.name,
-      companyLocationId,
+      companyLocationId: joined.companyLocationId,
       companyContactId: joined.companyContactId,
       assignedRoleIds: joined.assignedRoleIds,
     });
     });
   } catch (e) {
+    // Location llena (cap de 50 de Shopify): no es un 500: la company necesita
+    // otra location (o el contacto otra company). 409 accionable + log claro.
+    if (e instanceof LocationFullError) {
+      console.log(JSON.stringify({
+        startedAt,
+        outcome: "location_full",
+        companyLocationId: e.companyLocationId,
+        detail: e.detail,
+      }));
+      return jsonResponse({
+        startedAt,
+        error: "company_location_full",
+        reason: "la company location alcanzó el límite de 50 contactos; crea otra location o asigna a otra company",
+        companyLocationId: e.companyLocationId,
+      }, 409);
+    }
     // Log explícito: el 500 de la race de iluvi.com (2026-06-11) fue
     // invisible en function_logs porque este catch no logueaba.
     console.log(JSON.stringify({
