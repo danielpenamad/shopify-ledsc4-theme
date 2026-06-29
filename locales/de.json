@@ -562,6 +562,9 @@
     "solicitudes": {
       "form": {
         "comentario_hint": ""
+      },
+      "detalle": {
+        "download_pdf": "PDF herunterladen"
       }
     },
     "header": {

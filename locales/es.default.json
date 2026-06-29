@@ -997,6 +997,7 @@
         "note_label": "Tu comentario",
         "cbm_total_label": "CBM total",
         "footer_note": "Las solicitudes no se pueden editar ni cancelar desde aquí. Si necesitas hacer cambios, escribe al equipo comercial citando la referencia.",
+        "download_pdf": "Descargar PDF",
         "js_errors": {
           "missing_ref": "Falta el parámetro ref en la URL.",
           "load": "Error cargando la solicitud: {message}",
