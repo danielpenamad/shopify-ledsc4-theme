@@ -1004,6 +1004,7 @@
         "heading": "Demande {name}",
         "note_label": "Votre commentaire",
         "footer_note": "Les demandes ne peuvent être ni modifiées ni annulées à partir d'ici. Si vous devez apporter des modifications, veuillez écrire à l'équipe commerciale en citant la référence.",
+        "download_pdf": "Télécharger le PDF",
         "js_errors": {
           "missing_ref": "Il manque le paramètre ref dans l'URL.",
           "load": "Erreur lors du chargement de la requête : {message}",

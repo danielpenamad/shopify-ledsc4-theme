@@ -574,6 +574,9 @@
     "solicitudes": {
       "form": {
         "comentario_hint": ""
+      },
+      "detalle": {
+        "download_pdf": "Descarregar PDF"
       }
     },
     "header": {

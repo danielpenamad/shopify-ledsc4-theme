@@ -829,6 +829,7 @@
         "note_label": "Your comment",
         "cbm_total_label": "Total CBM",
         "footer_note": "Applications cannot be edited or canceled from here. If you need to make changes, please write to the sales team quoting the reference.",
+        "download_pdf": "Download PDF",
         "js_errors": {
           "missing_ref": "The ref parameter is missing from the URL.",
           "load": "Error loading request: {message}",

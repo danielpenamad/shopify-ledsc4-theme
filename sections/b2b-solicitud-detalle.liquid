@@ -54,6 +54,24 @@
   .b2b-detalle__note { background: #f0f5ff; border-left: 3px solid var(--color-ledsc4-accent); padding: 20px 24px; margin: 0 0 32px 0; font-style: italic; color: #555; font-size: 1.4rem; line-height: 1.6; border-radius: 4px; }
   .b2b-detalle__note-label { font-size: 1.1rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0; font-style: normal; }
   .b2b-detalle__loading { text-align: center; padding: 80px 24px; color: #666; font-size: 1.5rem; }
+  .b2b-detalle__print-header { display: none; }  /* oculto en pantalla */
+  .b2b-detalle__print-btn {
+    display: inline-block; padding: 10px 20px; border: none; border-radius: 4px;
+    background: var(--color-ledsc4-accent); color: #fff; font-size: 1.4rem;
+    font-weight: 500; cursor: pointer; margin-left: auto;
+  }
+  .b2b-detalle__print-btn:hover { opacity: .9; }
+
+  @media print {
+    body { visibility: hidden; }
+    .b2b-detalle, .b2b-detalle * { visibility: visible; }
+    .b2b-detalle { position: absolute; left: 0; top: 0; width: 100%; padding: 0; max-width: 100%; }
+    .b2b-detalle__back, .b2b-detalle__print-btn { display: none !important; }
+    .b2b-detalle__print-header { display: block !important; margin: 0 0 24px 0; }
+    .b2b-detalle__print-logo { height: 48px; width: auto; }
+    .b2b-detalle__loading { display: none !important; }
+    a[href]:after { content: none !important; }  /* evita que Chrome imprima URLs */
+  }
 </style>
 
 <div class="b2b-detalle">
@@ -70,9 +88,11 @@
     const TIMESTAMP = {{ now_ts | json }};
     const SIGNATURE = {{ hmac_sig | json }};
     const LOCALE = {{ locale_bcp47 | json }};
+    const LOGO_URL = {{ 'logo-ledsc4.svg' | asset_url | json }};
 
     const T = {
       heading: {{ 'ledsc4.solicitudes.detalle.heading' | t | json }},
+      download_pdf: {{ 'ledsc4.solicitudes.detalle.download_pdf' | t | json }},
       note_label: {{ 'ledsc4.solicitudes.detalle.note_label' | t | json }},
       cbm_total_label: {{ 'ledsc4.solicitudes.detalle.cbm_total_label' | t | json }},
       footer_note: {{ 'ledsc4.solicitudes.detalle.footer_note' | t | json }},
@@ -171,10 +191,14 @@
       const headingHtml = T.heading.replace('{name}', escapeHtml(data.name));
 
       contentEl.innerHTML = `
+        <div class="b2b-detalle__print-header">
+          <img src="${LOGO_URL}" alt="LedsC4" class="b2b-detalle__print-logo">
+        </div>
         <h1>${headingHtml}</h1>
         <div class="b2b-detalle__meta">
           <span>${fmtDate(data.createdAt)}</span>
           <span class="b2b-detalle__status ${statusClass}">${statusLabel}</span>
+          <button type="button" class="b2b-detalle__print-btn" onclick="window.print()">${T.download_pdf}</button>
         </div>
 
         <table class="b2b-detalle__table">
