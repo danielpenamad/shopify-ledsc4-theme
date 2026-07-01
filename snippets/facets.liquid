@@ -114,6 +114,7 @@
             <script src="{{ 'stock-filter.js' | asset_url }}" defer="defer"></script>
             {% comment %} Stock minimum filter (client-side, current page) {% endcomment %}
             <details
+              id="Details-stock-min-{{ section.id }}"
               class="{% if filter_type == 'horizontal' %}disclosure-has-popup facets__disclosure{% else %} facets__disclosure-vertical{% endif %} js-filter"
               data-index="stock-min"
               {% if filter_type == 'vertical' %}open{% endif %}
