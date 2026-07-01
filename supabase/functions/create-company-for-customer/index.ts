@@ -22,10 +22,11 @@
 // fallaba una vez, el contacto quedaba con roleAssignments=[] permanentemente
 // ("no permisos para comprar"). Un reintento ahora converge a "contacto + rol".
 //
-// Límite de 50/location (Shopify) + SELECCIÓN POR OCUPACIÓN: una company
-// location admite máx. 50 asignaciones de cliente (límite duro confirmado
-// empíricamente, ver LOCATION_HARD_CAP). ensureAdminRole NO se clava en una
-// location fija: lee la ocupación de todas las sedes de la company y coloca al
+// Cupo 49/location + SELECCIÓN POR OCUPACIÓN: Shopify admite 50 como techo,
+// pero el slot nº 50 no puede comprar ("You can't purchase for this location"),
+// así que el cupo operativo real es 49 (ver LOCATION_HARD_CAP). ensureAdminRole
+// NO se clava en una location fija: lee la ocupación de todas las sedes de la
+// company y coloca al
 // contacto en una con hueco según política SOFT_CAP/HARD_CAP (concentra para
 // no dejar sedes casi vacías y deja margen ante concurrencia). Solo cuando
 // TODAS las sedes están al HARD_CAP crea UNA sede de overflow nueva
@@ -34,7 +35,7 @@
 // la principal (mismo Market ES/EUR). Así la company escala a cualquier nº de
 // contactos sola, sin 409 ni repuntado manual de company_domains (cuya
 // company_location_id pasa a ser una pista obsoleta con multi-sede).
-// Modelo aplicado en la madre LedsC4 SA: primaria a 50/50, "sede 2" como
+// Modelo aplicado en la madre LedsC4 SA: primaria llena, "sede 2" como
 // overflow. LocationFullError/409 queda solo como red de seguridad para el caso
 // imposible (una sede recién creada que ya esté llena).
 //
@@ -98,14 +99,17 @@ const endpoint = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSIO
 
 const ADMIN_ROLE_NOTE = "System-defined Location admin role";
 
-// Límite duro de Shopify: una company location admite máx. 50 asignaciones de
-// cliente (CONFIRMADO empíricamente: la location primaria de la madre devolvió
-// LIMIT_REACHED a 50 exactos, 2026-06-16). HARD_CAP es ese techo real; SOFT_CAP
+// Cupo operativo por company location: 49 asignaciones de cliente. Shopify
+// admite 50 como techo de plataforma (CONFIRMADO empíricamente: la primaria de
+// la madre devolvió LIMIT_REACHED a 50 exactos, 2026-06-16), PERO el contacto
+// nº 50 se queda sin capacidad de compra efectiva ("You can't purchase for this
+// location") pese a tener el rol asignado, así que el último slot es inservible
+// y el límite real es 49 (2026-07-01). HARD_CAP es ese cupo operativo; SOFT_CAP
 // es un umbral con margen: durante operación normal colocamos contactos en
 // sedes por debajo de SOFT_CAP para dejar holgura ante concurrencia, y solo
 // rellenamos la franja SOFT..HARD cuando TODAS las sedes ya superaron SOFT.
 // Una sede de overflow nueva se crea SOLO cuando todas están al HARD_CAP.
-const LOCATION_HARD_CAP = 50;
+const LOCATION_HARD_CAP = 49;
 const LOCATION_SOFT_CAP = 45;
 
 // Dominios de email personales: nunca agrupan company. Constante en código
@@ -210,13 +214,14 @@ async function withCustomerLock<T>(
 
 // --- Shopify helpers -----------------------------------------------------
 
-// Error tipado para el límite duro de Shopify (50 asignaciones de cliente
-// por company location). No es un fallo transitorio ni un bug: la location
-// está llena y hay que abrir otra (o usar otra company). Lo distinguimos del
-// 500 genérico para que el handler devuelva un 409 accionable.
+// Error tipado para el cupo operativo de la company location (49 asignaciones
+// de cliente; el 50º slot de Shopify es inservible, ver LOCATION_HARD_CAP). No
+// es un fallo transitorio ni un bug: la location está llena y hay que abrir otra
+// (o usar otra company). Lo distinguimos del 500 genérico para que el handler
+// devuelva un 409 accionable.
 class LocationFullError extends Error {
   constructor(public companyLocationId: string, public detail: unknown) {
-    super(`company location ${companyLocationId} llena (límite de 50 contactos): ${JSON.stringify(detail)}`);
+    super(`company location ${companyLocationId} llena (límite de 49 contactos): ${JSON.stringify(detail)}`);
     this.name = "LocationFullError";
   }
 }
@@ -783,7 +788,7 @@ export async function handle(req: Request): Promise<Response> {
     });
     });
   } catch (e) {
-    // Location llena (cap de 50 de Shopify): no es un 500: la company necesita
+    // Location llena (cupo operativo 49): no es un 500: la company necesita
     // otra location (o el contacto otra company). 409 accionable + log claro.
     if (e instanceof LocationFullError) {
       console.log(JSON.stringify({
@@ -795,7 +800,7 @@ export async function handle(req: Request): Promise<Response> {
       return jsonResponse({
         startedAt,
         error: "company_location_full",
-        reason: "la company location alcanzó el límite de 50 contactos; crea otra location o asigna a otra company",
+        reason: "la company location alcanzó el límite de 49 contactos; crea otra location o asigna a otra company",
         companyLocationId: e.companyLocationId,
       }, 409);
     }

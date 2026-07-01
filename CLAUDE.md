@@ -211,25 +211,29 @@ pero sin rol, permanentemente (no se auto-reparaba).
   falta** (no-op si ya está → evita el error de rol duplicado). Un reintento
   sobre un contacto sin rol converge a "contacto + rol".
 
-### Modelo MULTI-SEDE de la madre: selección por ocupación (v42)
+### Modelo MULTI-SEDE de la madre: selección por ocupación (v43)
 
-Una `CompanyLocation` admite **máximo 50 asignaciones de cliente** (límite duro
-de la plataforma B2B, NO configurable; **confirmado empíricamente**: la primaria
-de la madre dio `LIMIT_REACHED` a 50 exactos). Para escalar más allá de 50 hay
-que usar **varias sedes** (50 × nº sedes); no existe "un bucket de 100".
+Shopify admite hasta **50** asignaciones de cliente por `CompanyLocation`
+(límite duro de plataforma, NO configurable; **confirmado empíricamente**: la
+primaria de la madre dio `LIMIT_REACHED` a 50 exactos), **PERO el contacto nº 50
+se queda sin capacidad de compra efectiva** — Shopify le muestra "You can't
+purchase for this location" pese a tener el rol asignado. Por eso el **cupo
+operativo real es 49** (bajado de 50 el 2026-07-01, v43): en cuanto una sede
+llega a 49 las altas nuevas van a la siguiente. Para escalar hay que usar
+**varias sedes** (49 × nº sedes); no existe "un bucket de 100".
 
 **La madre LedsC4 SA tiene, por diseño, varias sedes** (primaria + "sede 2" +
 las que haga falta). NO es un error ni hay que fusionarlas. Cada empleado es
 contacto de la company y admin sobre UNA sede.
 
-`create-company-for-customer` **v42** reparte location-aware en `ensureAdminRole`:
+`create-company-for-customer` **v43** reparte location-aware en `ensureAdminRole`:
 - **NO se clava en una `company_location_id` fija.** Lee la ocupación real
   (`roleAssignments` count) de cada sede y elige dinámicamente.
-- **Umbral con margen:** `LOCATION_HARD_CAP=50` (techo real), `LOCATION_SOFT_CAP=45`
-  (margen). Coloca en una sede bajo SOFT_CAP, **la más llena primero** (concentra,
-  no deja sedes casi vacías); solo cuando todas pasan SOFT rellena la franja
-  45–50. **Crea sede nueva SOLO si todas están al HARD_CAP (50)** — nunca una
-  sede por contacto.
+- **Umbral con margen:** `LOCATION_HARD_CAP=49` (cupo operativo — el slot 50 de
+  Shopify no puede comprar), `LOCATION_SOFT_CAP=45` (margen). Coloca en una sede
+  bajo SOFT_CAP, **la más llena primero** (concentra, no deja sedes casi vacías);
+  solo cuando todas pasan SOFT rellena la franja 45–49. **Crea sede nueva SOLO si
+  todas están al HARD_CAP (49)** — nunca una sede por contacto.
 - **Sedes de overflow homogéneas:** `"<company> — sede N+1"` replica la
   `buyerExperienceConfiguration` de la 1ª sede (mismo `checkoutToDraft`,
   `editableShippingAddress`, payment terms), misma shippingAddress placeholder
@@ -245,9 +249,9 @@ multi-sede; la sede efectiva la decide la ocupación. La respuesta trae
 reintroducir el targeting a una location fija ni "repuntar company_domains a
 mano" — ya no hace falta.
 
-**Caso real:** la primaria `8330346823` está a 50/50; "sede 2"
-(`CompanyLocation/11600101703`) absorbe el overflow. Cuando sede 2 llegue a 50,
-v42 abrirá sede 3 sola. Rol admin per-company `CompanyContactRole/14443512135`
+**Caso real:** la primaria `8330346823` está llena; "sede 2"
+(`CompanyLocation/11600101703`) absorbe el overflow. Cuando sede 2 llegue a 49,
+v43 abrirá sede 3 sola. Rol admin per-company `CompanyContactRole/14443512135`
 (mapeado por note). Históricos role-less reparados a mano (13 el 2026-06-16 +
 `karinferrer`/`josepsabate` el mismo día, cap de la primaria, no bug).
 
