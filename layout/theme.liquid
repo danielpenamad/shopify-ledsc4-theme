@@ -63,6 +63,16 @@
     <script>
       window.LEDSC4_FX = {{ shop.metafields.ledsc4.fx_rates.value | json }};
     </script>
+
+    {%- comment -%}
+      Markup instalador (Fase 1, julio 2026). Puramente visual — mismo punto
+      único de aplicación que la conversión de divisa (ledsc4-currency-display.js).
+      El % vive SOLO aquí; el asset conversor solo lee window.LEDSC4_INSTALLER_MARKUP.
+    {%- endcomment -%}
+    {%- assign ledsc4_installer_markup_factor = 1.15 -%}
+    <script>
+      window.LEDSC4_INSTALLER_MARKUP = {% if customer and customer.tags contains 'instalador' %}{{ ledsc4_installer_markup_factor }}{% else %}null{% endif %};
+    </script>
     <style>
       html:not(.ledsc4-fx-ready) [data-eur-amount],
       html:not(.ledsc4-fx-ready) [data-eur-amount-min] {
@@ -90,7 +100,8 @@
         try {
           var m = document.cookie.match(/(?:^|; )ledsc4_currency=([^;]*)/);
           var v = m ? decodeURIComponent(m[1]) : null;
-          if (!v || v === 'EUR') {
+          var isInstaller = !!window.LEDSC4_INSTALLER_MARKUP;
+          if ((!v || v === 'EUR') && !isInstaller) {
             document.documentElement.classList.add('ledsc4-fx-ready');
           }
         } catch (e) {

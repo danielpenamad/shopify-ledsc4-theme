@@ -75,16 +75,27 @@
     return fx[target];
   }
 
+  // Markup instalador (Fase 1): factor único inyectado por theme.liquid en
+  // window.LEDSC4_INSTALLER_MARKUP. Ausente/0 para todo el mundo salvo tag
+  // 'instalador'. Puramente cosmético, igual que la conversión de divisa.
+  function getInstallerMarkup() {
+    var m = window.LEDSC4_INSTALLER_MARKUP;
+    return typeof m === 'number' && m > 0 ? m : 1;
+  }
+
   // Formatea (centimosEUR, currency) → "≈ 12,34 $" o "12,34 €".
   // El símbolo ≈ NO se añade aquí; lo controla quien llama (solo va en el
   // primer precio de cada bloque), según spec.
-  function formatAmount(eurCents, currency, withApprox) {
+  // skipMarkup excluye el +% instalador (importes de descuento: no debe
+  // inflarse el descuento mostrado).
+  function formatAmount(eurCents, currency, withApprox, skipMarkup) {
     var rate = getRate(currency);
     if (rate === null) {
       currency = 'EUR';
       rate = 1;
     }
-    var value = (Number(eurCents) / 100) * rate;
+    var markup = skipMarkup ? 1 : getInstallerMarkup();
+    var value = (Number(eurCents) / 100) * rate * markup;
     var formatted;
     try {
       formatted = value.toLocaleString('es-ES', {
@@ -107,10 +118,11 @@
     var max = node.getAttribute('data-eur-amount-max');
     var single = node.getAttribute('data-eur-amount');
     var withApprox = node.getAttribute('data-fx-approx') === '1';
+    var skipMarkup = node.getAttribute('data-eur-no-markup') === '1';
 
     if (min !== null && max !== null) {
-      var fMin = formatAmount(min, currency, false);
-      var fMax = formatAmount(max, currency, withApprox);
+      var fMin = formatAmount(min, currency, false, skipMarkup);
+      var fMax = formatAmount(max, currency, withApprox, skipMarkup);
       // Si min == max y solo había rango por seguridad, mostramos uno.
       var text;
       var tpl = node.getAttribute('data-eur-range-template');
@@ -123,7 +135,7 @@
       return;
     }
     if (single !== null) {
-      node.textContent = formatAmount(single, currency, withApprox);
+      node.textContent = formatAmount(single, currency, withApprox, skipMarkup);
     }
   }
 
