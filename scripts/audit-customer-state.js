@@ -64,13 +64,17 @@ async function gql(query, variables) {
 }
 
 function classify(customer) {
-  const stateTags = (customer.tags ?? []).filter((t) => STATE_TAGS.has(t));
+  const tags = customer.tags ?? [];
+  const stateTags = tags.filter((t) => STATE_TAGS.has(t));
   const hasCompany = (customer.companyContactProfiles ?? []).length > 0;
+  // Instalador (Fase 2, 2026-07): aprobado sin Company es el diseño
+  // esperado (decisión de negocio "instalador sin Company"), no deuda.
+  const isInstalador = tags.includes('instalador');
   const issues = [];
 
   if (stateTags.length === 0) issues.push('no_state_tag');
   if (stateTags.length > 1) issues.push('multiple_state_tags');
-  if (stateTags.includes('aprobado') && !hasCompany) issues.push('approved_without_company');
+  if (stateTags.includes('aprobado') && !hasCompany && !isInstalador) issues.push('approved_without_company');
 
   return { stateTags, hasCompany, issues };
 }

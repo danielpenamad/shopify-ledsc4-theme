@@ -37,13 +37,23 @@
 //     apellidos: "Pérez García",
 //     email: "juan@empresa.com",
 //     telefono: "+34600000000",     // opcional
-//     empresa: "Instalaciones Luz SL",
-//     nif: "B12345678",             // se valida + normaliza a uppercase
+//     empresa: "Instalaciones Luz SL", // opcional si sector === "instalador"
+//     nif: "B12345678",             // opcional si sector === "instalador"; si viene, se valida + normaliza a uppercase
 //     sector: "instalador",         // enum estricto
 //     pais: "ES",                   // ISO 3166-1 alpha-2
 //     volumen_estimado: "5k-25k",   // opcional
+//     codigo_postal: "28001",       // obligatorio (Fase 2 instalador, 2026-07)
 //     condiciones: true             // checkbox términos
 //   }
+//
+// Fase 2 instalador (2026-07): sector === "instalador" (landing dedicada
+// /pages/acceso-instalador) relaja empresa/nif a opcionales — el instalador
+// no tiene Company (decisión de negocio: "instalador sin Company"). Si
+// vienen vacíos, sus metafields b2b.empresa / b2b.nif simplemente no se
+// escriben (Shopify rechaza single_line_text_field con value vacío). El
+// enrutado real de rol (whitelist match → distribuidor, sin match →
+// instalador auto-aprobado) vive en Shopify Flow W1, fuera de este repo —
+// ver flows/W1-walkthrough.md.
 //
 // Output:
 //   { ok: true, customerId: "gid://shopify/Customer/123", inviteSent: true }     (200)
@@ -310,6 +320,7 @@ interface IncomingBody {
   sector?: string;
   pais?: string;
   volumen_estimado?: string;
+  codigo_postal?: string;
   condiciones?: boolean;
 }
 
@@ -367,6 +378,13 @@ async function handle(req: Request): Promise<Response> {
     const sector = sanitizeText(body.sector, 50);
     const paisRaw = sanitizeText(body.pais, 60);
     const volumenEstimado = sanitizeText(body.volumen_estimado, 30);
+    const codigoPostal = sanitizeText(body.codigo_postal, 12);
+
+    // Instalador (landing dedicada, sector fijo "instalador"): sin Company
+    // por decisión de negocio → empresa/nif dejan de ser obligatorios.
+    // Cualquier otro sector (incl. "otro", hidden del form distribuidor)
+    // mantiene el requisito histórico.
+    const isInstalador = sector === "instalador";
 
     emailHash = email ? await sha256Hex(email) : "";
 
@@ -374,7 +392,8 @@ async function handle(req: Request): Promise<Response> {
     if (!apellidos) fieldErrors.apellidos = "Los apellidos son obligatorios.";
     if (!email) fieldErrors.email = "El email es obligatorio.";
     else if (!isValidEmail(email)) fieldErrors.email = "El email no parece válido.";
-    if (!empresa) fieldErrors.empresa = "La razón social es obligatoria.";
+    if (!empresa && !isInstalador) fieldErrors.empresa = "La razón social es obligatoria.";
+    if (!codigoPostal) fieldErrors.codigo_postal = "El código postal es obligatorio.";
 
     // Teléfono (opcional): pre-validación con mensaje útil; sin ella
     // Shopify rechaza el customerCreate con userError field=["phone"] que
@@ -395,7 +414,12 @@ async function handle(req: Request): Promise<Response> {
       fieldErrors.pais = "Selecciona un país.";
     }
 
-    const nifResult = validateTaxId(nifRaw, paisIso);
+    // Instalador con NIF vacío: opcional, se omite sin error. Si escribe
+    // algo, igualmente se valida el formato (calidad de dato).
+    const nifOptionalAndEmpty = isInstalador && !nifRaw;
+    const nifResult = nifOptionalAndEmpty
+      ? { ok: true as const, normalized: undefined }
+      : validateTaxId(nifRaw, paisIso);
     if (!nifResult.ok) {
       fieldErrors.nif = nifResult.reason === "es"
         ? "El NIF / CIF / NIE no es válido (revisa formato y dígito de control)."
@@ -467,8 +491,15 @@ async function handle(req: Request): Promise<Response> {
               marketingOptInLevel: "SINGLE_OPT_IN",
             },
             metafields: [
-              { namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa },
-              { namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized! },
+              // empresa/nif: Shopify rechaza single_line_text_field con value
+              // vacío, así que se omiten enteros cuando faltan (instalador,
+              // sin Company por decisión de negocio — Fase 2, 2026-07).
+              ...(empresa
+                ? [{ namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa }]
+                : []),
+              ...(nifResult.normalized
+                ? [{ namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized }]
+                : []),
               { namespace: "b2b", key: "sector", type: "single_line_text_field", value: sector },
               // Belt-and-suspenders trim: sanitizeText + normalizeCountry ya
               // limpian, pero un set de customers historicos quedó con `\tES`
@@ -479,6 +510,7 @@ async function handle(req: Request): Promise<Response> {
               ...(volumenEstimado
                 ? [{ namespace: "b2b", key: "volumen_estimado", type: "single_line_text_field", value: volumenEstimado }]
                 : []),
+              { namespace: "b2b", key: "codigo_postal", type: "single_line_text_field", value: codigoPostal },
               { namespace: "b2b", key: "fecha_registro", type: "date", value: today },
             ],
           },

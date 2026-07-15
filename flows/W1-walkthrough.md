@@ -1,8 +1,16 @@
-# W1 — Walkthrough click-a-click (estado final Fase B)
+# W1 — Walkthrough click-a-click (estado final Fase B + PENDIENTE Fase 2)
 
 Configuración real del workflow **W1 — Registro B2B** en Shopify Flow tal como
 quedó tras Fase B (2026-04-19). Sustituye a `W1-registro.md` como fuente de
 verdad del "cómo está desplegado".
+
+> **⚠️ PENDIENTE DE APLICAR (Fase 2 instalador, 2026-07)**: la sección
+> ["Rama Falso — Pendiente" más abajo](#rama-falso-pendiente--auto-aprobación-instalador-pendiente-de-aplicar)
+> describe un cambio de comportamiento que **todavía no está aplicado en el
+> Admin**. Es edición manual — la API pública de Flow no permite crear/editar
+> workflows programáticamente (ver `flows/README.md`), así que ningún cambio
+> de código de este repo lo aplica solo. Aplicar a mano siguiendo esos pasos
+> y luego borrar este aviso.
 
 ## Piezas clave descubiertas en Fase B
 
@@ -30,9 +38,14 @@ Trigger  Customer created
                 │   ├─ Send HTTP request → Supabase create-company-for-customer
                 │   ├─ Send internal email → backoffice (FYI + datos Company)
                 │   └─ [PENDIENTE GROW] Send marketing mail → template 01
-                └─ Falso (pendiente)
-                    ├─ Send internal email → backoffice (nuevo pendiente)
-                    └─ [PENDIENTE GROW] Send marketing mail → template 02
+                └─ Falso (auto-aprobación instalador — PENDIENTE DE APLICAR, Fase 2)
+                    ├─ Update metafield b2b.empresa → vaciar
+                    ├─ Update metafield b2b.sector = "instalador"
+                    ├─ Remove tag 'pendiente'
+                    ├─ Add tags 'aprobado', 'instalador'
+                    ├─ Update metafield b2b.fecha_aprobacion
+                    ├─ Send internal email → backoffice (auto-aprobado instalador)
+                    └─ [PENDIENTE GROW] Send marketing mail → template a definir
 ```
 
 ---
@@ -289,19 +302,73 @@ Este step crea la Company B2B + Contact (customer existente) + Location y asigna
 
 ---
 
-## Rama Falso — Pendiente
+## Rama Falso — Pendiente → auto-aprobación instalador (PENDIENTE DE APLICAR)
 
-### 6.7 Send internal email → backoffice (nuevo pendiente)
+**Decisión de negocio (Fase 2, 2026-07):** quien no matchea la whitelist ya
+NO se queda en `pendiente` esperando revisión manual — se auto-aprueba como
+**instalador, sin Company**. Esto cubre tanto los altas por la landing
+dedicada `/pages/acceso-instalador` (sector ya viene `instalador` y sin
+`b2b.empresa`) como los altas por el form de **distribuidor** que no
+matchean whitelist (sector venía `otro`, y `b2b.empresa` SÍ está poblado
+desde el create — hay que limpiarlo aquí para que no se cree Company).
+
+Pasos nuevos a añadir en esta rama, **en este orden** (reemplazan a los
+pasos 6.7/6.8 actuales, que quedan igual pero se reordenan después):
+
+### 6.7 Update metafield `b2b.empresa` → vaciar
+
+- Metacampo: `Empresa (b2b.empresa)`
+- Tipo: `Una línea de texto`
+- Value: (vacío / un solo espacio si Flow no acepta string vacío — probar
+  ambos en el builder; si Flow rechaza vacío, usar el valor `" "` y que el
+  guard de `create-company-for-customer` lo trate como vacío tras `.trim()`,
+  que ya hace hoy).
+- **Por qué**: `create-company-for-customer` (invocado por W2 en cuanto
+  detecta el tag `aprobado`, ver más abajo) aborta sin crear Company si
+  `b2b.empresa` está vacío tras `.trim()` — confirmado en código
+  (`supabase/functions/create-company-for-customer/index.ts`, guard
+  `if (!empresa) return jsonResponse(..., 400)`). Sin este paso, un
+  distribuidor-sin-match que SÍ escribió razón social en su form terminaría
+  con Company igualmente.
+
+### 6.8 Update metafield `b2b.sector` = `"instalador"`
+
+- Metacampo: `Sector (b2b.sector)`
+- Tipo: `Una línea de texto`
+- Value: `instalador` (literal — overwrite incondicional, sin importar qué
+  sector trajera el form original).
+
+### 6.9 Remove tag `pendiente`
+
+### 6.10 Add tags `aprobado` y `instalador`
+
+- `Agregar etiquetas al cliente`. Tags: `aprobado, instalador`.
+- **Nota de disparo cruzado**: este cambio de tags dispara también **W2**
+  (`Customer tags added`, condición `NOT pendiente AND aprobado`) — W2 vuelve
+  a invocar `create-company-for-customer`. Es intencional y redundante de
+  forma segura: la función es idempotente y, con `b2b.empresa` ya vacío
+  (paso 6.7), aborta sin crear nada. No hace falta excluir instaladores de
+  la condición de W2.
+
+### 6.11 Update metafield `b2b.fecha_aprobacion`
+
+- Type: `Fecha`
+- Value: `{{ runCode.fecha_registro }}` (mismo criterio que la rama
+  Verdadero: registro y aprobación son el mismo momento).
+
+### 6.12 Send internal email → backoffice (auto-aprobado instalador)
 
 - **To**: `daniel.pena+backoffice@creacciones.es`
-- **Subject**: `[B2B] Nuevo registro pendiente — {{ runCode.empresa }}`
-- **Body**: copy-paste de `email-templates/03-backoffice-nuevo-pendiente.liquid`.
+- **Subject**: `[B2B] Auto-aprobado instalador: {{ runCode.nombre }} {{ runCode.apellidos }}`
+- **Body**: adaptar `email-templates/03-backoffice-nuevo-pendiente.liquid` —
+  "Auto-aprobado como instalador, sin Company" en vez de "pendiente de
+  revisión".
 
-### 6.8 ❌ DESACTIVADO — Send marketing mail (template 02)
+### 6.13 ❌ DESACTIVADO — Send marketing mail (template a definir)
 
-**Pendiente Grow**.
-
-- Template: `B2B · 02 · Solicitud recibida`
+**Pendiente Grow**. Cliente/negocio debe decidir si reutiliza el template 02
+(`Solicitud recibida`) adaptado a "ya tienes acceso" o crea uno nuevo — hoy
+el 02 asume revisión pendiente, lo cual ya no aplica a este flujo.
 
 ---
 
@@ -316,10 +383,29 @@ Este step crea la Company B2B + Contact (customer existente) + Location y asigna
 
 ## Verificación end-to-end
 
-**Escenario 2 validado** (2026-04-19): crear customer con email no-whitelist + 4 metafields obligatorios. Al guardar:
+**Escenario 2 validado** (2026-04-19, PRE Fase 2): crear customer con email no-whitelist + 4 metafields obligatorios. Al guardar:
 
 - Tag `pendiente` añadido.
 - 4 metafields backfill (value = lo que pusiste en admin).
 - Email llega a `daniel.pena+backoffice@creacciones.es` con los datos.
 - No se crea Company (rama Falso no toca Company).
 - Run history: todos los steps en verde.
+
+### Pendiente de re-validar tras aplicar el cambio de Fase 2 (Rama Falso)
+
+Una vez aplicados los pasos 6.7–6.13:
+
+- Registro por `/pages/acceso-instalador` (sector `instalador`, sin
+  `empresa`) → customer queda `aprobado` + `instalador`, `b2b.empresa`
+  vacío, **sin** `companyContactProfiles` (confirmar en Admin → Customer →
+  no aparece sección Company).
+- Registro por `/pages/acceso-profesional` (distribuidor) con email que NO
+  matchea whitelist, habiendo escrito una razón social real → mismo
+  resultado: `aprobado` + `instalador`, `b2b.empresa` vacío pese a que el
+  form lo mandó relleno, sin Company.
+- Registro con email que SÍ matchea whitelist → sin cambios (Rama
+  Verdadero intacta): `aprobado` sin `instalador`, Company creada.
+- Revisar el Run history de **W2** en ambos casos de la rama Falso: debe
+  aparecer una invocación adicional a `create-company-for-customer` que
+  responde 400 (`customer has no b2b.empresa metafield`) — comportamiento
+  esperado, no es un fallo a corregir.

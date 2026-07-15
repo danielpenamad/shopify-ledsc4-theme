@@ -78,22 +78,23 @@ Lectura no lineal — usar el índice para saltar al apartado relevante.
 
 ## 2. Tags canónicos del Customer
 
-Cuatro tags. Los tres primeros son **mutuamente excluyentes** — exactamente uno por Customer humano. El cuarto (`backoffice`) es ortogonal a los demás y se aplica al Customer técnico que da acceso al panel de admin.
+Cinco tags. Los tres primeros son **mutuamente excluyentes** — exactamente uno por Customer humano. Los otros dos son ortogonales a esos tres.
 
 | Tag | Significado | Quién lo aplica |
 |---|---|---|
 | `pendiente` | Alta enviada, sin revisar. | edge `register-b2b-customer` al crear el Customer. |
-| `aprobado` | Revisado OK. Company creada. Acceso B2B activo. | edge `approve-customer` (manual desde backoffice) o edge `promote-whitelist-matches` (auto desde `pg_cron`). |
+| `aprobado` | Revisado OK. Acceso B2B activo. Normalmente implica Company creada — **excepto** para `instalador` (ver abajo). | edge `approve-customer` (manual desde backoffice), edge `promote-whitelist-matches` (auto desde `pg_cron`), o Shopify Flow W1 rama Falso (auto-aprobación instalador, Fase 2 2026-07). |
 | `rechazado` | Revisado y denegado. | edge `reject-customer` (manual desde backoffice). |
-| `backoffice` | Customer técnico que da acceso a `/pages/admin-backoffice`. No representa a una persona física. | script `scripts/create-backoffice-customer.mjs` (one-shot). |
+| `backoffice` | Customer técnico que da acceso a `/pages/admin-backoffice`. No representa a una persona física. Ortogonal, fuera de la invariante. | script `scripts/create-backoffice-customer.mjs` (one-shot). |
+| `instalador` | **Fase 2 (2026-07)**. Co-ocurre siempre con `aprobado`. Marca un cliente auto-aprobado **sin Company** (decisión de negocio: whitelist match → distribuidor con Company; sin match → instalador sin Company). También activa el markup visual +15% de precios (`window.LEDSC4_INSTALLER_MARKUP` en `layout/theme.liquid`, Fase 1). Ortogonal a `{pendiente,aprobado,rechazado}` pero en la práctica solo aparece junto a `aprobado`. | Shopify Flow W1 rama Falso (ver `flows/W1-walkthrough.md`). |
 
-**Invariante**: exactamente un tag de `{pendiente, aprobado, rechazado}` por cada Customer humano. El tag `backoffice` está fuera de esa restricción.
+**Invariante**: exactamente un tag de `{pendiente, aprobado, rechazado}` por cada Customer humano. Los tags `backoffice` e `instalador` están fuera de esa restricción.
 
 El script `scripts/audit-customer-state.js` valida la invariante. Modos de fallo reportados:
 
 - `no_state_tag`: Customer humano sin ninguno de los tres tags → candidato a normalizar.
 - `multiple_state_tags`: dos o más simultáneamente → error duro, exit code 2, CSV en `reports/`.
-- `approved_without_company`: tag `aprobado` sin `Company` asociada → deuda técnica.
+- `approved_without_company`: tag `aprobado` sin `Company` asociada → deuda técnica. **Excluye clientes con tag `instalador`** (Fase 2): para ellos, aprobado-sin-Company es el diseño esperado, no un fallo.
 
 ---
 
@@ -103,10 +104,11 @@ El script `scripts/audit-customer-state.js` valida la invariante. Modos de fallo
 
 | Key | Tipo | Pin | Nullable | Quién escribe | Uso |
 |---|---|---|---|---|---|
-| `empresa` | `single_line_text_field` | ✅ | No | edge `register-b2b-customer` | Razón social. |
-| `nif` | `single_line_text_field` | ✅ | No | edge `register-b2b-customer` | NIF/CIF/NIE validado con dígito de control en el form y reforzado por Flow W1. |
-| `sector` | `single_line_text_field` | ✅ | No | edge `register-b2b-customer` | Slug de la lista fija del form: `instalador`, `arquitecto_interiorismo`, `retail_tienda`, `distribuidor`, `empresa_final`, `otro`. |
+| `empresa` | `single_line_text_field` | ✅ | Sí | edge `register-b2b-customer` | Razón social. **Obligatorio salvo `sector === "instalador"`** (Fase 2, 2026-07): la landing `/pages/acceso-instalador` no tiene este campo, y el metafield no se escribe cuando viene vacío (Shopify rechaza `single_line_text_field` con value ""). Ver también flows/W1-walkthrough.md — la rama Falso lo vacía explícitamente para distribuidores-sin-match. |
+| `nif` | `single_line_text_field` | ✅ | Sí | edge `register-b2b-customer` | NIF/CIF/NIE validado con dígito de control en el form y reforzado por Flow W1. **Opcional si `sector === "instalador"`** (Fase 2); si se rellena, igual se valida formato. |
+| `sector` | `single_line_text_field` | ✅ | No | edge `register-b2b-customer` (Flow W1 rama Falso lo sobrescribe a `instalador` — Fase 2) | Slug de la lista fija del form: `instalador`, `arquitecto_interiorismo`, `retail_tienda`, `distribuidor`, `empresa_final`, `otro`. |
 | `pais` | `single_line_text_field` | ✅ | Sí | edge `register-b2b-customer` | ISO country code del form. Reservado para multi-tarifa. Renombrado desde `zona` al iniciar Fase B. |
+| `codigo_postal` | `single_line_text_field` | ✅ | No | edge `register-b2b-customer` | **Fase 2 (2026-07)**. Obligatorio en ambos formularios (distribuidor e instalador). Sin validación de formato por país — texto libre saneado. |
 | `volumen_estimado` | `single_line_text_field` | ❌ | Sí | edge `register-b2b-customer` | Slug de rango: `<5k`, `5k-25k`, `25k-100k`, `>100k`, `no_se`. Candidato a `number_decimal` cuando se active multi-tarifa. |
 | `fecha_registro` | `date` | ✅ | No | edge `register-b2b-customer` | Fecha del envío del form. |
 | `fecha_aprobacion` | `date` | ✅ | Sí | edge `approve-customer` o `promote-whitelist-matches` | Solo si `aprobado`. |
@@ -456,17 +458,17 @@ Se ejecuta manualmente o en CI. Sobre un store vacío corre limpio.
 
 ## Conteo total de definitions
 
-Total: **47 metafield definitions**.
+Total: **48 metafield definitions**.
 
 | Owner | Namespace | Cantidad |
 |---|---|---|
-| Customer | `b2b` | 9 |
+| Customer | `b2b` | 10 |
 | Shop | `b2b` | 3 |
 | Page | `b2b` | 2 |
 | Product | `b2b` | 1 |
 | Product | `product` | 32 |
 
-Fuente única de verdad: `scripts/metafield-definitions.json`. Script de aplicación: `scripts/apply-metafield-definitions.mjs` ([15-scripts](15-scripts.md)).
+Fuente única de verdad: `scripts/metafield-definitions.json`. Script de aplicación: `scripts/apply-metafield-definitions.mjs` ([15-scripts](15-scripts.md)) — **pendiente de ejecutar tras el merge de Fase 2** para que `b2b.codigo_postal` exista como definition real en la tienda (si no, `register-b2b-customer` seguiría escribiendo el metafield pero sin definición formal: funciona igual, pero no aparece bonito en el Admin ni en el schema hasta aplicar).
 
 > **Nota**: [D9](adrs/d09-metafields-ampliados.md) menciona "45 definitions" — conteo desactualizado. El total real es 47 (incluye `whitelist_last_update` Shop y `fecha_rechazo` Customer, añadidas en Fase BO posteriores al cierre del ADR).
 

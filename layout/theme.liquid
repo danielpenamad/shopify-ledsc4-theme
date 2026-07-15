@@ -438,7 +438,7 @@
         {%- endif -%}
       {%- endif -%}
       {%- assign gate_exempt = false -%}
-      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional,/pages/registro-recibido,/pages/completar-registro' | split: ',' -%}
+      {%- assign gate_exempt_paths = '/,/account/login,/account/register,/account/recover,/account/logout,/account/sign_out,/pages/cuenta-en-revision,/pages/cuenta-rechazada,/pages/aviso-legal,/pages/politica-de-privacidad,/pages/condiciones-de-uso,/pages/canal-de-denuncias,/pages/acceso-profesional,/pages/acceso-instalador,/pages/registro-recibido,/pages/completar-registro' | split: ',' -%}
       {%- for p in gate_exempt_paths -%}
         {%- if gate_path == p -%}
           {%- assign gate_exempt = true -%}

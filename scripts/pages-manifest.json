@@ -73,6 +73,13 @@
     "published": true
   },
   {
+    "title": "Acceso instaladores",
+    "handle": "acceso-instalador",
+    "template_suffix": "acceso-instalador",
+    "body_html": "<p>Información sobre el acceso al portal B2B LedsC4 para instaladores.</p><p><em>Contenido renderizado desde el tema (templates/page.acceso-instalador.json).</em></p>",
+    "published": true
+  },
+  {
     "title": "Solicitud enviada",
     "handle": "registro-recibido",
     "template_suffix": "registro-recibido",

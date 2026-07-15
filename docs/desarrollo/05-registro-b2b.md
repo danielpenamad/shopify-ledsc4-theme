@@ -423,7 +423,48 @@ No es prioritario porque el volumen orgánico de la landing es bajo y el daño p
 - **`b2b.pais` whitespace**: root cause de `\tES` no localizada. Trim defensivo en su sitio; deuda pendiente.
 - **Magic link en dominios reales**: el invite email solo es validable en dominio real, no en preview ([04-storefront-gate](04-storefront-gate.md) §preview hosts).
 
+## 11. Fase 2 — Landing de instalador (2026-07)
+
+Segunda landing de registro, `/pages/acceso-instalador` (section
+`sections/main-acceso-instalador.liquid`, template
+`templates/page.acceso-instalador.json`), pensada para captación masiva de
+instaladores con mínima fricción. Comparte backend 100% con la landing de
+distribuidor (misma edge `register-b2b-customer`, mismo asset
+`assets/b2b-register-v2.js`) — las diferencias son solo de formulario:
+
+| Diferencia | Landing distribuidor | Landing instalador |
+|---|---|---|
+| Hidden `sector` | `"otro"` | `"instalador"` |
+| Campo `empresa` (razón social) | Obligatorio | **No existe en el form** |
+| Campo `nif` | Obligatorio | Opcional (se valida formato si se rellena) |
+| Campo `codigo_postal` | Obligatorio (nuevo, Fase 2) | Obligatorio (nuevo, Fase 2) |
+
+`register-b2b-customer` relaja `empresa`/`nif` a opcionales cuando
+`sector === "instalador"` y omite sus metafields del `customerCreate` si
+vienen vacíos (Shopify rechaza `single_line_text_field` con value "").
+`codigo_postal` es obligatorio en ambos formularios y se persiste siempre
+como `b2b.codigo_postal` (metafield nuevo, ver
+[01-data-model §3](01-data-model.md)).
+
+**El enrutado real de rol NO cambia aquí.** Ambos formularios crean el
+Customer igual (tag `pendiente`) y pasan por el mismo Shopify Flow W1
+(whitelist check). La decisión de negocio — whitelist match → distribuidor
+con Company; sin match → instalador auto-aprobado sin Company, sea cual sea
+la landing de origen — vive en la Rama Falso de W1, que requiere una
+edición manual pendiente de aplicar en el Admin. Detalle completo,
+incluyendo por qué `create-company-for-customer` necesita que
+`b2b.empresa` quede vacío para no crear Company, en
+[flows/W1-walkthrough.md](../../flows/W1-walkthrough.md).
+
+Gate-exempt: `/pages/acceso-instalador` está en `gate_exempt_paths` de
+`layout/theme.liquid`, igual que `/pages/acceso-profesional`.
+
+Copy editorial de la landing (hero, FAQ, etc.) va en placeholders bajo el
+namespace i18n `ledsc4.acceso_instalador.*` (es/en/fr) — pendiente del
+texto definitivo del cliente.
+
 ## Cambios
 
+- **v0.3** (2026-07, Fase 2): añadida §11 (landing de instalador, campo código postal, empresa/nif opcionales para sector instalador).
 - **v0.2** (16-may-2026): documentado el `emailMarketingConsent` del `customerCreate` (§5) — el doc no mencionaba el opt-in de marketing que la edge ya aplica. Sin este opt-in los 5 emails al cliente del flujo B2B no se entregarían. Coherente con 08-emails-transaccionales §7.
 - **v0.1** (15-may-2026): primera publicación.

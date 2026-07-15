@@ -606,6 +606,7 @@
         "label_razon_social": "Company name",
         "label_nif": "Tax ID / Company ID / Foreigner ID",
         "label_pais": "Country",
+        "label_codigo_postal": "Postal code",
         "label_volumen": "Estimated annual volume",
         "sector": {
           "instalador": "Electrical installer",
@@ -699,6 +700,37 @@
         "q6_body": "Once approved, you can view your data in the private area of the portal. For sensitive changes (company name, tax ID), write to the sales team and we will update them manually."
       },
       "ctas_lead": "Does this work for you? Start by requesting access. If you already have an account, return to your private area."
+    },
+    "acceso_instalador": {
+      "hero": {
+        "eyebrow": "PLACEHOLDER — Installer access",
+        "heading_html": "PLACEHOLDER — <em>Installer sign-up</em> LedsC4 Outlet",
+        "lead": "PLACEHOLDER — Copy pending from client: presenting the installer landing (low-friction sign-up, no company name required)."
+      },
+      "keep_reading": "PLACEHOLDER — Still not clear? Keep reading ↓",
+      "que_es": {
+        "heading": "PLACEHOLDER — What is this portal",
+        "body_html": "PLACEHOLDER — Copy pending from client: what the portal is, aimed at installers."
+      },
+      "como": {
+        "heading": "PLACEHOLDER — How access works",
+        "intro_html": "PLACEHOLDER — Copy pending from client: installer sign-up activates automatically, no manual review wait."
+      },
+      "dentro": {
+        "heading": "PLACEHOLDER — What you'll find inside",
+        "body_html": "PLACEHOLDER — Copy pending from client."
+      },
+      "faq": {
+        "heading": "PLACEHOLDER — Frequently asked questions",
+        "q1_summary": "PLACEHOLDER — Do I need a registered company?",
+        "q1_body": "PLACEHOLDER — Copy pending from client: no, this landing doesn't ask for a company name.",
+        "q2_summary": "PLACEHOLDER — How long does approval take?",
+        "q2_body": "PLACEHOLDER — Copy pending from client: the account activates automatically."
+      },
+      "ctas_lead": "PLACEHOLDER — Does this work for you? Start by requesting access.",
+      "form": {
+        "legend_fiscal": "Tax details"
+      }
     },
     "completar": {
       "hero": {
