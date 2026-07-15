@@ -138,8 +138,13 @@ Section `main-acceso-profesional.liquid` (1199 líneas). Bloques:
 | `nif` | text | Requerido. Regex DNI/NIE/CIF con **dígito de control completo** client-side; reforzado server-side. |
 | `sector` | select | Requerido. Enum estricto (6 valores fijos — ver §6). |
 | `pais` | select | Requerido. ISO 3166-1 alpha-2 o nombre en español/inglés (mapeo server-side). |
+| `codigo_postal` | text | Requerido (Fase 2, 2026-07). Max 12 chars. Sin validación de formato por país. |
 | `volumen_estimado` | select | Opcional. Slug de rango. |
 | `condiciones` | checkbox | Requerido. Aceptación de términos. Es además la base legal del opt-in de marketing — ver §5. |
+
+> **Landing de instalador** (`/pages/acceso-instalador`, Fase 2): mismo form,
+> mismo endpoint, con 3 diferencias — `empresa` no existe en el form, `nif`
+> es opcional, hidden `sector="instalador"` en vez de `"otro"`. Ver §11.
 
 **Hidden inputs (HMAC)**:
 
@@ -440,20 +445,26 @@ distribuidor (misma edge `register-b2b-customer`, mismo asset
 | Campo `codigo_postal` | Obligatorio (nuevo, Fase 2) | Obligatorio (nuevo, Fase 2) |
 
 `register-b2b-customer` relaja `empresa`/`nif` a opcionales cuando
-`sector === "instalador"` y omite sus metafields del `customerCreate` si
-vienen vacíos (Shopify rechaza `single_line_text_field` con value "").
-`codigo_postal` es obligatorio en ambos formularios y se persiste siempre
-como `b2b.codigo_postal` (metafield nuevo, ver
+`sector === "instalador"` — forzando `empresa` a vacío en ese carril aunque
+el body la traiga rellena — y omite sus metafields del `customerCreate` si
+quedan vacíos (Shopify rechaza `single_line_text_field` con value "").
+`b2b.sector` se persiste **siempre**, sin excepción: es el discriminador de
+carril. `codigo_postal` es obligatorio en los tres formularios de alta
+(distribuidor, instalador y alta nativa OAuth vía `complete-b2b-registration`)
+y se persiste siempre como `b2b.codigo_postal` (metafield nuevo, ver
 [01-data-model §3](01-data-model.md)).
 
-**El enrutado real de rol NO cambia aquí.** Ambos formularios crean el
-Customer igual (tag `pendiente`) y pasan por el mismo Shopify Flow W1
-(whitelist check). La decisión de negocio — whitelist match → distribuidor
-con Company; sin match → instalador auto-aprobado sin Company, sea cual sea
-la landing de origen — vive en la Rama Falso de W1, que requiere una
-edición manual pendiente de aplicar en el Admin. Detalle completo,
-incluyendo por qué `create-company-for-customer` necesita que
-`b2b.empresa` quede vacío para no crear Company, en
+**El enrutado real de rol vive en Shopify Flow W1, no en las edge
+functions.** `register-b2b-customer` crea el Customer igual sea cual sea la
+landing (tag `pendiente`, con `b2b.sector` ya fijado) y deja que W1 decida:
+una condición nueva justo tras el parseo comprueba `sector == "instalador"`
+**antes** de la lógica de whitelist. Si es instalador, auto-aprueba
+(`aprobado`+`instalador`) sin tocar la whitelist ni crear Company; si no,
+el carril de distribuidor sigue exactamente igual que hoy (whitelist match
+→ distribuidor + Company; sin match → pendiente/backoffice). Esta
+bifurcación por `sector` requiere una edición manual pendiente de aplicar
+en el Admin. Detalle completo, incluyendo por qué `create-company-for-customer`
+necesita que `b2b.empresa` quede vacío para no crear Company, en
 [flows/W1-walkthrough.md](../../flows/W1-walkthrough.md).
 
 Gate-exempt: `/pages/acceso-instalador` está en `gate_exempt_paths` de
@@ -465,6 +476,7 @@ texto definitivo del cliente.
 
 ## Cambios
 
+- **v0.4** (2026-07, Fase 2 completa): §11 corregida — el discriminador de carril es `b2b.sector`, comprobado en Flow W1 antes de la whitelist (no un resultado de whitelist-miss). `codigo_postal` extendido a `complete-b2b-registration`.
 - **v0.3** (2026-07, Fase 2): añadida §11 (landing de instalador, campo código postal, empresa/nif opcionales para sector instalador).
 - **v0.2** (16-may-2026): documentado el `emailMarketingConsent` del `customerCreate` (§5) — el doc no mencionaba el opt-in de marketing que la edge ya aplica. Sin este opt-in los 5 emails al cliente del flujo B2B no se entregarían. Coherente con 08-emails-transaccionales §7.
 - **v0.1** (15-may-2026): primera publicación.

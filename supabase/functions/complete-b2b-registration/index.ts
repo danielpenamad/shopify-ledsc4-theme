@@ -28,9 +28,15 @@
 //     signature: "<hex hmac>",          // hmac_sha256(<ts>:<nonce>:<gid>, SECRET)
 //     customerId: "gid://shopify/Customer/123",
 //     nombre, apellidos, telefono?, empresa, nif, sector, pais,
-//     volumen_estimado?, condiciones: true
+//     volumen_estimado?, codigo_postal, condiciones: true
 //   }
 //   (NO email — el customer ya existe; el form lo muestra bloqueado.)
+//
+// Fase 2 (2026-07): codigo_postal obligatorio, igual que en
+// register-b2b-customer. A diferencia de esa función, este carril (alta
+// nativa OAuth vía /pages/completar-registro) es siempre distribuidor — no
+// existe una landing de instalador equivalente — así que empresa/nif NO se
+// relajan aquí; se mantienen obligatorios como siempre.
 //
 // Output:
 //   { ok:true, customerId, status:"pendiente" }                            (200)
@@ -282,6 +288,7 @@ interface IncomingBody {
   sector?: string;
   pais?: string;
   volumen_estimado?: string;
+  codigo_postal?: string;
   condiciones?: boolean;
 }
 
@@ -344,10 +351,16 @@ export async function handle(req: Request): Promise<Response> {
     const sector = sanitizeText(body.sector, 50);
     const paisRaw = sanitizeText(body.pais, 60);
     const volumenEstimado = sanitizeText(body.volumen_estimado, 30);
+    const codigoPostal = sanitizeText(body.codigo_postal, 12);
 
     if (!nombre) fieldErrors.nombre = "El nombre es obligatorio.";
     if (!apellidos) fieldErrors.apellidos = "Los apellidos son obligatorios.";
+    // Este carril (alta nativa OAuth) es siempre distribuidor — sin landing
+    // de instalador equivalente (Fase 2 solo cubre los dos formularios
+    // dedicados). empresa/nif se mantienen obligatorios, sin la relajación
+    // de register-b2b-customer.
     if (!empresa) fieldErrors.empresa = "La razón social es obligatoria.";
+    if (!codigoPostal) fieldErrors.codigo_postal = "El código postal es obligatorio.";
 
     // Teléfono (opcional): Shopify rechaza formatos no E.164-ables con
     // userError field=["phone"] que el front no sabía pintar (input
@@ -472,6 +485,7 @@ export async function handle(req: Request): Promise<Response> {
               ...(volumenEstimado
                 ? [{ namespace: "b2b", key: "volumen_estimado", type: "single_line_text_field", value: volumenEstimado }]
                 : []),
+              { namespace: "b2b", key: "codigo_postal", type: "single_line_text_field", value: codigoPostal },
               { namespace: "b2b", key: "fecha_registro", type: "date", value: today },
             ],
           },

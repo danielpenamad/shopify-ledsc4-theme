@@ -46,14 +46,25 @@
 //     condiciones: true             // checkbox términos
 //   }
 //
-// Fase 2 instalador (2026-07): sector === "instalador" (landing dedicada
-// /pages/acceso-instalador) relaja empresa/nif a opcionales — el instalador
-// no tiene Company (decisión de negocio: "instalador sin Company"). Si
-// vienen vacíos, sus metafields b2b.empresa / b2b.nif simplemente no se
-// escriben (Shopify rechaza single_line_text_field con value vacío). El
-// enrutado real de rol (whitelist match → distribuidor, sin match →
-// instalador auto-aprobado) vive en Shopify Flow W1, fuera de este repo —
-// ver flows/W1-walkthrough.md.
+// Fase 2 instalador completa (2026-07): esta función NO decide el rol ni
+// aprueba a nadie — solo crea el customer con sus metafields y lo deja en
+// 'pendiente' para que Shopify Flow W1 lo procese. El discriminador de
+// carril que usa W1 es b2b.sector: sector === "instalador" (fijo en la
+// landing dedicada /pages/acceso-instalador, hidden en el UI) → W1
+// auto-aprueba como instalador SIN pasar por whitelist ni crear Company;
+// cualquier otro sector → carril de distribuidor sin cambios (whitelist →
+// distribuidor+Company, sin match → pendiente/backoffice). Ver
+// flows/W1-walkthrough.md para el detalle completo (edición manual en
+// Shopify Flow, fuera de este repo).
+//
+// b2b.sector se persiste SIEMPRE (es el discriminador; nunca se omite).
+// b2b.empresa/b2b.nif se relajan a opcionales cuando sector === "instalador":
+// - empresa se fuerza a vacío en ese carril aunque el body la traiga
+//   rellena (la landing de instalador no expone el campo; un valor
+//   presente solo puede venir de un payload crafteado a mano).
+// - nif se acepta vacío; si se rellena, igual se valida el formato.
+// Ambos se omiten del array de metafields cuando quedan vacíos (Shopify
+// rechaza single_line_text_field con value "").
 //
 // Output:
 //   { ok: true, customerId: "gid://shopify/Customer/123", inviteSent: true }     (200)
@@ -385,6 +396,10 @@ async function handle(req: Request): Promise<Response> {
     // Cualquier otro sector (incl. "otro", hidden del form distribuidor)
     // mantiene el requisito histórico.
     const isInstalador = sector === "instalador";
+    // Fuerza vacío en carril instalador aunque el body traiga empresa
+    // rellena (defensa contra un payload crafteado a mano; la landing de
+    // instalador no expone este campo en el UI).
+    const empresaToPersist = isInstalador ? "" : empresa;
 
     emailHash = email ? await sha256Hex(email) : "";
 
@@ -491,11 +506,15 @@ async function handle(req: Request): Promise<Response> {
               marketingOptInLevel: "SINGLE_OPT_IN",
             },
             metafields: [
-              // empresa/nif: Shopify rechaza single_line_text_field con value
-              // vacío, así que se omiten enteros cuando faltan (instalador,
-              // sin Company por decisión de negocio — Fase 2, 2026-07).
-              ...(empresa
-                ? [{ namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa }]
+              // empresa: nunca se persiste para sector === "instalador", aunque
+              // el body la traiga rellena (payload crafteado a mano, ya que la
+              // landing de instalador no tiene este campo en el UI) — el
+              // discriminador de carril del Flow (b2b.sector) decide el rol,
+              // y el carril instalador no debe poder generar Company. Además,
+              // Shopify rechaza single_line_text_field con value vacío, así
+              // que se omite entera cuando no aplica.
+              ...(empresaToPersist
+                ? [{ namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresaToPersist }]
                 : []),
               ...(nifResult.normalized
                 ? [{ namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized }]

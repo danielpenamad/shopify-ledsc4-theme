@@ -22,6 +22,7 @@ Los `.liquid` de esta carpeta son la **fuente de verdad** del contenido.
 | 4 | `04-cuenta-aprobada-manual.liquid`      | W2        | Send marketing mail | `{{ customer.email }}` |
 | 5 | `05-cuenta-rechazada.liquid`            | W3        | Send marketing mail | `{{ customer.email }}` |
 | 6 | `06-bienvenida-reevaluacion.liquid`     | W4        | Send marketing mail | `{{ customer.email }}` |
+| 8 | `08-bienvenida-instalador.liquid`       | W1 rama instalador (Fase 2) | Send marketing mail | `{{ customer.email }}` |
 
 ## Subjects (campo "Asunto" de cada envío)
 
@@ -33,14 +34,15 @@ Los `.liquid` de esta carpeta son la **fuente de verdad** del contenido.
 | 4 | `Tu solicitud B2B ha sido aprobada` |
 | 5 | `Estado de tu solicitud B2B` |
 | 6 | `Tu cuenta B2B de LedsC4 Outlet está activa` |
+| 8 | `Tu cuenta B2B de LedsC4 Outlet está activa` |
 
-## Cargar los 5 templates marketing en Shopify Messaging
+## Cargar los templates marketing en Shopify Messaging
 
 El plan actual (Development) permite **crear** plantillas pero **no enviar**
 (aviso "Actualiza tu plan para enviar correos"). Se guardan como borrador y
 se activan automáticamente al pasar a un plan de pago.
 
-Para cada uno de los 5 templates marketing (01, 02, 04, 05, 06):
+Para cada uno de los templates marketing (01, 02, 04, 05, 06, 08):
 
 1. Admin → **Marketing** → sección **Messaging** (o **Campañas** según UI) → **Crear** → **Correo electrónico**.
 2. Nómbralo con la convención:
@@ -49,6 +51,7 @@ Para cada uno de los 5 templates marketing (01, 02, 04, 05, 06):
    - `B2B · 04 · Cuenta aprobada (manual)`
    - `B2B · 05 · Cuenta rechazada`
    - `B2B · 06 · Bienvenida (re-evaluación)`
+   - `B2B · 08 · Bienvenida instalador` (Fase 2, 2026-07 — pendiente de crear)
 3. **Asunto**: copia exacta de la tabla de Subjects de arriba.
 4. En el editor, cambia a **vista de código** (icono `</>`).
 5. Pega íntegramente el contenido del `.liquid` correspondiente (los
@@ -107,6 +110,7 @@ Liquid de Flow — sintaxis distinta, camelCase + outputs de Run code:
 - [ ] 04 `B2B · 04 · Cuenta aprobada (manual)` creado
 - [ ] 05 `B2B · 05 · Cuenta rechazada` creado
 - [ ] 06 `B2B · 06 · Bienvenida (re-evaluación)` creado
+- [ ] 08 `B2B · 08 · Bienvenida instalador` creado (Fase 2, 2026-07)
 - [ ] 03 `Send internal email` configurado inline en W1 rama B
 - [ ] Test: variables se resuelven correctamente (no salen literales `{{ ... }}`)
 
