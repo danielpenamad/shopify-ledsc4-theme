@@ -83,6 +83,51 @@
   {
     "ownerType": "CUSTOMER",
     "namespace": "b2b",
+    "key": "utm_campaign",
+    "name": "UTM campaign",
+    "description": "Atribución de campaña (Extra A, 2026-07). Capturado de la URL en el alta, texto libre de terceros (Meta, Google Ads, etc.), sin validación de formato.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "utm_content",
+    "name": "UTM content",
+    "description": "Atribución de campaña (Extra A, 2026-07). Ver utm_campaign.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "utm_medium",
+    "name": "UTM medium",
+    "description": "Atribución de campaña (Extra A, 2026-07). Ver utm_campaign.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "utm_source",
+    "name": "UTM source",
+    "description": "Atribución de campaña (Extra A, 2026-07). Ver utm_campaign.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
+    "key": "utm_term",
+    "name": "UTM term",
+    "description": "Atribución de campaña (Extra A, 2026-07). Ver utm_campaign.",
+    "type": "single_line_text_field",
+    "pin": false
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
     "key": "volumen_estimado",
     "name": "Volumen estimado",
     "description": "Volumen anual declarado. Texto libre por ahora; candidato a number_decimal cuando se active multi-tarifa.",

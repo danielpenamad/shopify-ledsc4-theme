@@ -100,7 +100,7 @@ El script `scripts/audit-customer-state.js` valida la invariante. Modos de fallo
 
 ## 3. Metafields del Customer
 
-9 definitions, todas `namespace: b2b`. Acceso default merchant read-write, storefront none (Shopify no acepta bloque `access` explícito en CUSTOMER en el plan actual; se aplican defaults).
+15 definitions, todas `namespace: b2b`. Acceso default merchant read-write, storefront none (Shopify no acepta bloque `access` explícito en CUSTOMER en el plan actual; se aplican defaults).
 
 | Key | Tipo | Pin | Nullable | Quién escribe | Uso |
 |---|---|---|---|---|---|
@@ -109,6 +109,7 @@ El script `scripts/audit-customer-state.js` valida la invariante. Modos de fallo
 | `sector` | `single_line_text_field` | ✅ | No | edge `register-b2b-customer` / `complete-b2b-registration` | Slug de la lista fija del form: `instalador`, `arquitecto_interiorismo`, `retail_tienda`, `distribuidor`, `empresa_final`, `otro`. **Se persiste siempre, sin excepción** (Fase 2, 2026-07): es el discriminador de carril que Shopify Flow W1 comprueba antes de la lógica de whitelist (`sector === "instalador"` → auto-aprobación instalador sin Company; cualquier otro valor → carril de distribuidor sin cambios). Ver `flows/W1-walkthrough.md`. |
 | `pais` | `single_line_text_field` | ✅ | Sí | edge `register-b2b-customer` | ISO country code del form. Reservado para multi-tarifa. Renombrado desde `zona` al iniciar Fase B. |
 | `codigo_postal` | `single_line_text_field` | ✅ | No | edge `register-b2b-customer` y `complete-b2b-registration` | **Fase 2 (2026-07)**. Obligatorio en los tres formularios (distribuidor, instalador y alta nativa OAuth). Sin validación de formato por país — texto libre saneado. |
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` | `single_line_text_field` | ❌ | Sí | edge `register-b2b-customer` | **Extra A (2026-07)**. Atribución de campaña, capturada de `window.location.search` por `assets/b2b-register-v2.js` (un único sitio, compartido por las dos landings). Los 5 opcionales; se omiten si vienen vacíos. Texto libre de terceros — sin validación de formato, solo saneo genérico + tope de longitud (150 chars). Solo en `register-b2b-customer`: no aplica a `complete-b2b-registration`. Uso en la oferta/email interno es Fase 3 — aquí solo se capturan y persisten. |
 | `volumen_estimado` | `single_line_text_field` | ❌ | Sí | edge `register-b2b-customer` | Slug de rango: `<5k`, `5k-25k`, `25k-100k`, `>100k`, `no_se`. Candidato a `number_decimal` cuando se active multi-tarifa. |
 | `fecha_registro` | `date` | ✅ | No | edge `register-b2b-customer` | Fecha del envío del form. |
 | `fecha_aprobacion` | `date` | ✅ | Sí | edge `approve-customer` o `promote-whitelist-matches` | Solo si `aprobado`. |
@@ -458,17 +459,17 @@ Se ejecuta manualmente o en CI. Sobre un store vacío corre limpio.
 
 ## Conteo total de definitions
 
-Total: **48 metafield definitions**.
+Total: **53 metafield definitions**.
 
 | Owner | Namespace | Cantidad |
 |---|---|---|
-| Customer | `b2b` | 10 |
+| Customer | `b2b` | 15 |
 | Shop | `b2b` | 3 |
 | Page | `b2b` | 2 |
 | Product | `b2b` | 1 |
 | Product | `product` | 32 |
 
-Fuente única de verdad: `scripts/metafield-definitions.json`. Script de aplicación: `scripts/apply-metafield-definitions.mjs` ([15-scripts](15-scripts.md)) — **pendiente de ejecutar tras el merge de Fase 2** para que `b2b.codigo_postal` exista como definition real en la tienda (si no, `register-b2b-customer` seguiría escribiendo el metafield pero sin definición formal: funciona igual, pero no aparece bonito en el Admin ni en el schema hasta aplicar).
+Fuente única de verdad: `scripts/metafield-definitions.json`. Script de aplicación: `scripts/apply-metafield-definitions.mjs` ([15-scripts](15-scripts.md)). `b2b.codigo_postal` ya aplicada en la tienda (cierre Fase 2, 2026-07); las 5 `b2b.utm_*` (Extra A) están en el JSON del repo — **pendiente de ejecutar el script tras mergear esta rama** para que existan como definitions reales.
 
 > **Nota**: [D9](adrs/d09-metafields-ampliados.md) menciona "45 definitions" — conteo desactualizado. El total real es 47 (incluye `whitelist_last_update` Shop y `fecha_rechazo` Customer, añadidas en Fase BO posteriores al cierre del ADR).
 

@@ -38,6 +38,30 @@
   // '' en home, '/fr' en /fr (sin trailing slash). Default '' si falta.
   // Usos: LOCALE_PREFIX + '/path/X' (con slash inicial al path).
   var LOCALE_PREFIX = (window.LEDSC4_I18N && window.LEDSC4_I18N.locale_prefix) || '';
+
+  // --- Atribución de campaña (UTMs, Extra A 2026-07) ---
+  //
+  // Capturados una vez al cargar el script desde window.location.search.
+  // Un único sitio porque las dos landings (distribuidor e instalador)
+  // comparten este mismo asset. Todos opcionales — un alta directa sin
+  // UTMs en la URL debe funcionar exactamente igual. Mismo patrón
+  // defensivo que el `?dest=` de las secciones Liquid: try/catch que
+  // nunca debe romper el form si algo falla al leer la URL.
+  var UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+  function captureUtms() {
+    var out = {};
+    try {
+      var params = new URLSearchParams(window.location.search);
+      UTM_PARAMS.forEach(function (key) {
+        var v = params.get(key);
+        if (v) out[key] = v;
+      });
+    } catch (e) {
+      // UTMs son atribución opcional; nunca romper el form por esto.
+    }
+    return out;
+  }
+  var UTMS = captureUtms();
   var LOCALE_ISO = (document.documentElement && document.documentElement.lang) || 'es';
 
   // --- NIF / NIE / CIF (port del registro classic, eliminado en C.6 T6) ---
@@ -301,6 +325,11 @@
       pais: values.pais,
       volumen_estimado: values.volumen_estimado || undefined,
       codigo_postal: values.codigo_postal,
+      utm_source: UTMS.utm_source,
+      utm_medium: UTMS.utm_medium,
+      utm_campaign: UTMS.utm_campaign,
+      utm_term: UTMS.utm_term,
+      utm_content: UTMS.utm_content,
       condiciones: values.condiciones === true,
     };
 

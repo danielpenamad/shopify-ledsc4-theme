@@ -65,9 +65,9 @@ Trigger  Customer created
                          │   ├─ Remove tag 'pendiente'
                          │   ├─ Add tags 'aprobado', 'instalador'
                          │   ├─ Update metafield b2b.fecha_aprobacion
-                         │   ├─ Send internal email → backoffice (FYI instalador)
                          │   └─ [PENDIENTE GROW] Send marketing mail → bienvenida instalador
-                         │   (FIN — sin whitelistCheck, sin HTTP a create-company)
+                         │   (sin email interno de FYI — decisión de cierre Fase 2, evita
+                         │    ruido en captación masiva; FIN, sin whitelistCheck ni HTTP a create-company)
                          └─ Falso (carril distribuidor — SIN CAMBIOS respecto a hoy)
                              └→ Run code  whitelistCheck  (runCode1)
                                 └→ Condition  runCode1.whitelisted == true
@@ -214,19 +214,10 @@ cualquier backfill.**
 **Rama Falso**: no añadir ninguna acción. El workflow termina ahí — el
 customer no recibe tag `pendiente` ni ningún otro cambio de W1.
 
-> **Cambio de comportamiento a validar con Dani**: antes de Fase 2, el Paso
-> "Add tag pendiente" era incondicional — CUALQUIER `Customer created`
-> (incluida un alta hecha a mano en el Admin sin metafields) terminaba con
-> tag `pendiente`. Con esta condición, **un customer creado sin `b2b.sector`
-> ya no recibe `pendiente` de W1**. Es intencional (todas las altas por los
-> dos formularios traen `sector`; los customers creados por otras vías —
-> Admin puro, apps, import — quedan fuera de este workflow), pero es una
-> restricción nueva respecto al comportamiento histórico. Si Dani prefiere
-> mantener el tag `pendiente` para esos casos también, mover el `Add tag
-> pendiente` fuera de esta condición (antes de ella) y dejar esta condición
-> solo para lo que sigue (la bifurcación instalador/distribuidor no
-> aplicaría a customers sin sector, pero seguirían quedando "pendiente" a
-> la espera de que alguien los complete a mano).
+> **Limitación conocida (aceptada, cerrada):** los clientes creados sin
+> `b2b.sector` (altas manuales en Admin, imports, u otras apps ajenas a los
+> dos formularios) ya no entran a W1 ni reciben tag de estado. Es la
+> operativa aceptada de LedsC4, no un fallo a corregir.
 
 **Rama Verdadero**: continúa con el Paso 4.
 
@@ -289,6 +280,13 @@ anidado dentro de esta rama Falso).**
 
 ## Rama Verdadero de Paso 6 — Carril instalador (NUEVO)
 
+**Sin email interno de FYI a backoffice** (decisión de cierre de Fase 2):
+en captación masiva, un email por cada registro de instalador genera ruido
+innecesario. El email que importa operativamente es el de la oferta (Fase
+3, disparado por el draft order), no un aviso por alta. Este carril queda
+sin ningún email hasta que se active el de bienvenida (pendiente Grow,
+paso 6.4).
+
 ### 6.1 Remove tag `pendiente`
 
 ### 6.2 Add tags `aprobado` y `instalador`
@@ -313,16 +311,7 @@ anidado dentro de esta rama Falso).**
   auto-aprobación de distribuidor: registro y aprobación son el mismo
   momento).
 
-### 6.4 Send internal email → backoffice (FYI instalador)
-
-- **To**: `daniel.pena+backoffice@creacciones.es` (literal, Flow no admite variables en To)
-- **Subject**: `[B2B] Auto-aprobado instalador: {{ customer.firstName }} {{ customer.lastName }}`
-- **Body**: adaptar `email-templates/03-backoffice-nuevo-pendiente.liquid`
-  — cambiar el encabezado a "Auto-aprobado como instalador, sin Company" y
-  quitar cualquier referencia a "razón social" (puede venir vacía). Incluir
-  `{{ customer.codigoPostal.value }}` si se quiere visibilidad del CP.
-
-### 6.5 ❌ DESACTIVADO — Send marketing mail (bienvenida instalador)
+### 6.4 ❌ DESACTIVADO — Send marketing mail (bienvenida instalador)
 
 **Pendiente Grow** (mismo estado que 01/02/04/05/06 — revisar si el store
 ya soporta envío antes de aplicar). Cuando se active:
@@ -480,7 +469,9 @@ obligatorios. Al guardar:
   `empresa`, NIF vacío o relleno): el Run code `parseAndNormalize` NO
   halt-ea (guards del Paso 4 funcionando); customer queda `aprobado` +
   `instalador`, **sin** `companyContactProfiles` (confirmar en Admin →
-  Customer → no aparece sección Company); email de backoffice recibido.
+  Customer → no aparece sección Company). Sin email (ni interno ni al
+  cliente — el de bienvenida sigue pendiente Grow, y ya no hay FYI a
+  backoffice por decisión de cierre de Fase 2).
 - **Alta por `/pages/acceso-instalador` con un email que SÍ está en la
   whitelist de distribuidor**: debe salir **igual que el caso anterior**
   (instalador, sin Company) — la whitelist no se consulta en absoluto para
@@ -493,10 +484,9 @@ obligatorios. Al guardar:
 - **Alta de distribuidor NO en whitelist**: queda `pendiente`, email de
   revisión, aparece en backoffice. Idéntico a antes de Fase 2 —
   **regresión crítica si cambia**.
-- **Alta manual desde Admin sin `sector`** (si aplica en las pruebas): ya
-  no recibe tag `pendiente` de W1 (comportamiento nuevo, ver nota del
-  Paso 3) — confirmar que esto es lo esperado antes de dar la fase por
-  cerrada.
+- **Alta manual desde Admin sin `sector`** (si aplica en las pruebas): no
+  recibe tag `pendiente` de W1. Limitación conocida y aceptada (ver nota
+  del Paso 3), no un fallo a investigar.
 - Revisar el Run history de **W2** en el caso de alta por instalador: debe
   aparecer una invocación a `create-company-for-customer` que responde 400
   (`customer has no b2b.empresa metafield`) — comportamiento esperado, no

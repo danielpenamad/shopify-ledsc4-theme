@@ -474,8 +474,38 @@ Copy editorial de la landing (hero, FAQ, etc.) va en placeholders bajo el
 namespace i18n `ledsc4.acceso_instalador.*` (es/en/fr) — pendiente del
 texto definitivo del cliente.
 
+**Decisiones de cierre (2026-07)**: el carril instalador no envía ningún
+email interno de FYI a backoffice (ruido innecesario en captación masiva;
+solo el email de bienvenida, pendiente Grow) — ver
+[flows/W1-walkthrough.md](../../flows/W1-walkthrough.md). Los clientes
+creados sin `b2b.sector` (altas manuales, imports, apps ajenas a los dos
+formularios) ya no entran a W1 ni reciben tag de estado; es operativa
+aceptada, no un fallo.
+
+## 12. Extra A — Atribución de campaña (UTMs, 2026-07)
+
+Objetivo de negocio: saber de qué campaña/anuncio vino cada registro
+(sobre todo instaladores captados por paid). Alcance: solo captura y
+persistencia — el uso en la oferta/email interno es Fase 3.
+
+- `assets/b2b-register-v2.js` captura `utm_source`, `utm_medium`,
+  `utm_campaign`, `utm_term`, `utm_content` de `window.location.search` al
+  cargar el script (un único sitio, compartido por `main-acceso-profesional`
+  y `main-acceso-instalador`). Mismo patrón defensivo (try/catch) que el
+  `?dest=` de las secciones Liquid — nunca rompe el form si falla.
+- Los 5 son opcionales en el payload a `register-b2b-customer`; un alta
+  directa sin UTMs en la URL funciona igual.
+- `register-b2b-customer` los sanea (sin validación de formato, texto libre
+  de terceros) y los persiste como 5 metafields `b2b.utm_*` — se omiten si
+  vienen vacíos. **No aplica a `complete-b2b-registration`** (fuera de
+  alcance de este encargo).
+- Metafields nuevos en `scripts/metafield-definitions.json` — pendiente de
+  ejecutar `apply-metafield-definitions.mjs` tras el merge.
+
 ## Cambios
 
+- **v0.6** (2026-07, Extra A): añadida §12 (captura y persistencia de UTMs de campaña).
+- **v0.5** (2026-07, cierre Fase 2): quitado el email interno de FYI del carril instalador; la exclusión de clientes sin `b2b.sector` se documenta como limitación aceptada, no pendiente de validar.
 - **v0.4** (2026-07, Fase 2 completa): §11 corregida — el discriminador de carril es `b2b.sector`, comprobado en Flow W1 antes de la whitelist (no un resultado de whitelist-miss). `codigo_postal` extendido a `complete-b2b-registration`.
 - **v0.3** (2026-07, Fase 2): añadida §11 (landing de instalador, campo código postal, empresa/nif opcionales para sector instalador).
 - **v0.2** (16-may-2026): documentado el `emailMarketingConsent` del `customerCreate` (§5) — el doc no mencionaba el opt-in de marketing que la edge ya aplica. Sin este opt-in los 5 emails al cliente del flujo B2B no se entregarían. Coherente con 08-emails-transaccionales §7.
