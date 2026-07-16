@@ -639,6 +639,7 @@
         "label_razon_social": "Raison sociale",
         "label_sector": "Secteur",
         "label_pais": "Pays",
+        "label_codigo_postal": "Code postal",
         "label_volumen": "Volume annuel estimé",
         "sector": {
           "instalador": "Installateur électricien",
@@ -698,6 +699,37 @@
           "otros": "Autres professionnels du secteur"
         },
         "note_html": "Pour valider votre activité, nous avons besoin d'une <strong>raison sociale active</strong> et d'un <strong>NIF/CIF/NIE valide</strong>. L'enregistrement demande également le secteur d'activité, le pays et, facultativement, le volume annuel estimé afin de nous aider à dimensionner le service."
+      }
+    },
+    "acceso_instalador": {
+      "hero": {
+        "eyebrow": "PLACEHOLDER — Accès installateurs",
+        "heading_html": "PLACEHOLDER — <em>Inscription installateurs</em> LedsC4 Outlet",
+        "lead": "PLACEHOLDER — Texte en attente du client : présentation de la landing installateurs (inscription à friction minimale, sans raison sociale)."
+      },
+      "keep_reading": "PLACEHOLDER — Vous n'êtes toujours pas sûr ? Lisez la suite ↓",
+      "que_es": {
+        "heading": "PLACEHOLDER — Qu'est-ce que ce portail",
+        "body_html": "PLACEHOLDER — Texte en attente du client : ce qu'est le portail, destiné aux installateurs."
+      },
+      "como": {
+        "heading": "PLACEHOLDER — Comment fonctionne l'accès",
+        "intro_html": "PLACEHOLDER — Texte en attente du client : l'inscription installateur s'active automatiquement, sans attente de révision manuelle."
+      },
+      "dentro": {
+        "heading": "PLACEHOLDER — Ce que vous trouverez à l'intérieur",
+        "body_html": "PLACEHOLDER — Texte en attente du client."
+      },
+      "faq": {
+        "heading": "PLACEHOLDER — Foire aux questions",
+        "q1_summary": "PLACEHOLDER — Dois-je avoir une entreprise enregistrée ?",
+        "q1_body": "PLACEHOLDER — Texte en attente du client : non, cette landing ne demande pas de raison sociale.",
+        "q2_summary": "PLACEHOLDER — Combien de temps prend l'approbation ?",
+        "q2_body": "PLACEHOLDER — Texte en attente du client : le compte s'active automatiquement."
+      },
+      "ctas_lead": "PLACEHOLDER — Cela vous convient ? Commencez par demander l'accès.",
+      "form": {
+        "legend_fiscal": "Données fiscales"
       }
     },
     "completar": {

@@ -2,6 +2,15 @@
   {
     "ownerType": "CUSTOMER",
     "namespace": "b2b",
+    "key": "codigo_postal",
+    "name": "Código postal",
+    "description": "Código postal declarado en el alta (distribuidor o instalador). Fase 2 instalador (2026-07).",
+    "type": "single_line_text_field",
+    "pin": true
+  },
+  {
+    "ownerType": "CUSTOMER",
+    "namespace": "b2b",
     "key": "empresa",
     "name": "Empresa",
     "description": "Razón social del cliente B2B.",

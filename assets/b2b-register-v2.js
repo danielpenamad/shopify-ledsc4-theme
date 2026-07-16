@@ -12,6 +12,11 @@
 // Validación client-side (NIF/CIF/NIE, email, requeridos) replicada
 // inline aquí — el registro classic (assets/b2b-register.js) fue
 // eliminado en cleanup C.6 T6 (2026-05-09).
+//
+// Compartido por dos landings (Fase 2 instalador, 2026-07):
+// main-acceso-profesional.liquid (distribuidor, hidden sector="otro") y
+// main-acceso-instalador.liquid (hidden sector="instalador", sin campo
+// empresa, NIF opcional). Paridad con register-b2b-customer server-side.
 
 (function () {
   'use strict';
@@ -154,8 +159,12 @@
 
   // --- Validation ---
 
+  // Instalador (landing dedicada, hidden sector="instalador"): sin Company
+  // por decisión de negocio → empresa/nif no son obligatorios en ese form.
+  // Paridad con la validación server-side de register-b2b-customer.
   function validateClient(values) {
     var errors = {};
+    var isInstalador = values.sector === 'instalador';
     if (!values.nombre) errors.nombre = ERRORS.required;
     if (!values.apellidos) errors.apellidos = ERRORS.required;
     if (!values.email) {
@@ -163,13 +172,17 @@
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
       errors.email = ERRORS.email;
     }
-    if (!values.empresa) errors.empresa = ERRORS.required;
-    var taxRes = validateTaxId(values.nif, values.pais);
-    if (!taxRes.ok) {
-      errors.nif = taxRes.reason === 'es' ? ERRORS.nif : ERRORS.nif_format;
+    if (!values.empresa && !isInstalador) errors.empresa = ERRORS.required;
+    var taxRes = { ok: true, normalized: undefined };
+    if (!(isInstalador && !values.nif)) {
+      taxRes = validateTaxId(values.nif, values.pais);
+      if (!taxRes.ok) {
+        errors.nif = taxRes.reason === 'es' ? ERRORS.nif : ERRORS.nif_format;
+      }
     }
     if (!values.sector) errors.sector = ERRORS.required;
     if (!values.pais) errors.pais = ERRORS.required;
+    if (!values.codigo_postal) errors.codigo_postal = ERRORS.required;
     if (!values.condiciones) errors.condiciones = ERRORS.terms;
     return { errors: errors, normalized: { nif: taxRes.normalized } };
   }
@@ -189,6 +202,7 @@
       sector: (fd.get('sector') || '').toString(),
       pais: (fd.get('pais') || '').toString(),
       volumen_estimado: (fd.get('volumen_estimado') || '').toString(),
+      codigo_postal: (fd.get('codigo_postal') || '').toString().trim(),
       condiciones: form.querySelector('#reg-terms') ? form.querySelector('#reg-terms').checked : false,
     };
   }
@@ -286,6 +300,7 @@
       sector: values.sector,
       pais: values.pais,
       volumen_estimado: values.volumen_estimado || undefined,
+      codigo_postal: values.codigo_postal,
       condiciones: values.condiciones === true,
     };
 

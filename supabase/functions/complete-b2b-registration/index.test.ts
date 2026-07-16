@@ -93,6 +93,7 @@ async function signedBody(overrides: Record<string, unknown> = {}): Promise<Reco
     sector: "instalador",
     pais: "ES",
     volumen_estimado: "5k-25k",
+    codigo_postal: "28001",
     condiciones: true,
     ...overrides,
   };
@@ -252,6 +253,21 @@ Deno.test("teléfono inválido → 400 fieldErrors.telefono SIN llegar a Shopify
     const json = await res.json();
     assertEquals(json.code, "VALIDATION_ERROR");
     assertExists(json.fieldErrors.telefono);
+    assertEquals(calls.length, 0);
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test("codigo_postal vacío → 400 fieldErrors.codigo_postal SIN llegar a Shopify", async () => {
+  installFetchMock(() => ({}));
+  try {
+    const body = await signedBody({ codigo_postal: "" });
+    const res = await handle(makeReq(body));
+    assertEquals(res.status, 400);
+    const json = await res.json();
+    assertEquals(json.code, "VALIDATION_ERROR");
+    assertExists(json.fieldErrors.codigo_postal);
     assertEquals(calls.length, 0);
   } finally {
     restoreFetch();
@@ -433,6 +449,7 @@ Deno.test("happy path: customerUpdate + tagsAdd 'pendiente' con input correcto",
     assertEquals(byKey.sector.value, "instalador");
     assertEquals(byKey.pais.value, "ES");
     assertEquals(byKey.volumen_estimado.value, "5k-25k");
+    assertEquals(byKey.codigo_postal.value, "28001");
     assert(byKey.fecha_registro.value.match(/^\d{4}-\d{2}-\d{2}$/));
     assertEquals(byKey.fecha_registro.type, "date");
 

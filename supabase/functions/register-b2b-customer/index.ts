@@ -37,13 +37,34 @@
 //     apellidos: "Pérez García",
 //     email: "juan@empresa.com",
 //     telefono: "+34600000000",     // opcional
-//     empresa: "Instalaciones Luz SL",
-//     nif: "B12345678",             // se valida + normaliza a uppercase
+//     empresa: "Instalaciones Luz SL", // opcional si sector === "instalador"
+//     nif: "B12345678",             // opcional si sector === "instalador"; si viene, se valida + normaliza a uppercase
 //     sector: "instalador",         // enum estricto
 //     pais: "ES",                   // ISO 3166-1 alpha-2
 //     volumen_estimado: "5k-25k",   // opcional
+//     codigo_postal: "28001",       // obligatorio (Fase 2 instalador, 2026-07)
 //     condiciones: true             // checkbox términos
 //   }
+//
+// Fase 2 instalador completa (2026-07): esta función NO decide el rol ni
+// aprueba a nadie — solo crea el customer con sus metafields y lo deja en
+// 'pendiente' para que Shopify Flow W1 lo procese. El discriminador de
+// carril que usa W1 es b2b.sector: sector === "instalador" (fijo en la
+// landing dedicada /pages/acceso-instalador, hidden en el UI) → W1
+// auto-aprueba como instalador SIN pasar por whitelist ni crear Company;
+// cualquier otro sector → carril de distribuidor sin cambios (whitelist →
+// distribuidor+Company, sin match → pendiente/backoffice). Ver
+// flows/W1-walkthrough.md para el detalle completo (edición manual en
+// Shopify Flow, fuera de este repo).
+//
+// b2b.sector se persiste SIEMPRE (es el discriminador; nunca se omite).
+// b2b.empresa/b2b.nif se relajan a opcionales cuando sector === "instalador":
+// - empresa se fuerza a vacío en ese carril aunque el body la traiga
+//   rellena (la landing de instalador no expone el campo; un valor
+//   presente solo puede venir de un payload crafteado a mano).
+// - nif se acepta vacío; si se rellena, igual se valida el formato.
+// Ambos se omiten del array de metafields cuando quedan vacíos (Shopify
+// rechaza single_line_text_field con value "").
 //
 // Output:
 //   { ok: true, customerId: "gid://shopify/Customer/123", inviteSent: true }     (200)
@@ -310,6 +331,7 @@ interface IncomingBody {
   sector?: string;
   pais?: string;
   volumen_estimado?: string;
+  codigo_postal?: string;
   condiciones?: boolean;
 }
 
@@ -367,6 +389,17 @@ async function handle(req: Request): Promise<Response> {
     const sector = sanitizeText(body.sector, 50);
     const paisRaw = sanitizeText(body.pais, 60);
     const volumenEstimado = sanitizeText(body.volumen_estimado, 30);
+    const codigoPostal = sanitizeText(body.codigo_postal, 12);
+
+    // Instalador (landing dedicada, sector fijo "instalador"): sin Company
+    // por decisión de negocio → empresa/nif dejan de ser obligatorios.
+    // Cualquier otro sector (incl. "otro", hidden del form distribuidor)
+    // mantiene el requisito histórico.
+    const isInstalador = sector === "instalador";
+    // Fuerza vacío en carril instalador aunque el body traiga empresa
+    // rellena (defensa contra un payload crafteado a mano; la landing de
+    // instalador no expone este campo en el UI).
+    const empresaToPersist = isInstalador ? "" : empresa;
 
     emailHash = email ? await sha256Hex(email) : "";
 
@@ -374,7 +407,8 @@ async function handle(req: Request): Promise<Response> {
     if (!apellidos) fieldErrors.apellidos = "Los apellidos son obligatorios.";
     if (!email) fieldErrors.email = "El email es obligatorio.";
     else if (!isValidEmail(email)) fieldErrors.email = "El email no parece válido.";
-    if (!empresa) fieldErrors.empresa = "La razón social es obligatoria.";
+    if (!empresa && !isInstalador) fieldErrors.empresa = "La razón social es obligatoria.";
+    if (!codigoPostal) fieldErrors.codigo_postal = "El código postal es obligatorio.";
 
     // Teléfono (opcional): pre-validación con mensaje útil; sin ella
     // Shopify rechaza el customerCreate con userError field=["phone"] que
@@ -395,7 +429,12 @@ async function handle(req: Request): Promise<Response> {
       fieldErrors.pais = "Selecciona un país.";
     }
 
-    const nifResult = validateTaxId(nifRaw, paisIso);
+    // Instalador con NIF vacío: opcional, se omite sin error. Si escribe
+    // algo, igualmente se valida el formato (calidad de dato).
+    const nifOptionalAndEmpty = isInstalador && !nifRaw;
+    const nifResult = nifOptionalAndEmpty
+      ? { ok: true as const, normalized: undefined }
+      : validateTaxId(nifRaw, paisIso);
     if (!nifResult.ok) {
       fieldErrors.nif = nifResult.reason === "es"
         ? "El NIF / CIF / NIE no es válido (revisa formato y dígito de control)."
@@ -467,8 +506,19 @@ async function handle(req: Request): Promise<Response> {
               marketingOptInLevel: "SINGLE_OPT_IN",
             },
             metafields: [
-              { namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresa },
-              { namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized! },
+              // empresa: nunca se persiste para sector === "instalador", aunque
+              // el body la traiga rellena (payload crafteado a mano, ya que la
+              // landing de instalador no tiene este campo en el UI) — el
+              // discriminador de carril del Flow (b2b.sector) decide el rol,
+              // y el carril instalador no debe poder generar Company. Además,
+              // Shopify rechaza single_line_text_field con value vacío, así
+              // que se omite entera cuando no aplica.
+              ...(empresaToPersist
+                ? [{ namespace: "b2b", key: "empresa", type: "single_line_text_field", value: empresaToPersist }]
+                : []),
+              ...(nifResult.normalized
+                ? [{ namespace: "b2b", key: "nif", type: "single_line_text_field", value: nifResult.normalized }]
+                : []),
               { namespace: "b2b", key: "sector", type: "single_line_text_field", value: sector },
               // Belt-and-suspenders trim: sanitizeText + normalizeCountry ya
               // limpian, pero un set de customers historicos quedó con `\tES`
@@ -479,6 +529,7 @@ async function handle(req: Request): Promise<Response> {
               ...(volumenEstimado
                 ? [{ namespace: "b2b", key: "volumen_estimado", type: "single_line_text_field", value: volumenEstimado }]
                 : []),
+              { namespace: "b2b", key: "codigo_postal", type: "single_line_text_field", value: codigoPostal },
               { namespace: "b2b", key: "fecha_registro", type: "date", value: today },
             ],
           },

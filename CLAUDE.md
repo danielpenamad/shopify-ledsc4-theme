@@ -275,6 +275,65 @@ fallo del cron**: antes (pre-PR #145) intentaba ejecutar W2 →
 `create-company-for-customer` y se llevaba HTTP 400 en bucle, que sí ensuciaba
 los logs.
 
+## Fase 2 instalador: registro, CP y enrutado de rol (2026-07)
+
+**Objetivo de negocio**: captación masiva de instaladores con mínima fricción.
+
+**Regla de enrutado — el origen del alta manda; la whitelist solo actúa
+dentro del carril de distribuidor**:
+
+| Carril de entrada | ¿Whitelist? | Resultado |
+|---|---|---|
+| Landing de instalador (`/pages/acceso-instalador`, `sector` fijo `"instalador"`) | irrelevante | Instalador auto-aprobado, sin Company |
+| Form de distribuidor (`main-acceso-profesional`) | Sí | Distribuidor aprobado + Company (sin cambios) |
+| Form de distribuidor | No | Pendiente → backoffice (sin cambios) |
+
+El discriminador de carril es **`b2b.sector === "instalador"`**, comprobado
+en Shopify Flow W1 **antes** de la lógica de whitelist. La whitelist nunca
+se consulta para el carril instalador — ni siquiera si el email de un
+instalador coincidiera con ella.
+
+### Piezas ya en código (este repo)
+
+- Landing nueva `/pages/acceso-instalador` ([sections/main-acceso-instalador.liquid](sections/main-acceso-instalador.liquid), [templates/page.acceso-instalador.json](templates/page.acceso-instalador.json)): copia de `main-acceso-profesional.liquid` sin campo "empresa", NIF opcional, hidden `sector="instalador"`. Mismo backend (`register-b2b-customer` + `b2b-register-v2.js`) que la landing de distribuidor — **la edge function no decide el rol ni aprueba a nadie**, solo crea el customer en `pendiente` con `b2b.sector` como discriminador para que Flow W1 lo procese.
+- Metafield nuevo `b2b.codigo_postal` (`scripts/metafield-definitions.json`), obligatorio en `register-b2b-customer` **y** en `complete-b2b-registration` (los tres formularios).
+- `register-b2b-customer`: `b2b.sector` se persiste siempre (es el discriminador). `empresa`/`nif` pasan a opcionales cuando `sector === "instalador"`; `empresa` se fuerza vacía en ese carril aunque el body la traiga rellena (defensa contra payload crafteado, ya que la landing no expone el campo). Ambos se omiten del `customerCreate` si quedan vacíos (Shopify rechaza `single_line_text_field` con value `""`).
+- `complete-b2b-registration` (carril de alta nativa OAuth, **siempre distribuidor**): solo se le añadió `codigo_postal` obligatorio. Empresa/NIF siguen obligatorios ahí — no existe landing de instalador equivalente para ese carril.
+- `gate_exempt_paths` en `layout/theme.liquid` incluye la nueva ruta.
+- El markup visual +15% de precios (Fase 1) ya se activa por el tag `instalador` — Fase 2 es quien realmente lo aplica al hacer que ese tag exista en producción.
+
+### Lo que NO está en código — edición manual pendiente en Shopify Flow
+
+**Bloqueante real, no un detalle menor**: el enrutado de rol vive en
+**Shopify Flow W1**, fuera de este repo. La API pública de Flow no permite
+crear/editar workflows por código — es edición manual en Admin → Apps →
+Flow. El cambio exacto que falta aplicar está redactado paso a paso en
+[flows/W1-walkthrough.md](flows/W1-walkthrough.md) bajo el aviso
+"⚠️ PENDIENTE DE APLICAR": una condición nueva justo tras el parseo
+(`sector == "instalador"`) que bifurca ANTES del `whitelistCheck` — si es
+instalador, auto-aprueba con tags `aprobado`+`instalador` y nunca llama a
+`create-company-for-customer` ni consulta la whitelist; si no, el carril de
+distribuidor sigue exactamente igual que hoy. **Sin ese cambio, un alta por
+la landing de instalador se queda en `pendiente` (o puede llegar a colgar
+el workflow entero si el backfill de `empresa` intenta escribir vacío —
+ver la nota de "Piezas clave" del walkthrough)** — el código de este repo
+no lo puede forzar.
+
+`create-company-for-customer` ya aborta sin crear Company si `b2b.empresa`
+está vacío (comportamiento existente, sin cambios) — sigue siendo relevante
+como segunda red de seguridad, porque W2 (`Customer tags added` con
+`aprobado`) se dispara igualmente cuando W1 taguea a un instalador y vuelve
+a invocar esa función; aborta sola sin problema.
+
+### Pasos operativos post-merge (ninguno automático)
+
+1. `scripts/apply-metafield-definitions.mjs` — crea la definition real de `b2b.codigo_postal` en la tienda.
+2. `scripts/create-b2b-pages.mjs` — crea la Page `/pages/acceso-instalador` en Shopify (entrada ya añadida a `scripts/pages-manifest.json`).
+3. `supabase functions deploy` de `register-b2b-customer` y `complete-b2b-registration`.
+4. Aplicar a mano el cambio de Flow W1 descrito arriba.
+5. `scripts/audit-customer-state.js` ya está actualizado para no marcar `approved_without_company` en clientes con tag `instalador` (era un falso positivo real que este cambio habría introducido).
+6. Crear en Shopify Messaging el template `B2B · 08 · Bienvenida instalador` (fuente: `email-templates/08-bienvenida-instalador.liquid`) cuando se active el envío de marketing mail — hoy sigue marcado `[PENDIENTE GROW]` igual que los demás.
+
 ## REGLA PERMANENTE: ningún secret en `settings_data.json`
 
 **NUNCA pongas un secret en `config/settings_data.json` ni en

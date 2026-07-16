@@ -832,6 +832,7 @@
         "label_nif": "NIF / CIF / NIE",
         "label_sector": "Sector",
         "label_pais": "País",
+        "label_codigo_postal": "Código postal",
         "label_volumen": "Volumen anual estimado",
         "sector": {
           "instalador": "Instalador eléctrico",
@@ -867,6 +868,37 @@
           "generic_fallback": "Algo ha ido mal al enviar la solicitud. Vuelve a intentarlo.",
           "network_error": "No hemos podido conectar con el servidor. Comprueba tu conexión y vuelve a intentarlo."
         }
+      }
+    },
+    "acceso_instalador": {
+      "hero": {
+        "eyebrow": "PLACEHOLDER — Acceso instaladores",
+        "heading_html": "PLACEHOLDER — <em>Alta de instaladores</em> LedsC4 Outlet",
+        "lead": "PLACEHOLDER — Texto pendiente del cliente: presentación de la landing de instaladores (alta con mínima fricción, sin necesidad de razón social)."
+      },
+      "keep_reading": "PLACEHOLDER — ¿Aún no lo tienes claro? Sigue leyendo ↓",
+      "que_es": {
+        "heading": "PLACEHOLDER — Qué es este portal",
+        "body_html": "PLACEHOLDER — Texto pendiente del cliente: qué es el portal, enfocado a instaladores."
+      },
+      "como": {
+        "heading": "PLACEHOLDER — Cómo funciona el acceso",
+        "intro_html": "PLACEHOLDER — Texto pendiente del cliente: el alta de instalador se activa automáticamente, sin espera de revisión manual."
+      },
+      "dentro": {
+        "heading": "PLACEHOLDER — Qué encontrarás dentro",
+        "body_html": "PLACEHOLDER — Texto pendiente del cliente."
+      },
+      "faq": {
+        "heading": "PLACEHOLDER — Preguntas frecuentes",
+        "q1_summary": "PLACEHOLDER — ¿Necesito tener una empresa dada de alta?",
+        "q1_body": "PLACEHOLDER — Texto pendiente del cliente: no, esta landing no pide razón social.",
+        "q2_summary": "PLACEHOLDER — ¿Cuánto tarda la aprobación?",
+        "q2_body": "PLACEHOLDER — Texto pendiente del cliente: la cuenta se activa automáticamente."
+      },
+      "ctas_lead": "PLACEHOLDER — ¿Te encaja? Empieza por solicitar acceso.",
+      "form": {
+        "legend_fiscal": "Datos fiscales"
       }
     },
     "completar": {

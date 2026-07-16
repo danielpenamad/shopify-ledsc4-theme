@@ -17,9 +17,15 @@ aprobación. Todos los textos están en español. Estrategia mixta:
 | 4 | `04-cuenta-aprobada-manual.liquid` | W2 | cliente |
 | 5 | `05-cuenta-rechazada.liquid` | W3 | cliente |
 | 6 | `06-bienvenida-reevaluacion.liquid` | W4 tras añadir a whitelist | cliente |
+| 8 | `08-bienvenida-instalador.liquid` | W1 rama instalador (Fase 2, 2026-07) | cliente |
 
 **Email 6** tiene el mismo contenido que el 1. Se mantiene en archivo
 separado para permitir evolución independiente (ver W4-whitelist-reeval.md).
+
+**Email 8** es variante del 1 sin el bloque Empresa/NIF (el instalador no
+tiene Company). Ver `flows/W1-walkthrough.md` §"Rama Verdadero de Paso 6".
+Numeración 7/7b reservada para las plantillas de solicitud de pedido (Fase
+D, fuera de este documento).
 
 ## Cómo pegarlas en Flow
 

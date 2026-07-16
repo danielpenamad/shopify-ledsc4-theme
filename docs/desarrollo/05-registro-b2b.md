@@ -138,8 +138,13 @@ Section `main-acceso-profesional.liquid` (1199 líneas). Bloques:
 | `nif` | text | Requerido. Regex DNI/NIE/CIF con **dígito de control completo** client-side; reforzado server-side. |
 | `sector` | select | Requerido. Enum estricto (6 valores fijos — ver §6). |
 | `pais` | select | Requerido. ISO 3166-1 alpha-2 o nombre en español/inglés (mapeo server-side). |
+| `codigo_postal` | text | Requerido (Fase 2, 2026-07). Max 12 chars. Sin validación de formato por país. |
 | `volumen_estimado` | select | Opcional. Slug de rango. |
 | `condiciones` | checkbox | Requerido. Aceptación de términos. Es además la base legal del opt-in de marketing — ver §5. |
+
+> **Landing de instalador** (`/pages/acceso-instalador`, Fase 2): mismo form,
+> mismo endpoint, con 3 diferencias — `empresa` no existe en el form, `nif`
+> es opcional, hidden `sector="instalador"` en vez de `"otro"`. Ver §11.
 
 **Hidden inputs (HMAC)**:
 
@@ -423,7 +428,55 @@ No es prioritario porque el volumen orgánico de la landing es bajo y el daño p
 - **`b2b.pais` whitespace**: root cause de `\tES` no localizada. Trim defensivo en su sitio; deuda pendiente.
 - **Magic link en dominios reales**: el invite email solo es validable en dominio real, no en preview ([04-storefront-gate](04-storefront-gate.md) §preview hosts).
 
+## 11. Fase 2 — Landing de instalador (2026-07)
+
+Segunda landing de registro, `/pages/acceso-instalador` (section
+`sections/main-acceso-instalador.liquid`, template
+`templates/page.acceso-instalador.json`), pensada para captación masiva de
+instaladores con mínima fricción. Comparte backend 100% con la landing de
+distribuidor (misma edge `register-b2b-customer`, mismo asset
+`assets/b2b-register-v2.js`) — las diferencias son solo de formulario:
+
+| Diferencia | Landing distribuidor | Landing instalador |
+|---|---|---|
+| Hidden `sector` | `"otro"` | `"instalador"` |
+| Campo `empresa` (razón social) | Obligatorio | **No existe en el form** |
+| Campo `nif` | Obligatorio | Opcional (se valida formato si se rellena) |
+| Campo `codigo_postal` | Obligatorio (nuevo, Fase 2) | Obligatorio (nuevo, Fase 2) |
+
+`register-b2b-customer` relaja `empresa`/`nif` a opcionales cuando
+`sector === "instalador"` — forzando `empresa` a vacío en ese carril aunque
+el body la traiga rellena — y omite sus metafields del `customerCreate` si
+quedan vacíos (Shopify rechaza `single_line_text_field` con value "").
+`b2b.sector` se persiste **siempre**, sin excepción: es el discriminador de
+carril. `codigo_postal` es obligatorio en los tres formularios de alta
+(distribuidor, instalador y alta nativa OAuth vía `complete-b2b-registration`)
+y se persiste siempre como `b2b.codigo_postal` (metafield nuevo, ver
+[01-data-model §3](01-data-model.md)).
+
+**El enrutado real de rol vive en Shopify Flow W1, no en las edge
+functions.** `register-b2b-customer` crea el Customer igual sea cual sea la
+landing (tag `pendiente`, con `b2b.sector` ya fijado) y deja que W1 decida:
+una condición nueva justo tras el parseo comprueba `sector == "instalador"`
+**antes** de la lógica de whitelist. Si es instalador, auto-aprueba
+(`aprobado`+`instalador`) sin tocar la whitelist ni crear Company; si no,
+el carril de distribuidor sigue exactamente igual que hoy (whitelist match
+→ distribuidor + Company; sin match → pendiente/backoffice). Esta
+bifurcación por `sector` requiere una edición manual pendiente de aplicar
+en el Admin. Detalle completo, incluyendo por qué `create-company-for-customer`
+necesita que `b2b.empresa` quede vacío para no crear Company, en
+[flows/W1-walkthrough.md](../../flows/W1-walkthrough.md).
+
+Gate-exempt: `/pages/acceso-instalador` está en `gate_exempt_paths` de
+`layout/theme.liquid`, igual que `/pages/acceso-profesional`.
+
+Copy editorial de la landing (hero, FAQ, etc.) va en placeholders bajo el
+namespace i18n `ledsc4.acceso_instalador.*` (es/en/fr) — pendiente del
+texto definitivo del cliente.
+
 ## Cambios
 
+- **v0.4** (2026-07, Fase 2 completa): §11 corregida — el discriminador de carril es `b2b.sector`, comprobado en Flow W1 antes de la whitelist (no un resultado de whitelist-miss). `codigo_postal` extendido a `complete-b2b-registration`.
+- **v0.3** (2026-07, Fase 2): añadida §11 (landing de instalador, campo código postal, empresa/nif opcionales para sector instalador).
 - **v0.2** (16-may-2026): documentado el `emailMarketingConsent` del `customerCreate` (§5) — el doc no mencionaba el opt-in de marketing que la edge ya aplica. Sin este opt-in los 5 emails al cliente del flujo B2B no se entregarían. Coherente con 08-emails-transaccionales §7.
 - **v0.1** (15-may-2026): primera publicación.

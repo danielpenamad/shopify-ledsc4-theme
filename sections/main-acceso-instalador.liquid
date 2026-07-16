@@ -1,47 +1,50 @@
 {% comment %}
-  Página informativa /pages/acceso-profesional.
+  Página informativa + form /pages/acceso-instalador.
 
-  Destino al que linkear desde emails, web corporativa y comerciales para
-  que un profesional sepa antes de registrarse qué es el portal y qué
-  esperar. NO es funcional: no contiene formularios ni integraciones.
+  Landing de captación masiva para instaladores (Fase 2, 2026-07). Copia de
+  main-acceso-profesional.liquid (distribuidor) con 3 diferencias:
+    1. Sin campo "Razón social / empresa" — el instalador no tiene Company
+       por decisión de negocio (ver flows/W1-walkthrough.md, Rama Falso).
+    2. NIF opcional (badge, sin `required`).
+    3. Código postal obligatorio (compartido con el form de distribuidor).
 
-  Estructura: hero + 5 secciones informativas + CTAs + footer legal.
+  El hidden `sector` va fijo a "instalador" (en vez de "otro" como en el
+  form de distribuidor). El enrutado real de rol NO ocurre aquí: TODO
+  registro que llega por esta landing pasa igual por Shopify Flow W1
+  (whitelist check). Si el email coincide con la whitelist, la persona
+  entra como distribuidor con Company (mismo criterio para todos); si no
+  coincide (el caso normal en esta landing), W1 auto-aprueba como
+  instalador sin Company. Ver flows/W1-walkthrough.md.
 
-  Tema: paleta light coherente con ledsc4.com — fondo blanco, texto
-  negro, acento corporativo `var(--color-ledsc4-accent)`. Sin variante dark (PR A.1
-  consolidó la paleta en un único esquema; el setting `color_scheme`
-  se eliminó del schema).
+  Mismo backend que la landing de distribuidor: edge function
+  `register-b2b-customer` + `assets/b2b-register-v2.js` (genérico, sin
+  cambios de por-landing salvo la relajación empresa/nif cuando
+  sector === "instalador").
 
-  Decisión: handle elegido `acceso-profesional` (descartados
-  `portal-acceso` y `como-funciona`). Más explícito en navegación y SEO
-  — usuarios buscando "acceso profesional ledsc4" lo encuentran;
-  "como-funciona" es ambiguo cuando se descontextualiza.
+  Copies de esta sección son PLACEHOLDER — pendientes de texto definitivo
+  del cliente. Estructura y namespace i18n (`ledsc4.acceso_instalador.*`
+  para contenido editorial, `ledsc4.acceso.form.*` compartido para
+  mecánica de formulario) ya preparados es/en/fr.
 
-  Gate: la ruta /pages/acceso-profesional está añadida a
-  gate_exempt_paths en layout/theme.liquid para que sea pública.
+  Gate: /pages/acceso-instalador debe añadirse a gate_exempt_paths en
+  layout/theme.liquid para que sea pública (igual que acceso-profesional).
 
-  Nomenclatura BEM scoped: b2b-acceso__* — no choca con b2b-portal__*
-  (home anónima) ni b2b-aprobado-home__* (home aprobado).
+  Nomenclatura BEM: reutiliza b2b-acceso__* (mismo <style>, duplicado
+  intacto — páginas hermanas que no se cargan a la vez, mismo patrón que
+  main-completar-registro.liquid).
 {% endcomment %}
 
 {%- liquid
-  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
   assign locale_prefix = routes.root_url
   if locale_prefix == '/'
     assign locale_prefix = ''
   endif
 -%}
-{%- comment -%}
-  Login URL outcome (b)+ (Sprint 3.5): ruta base sin prefijo locale,
-  return_to con prefijo locale, &locale=<iso> para localizar el form
-  de login. Si en QA real falla el `?locale=`, eliminar SOLO el
-  `&locale=...` de los hrefs — el return_to con prefijo se mantiene.
-{%- endcomment -%}
 {%- assign login_return_to = routes.root_url | url_encode -%}
 
 <section
   class="b2b-acceso"
-  aria-labelledby="b2b-acceso-heading"
+  aria-labelledby="b2b-acceso-instalador-heading"
   style="--b2b-acceso-pad-top: {{ section.settings.padding_top | default: 64 }}px; --b2b-acceso-pad-bottom: {{ section.settings.padding_bottom | default: 80 }}px;"
 >
 
@@ -62,22 +65,15 @@
   {%- endif -%}
 
   <div class="b2b-acceso__hero">
-    <p class="b2b-acceso__eyebrow">{{ 'ledsc4.acceso.hero.eyebrow' | t }}</p>
-    <h1 id="b2b-acceso-heading" class="b2b-acceso__heading">
-      {{ 'ledsc4.acceso.hero.heading_html' | t }}
+    <p class="b2b-acceso__eyebrow">{{ 'ledsc4.acceso_instalador.hero.eyebrow' | t }}</p>
+    <h1 id="b2b-acceso-instalador-heading" class="b2b-acceso__heading">
+      {{ 'ledsc4.acceso_instalador.hero.heading_html' | t }}
     </h1>
     <p class="b2b-acceso__lead">
-      {{ 'ledsc4.acceso.hero.lead' | t }}
+      {{ 'ledsc4.acceso_instalador.hero.lead' | t }}
     </p>
   </div>
 
-  {%- comment -%}
-    Bloque de CTAs alto. Misma intención y endpoints que el bloque de cierre
-    (b2b-acceso__ctas-block). Visible above-the-fold en mobile (375x812)
-    para visitantes que ya saben qué quieren hacer. Quien necesite más
-    contexto, sigue scroll por las secciones informativas y vuelve a
-    encontrar los mismos CTAs al final.
-  {%- endcomment -%}
   <div class="b2b-acceso__ctas-top">
     <div class="b2b-acceso__ctas">
       <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
@@ -87,128 +83,42 @@
         {{ 'ledsc4.common.cta.login_existente' | t }}
       </a>
     </div>
-    <a href="#como-funciona" class="b2b-acceso__keep-reading">
-      {{ 'ledsc4.acceso.keep_reading' | t }}
+    <a href="#como-funciona-instalador" class="b2b-acceso__keep-reading">
+      {{ 'ledsc4.acceso_instalador.keep_reading' | t }}
     </a>
   </div>
 
-  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-que-es">
-    <h2 id="b2b-acceso-que-es" class="b2b-acceso__h2">{{ 'ledsc4.acceso.que_es.heading' | t }}</h2>
-    <p>{{ 'ledsc4.acceso.que_es.body_html' | t }}</p>
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-instalador-que-es">
+    <h2 id="b2b-acceso-instalador-que-es" class="b2b-acceso__h2">{{ 'ledsc4.acceso_instalador.que_es.heading' | t }}</h2>
+    <p>{{ 'ledsc4.acceso_instalador.que_es.body_html' | t }}</p>
   </article>
 
-  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-quien">
-    <h2 id="b2b-acceso-quien" class="b2b-acceso__h2">{{ 'ledsc4.acceso.quien.heading' | t }}</h2>
-    <p>{{ 'ledsc4.acceso.quien.lead' | t }}</p>
-    <ul class="b2b-acceso__list">
-      <li>{{ 'ledsc4.acceso.quien.list.instaladores' | t }}</li>
-      <li>{{ 'ledsc4.acceso.quien.list.arquitectos' | t }}</li>
-      <li>{{ 'ledsc4.acceso.quien.list.retail' | t }}</li>
-      <li>{{ 'ledsc4.acceso.quien.list.distribuidores' | t }}</li>
-      <li>{{ 'ledsc4.acceso.quien.list.empresas' | t }}</li>
-      <li>{{ 'ledsc4.acceso.quien.list.otros' | t }}</li>
-    </ul>
-    <p class="b2b-acceso__note">{{ 'ledsc4.acceso.quien.note_html' | t }}</p>
+  <article id="como-funciona-instalador" class="b2b-acceso__block" aria-labelledby="b2b-acceso-instalador-como">
+    <h2 id="b2b-acceso-instalador-como" class="b2b-acceso__h2">{{ 'ledsc4.acceso_instalador.como.heading' | t }}</h2>
+    <p>{{ 'ledsc4.acceso_instalador.como.intro_html' | t }}</p>
   </article>
 
-  <article id="como-funciona" class="b2b-acceso__block" aria-labelledby="b2b-acceso-como">
-    <h2 id="b2b-acceso-como" class="b2b-acceso__h2">{{ 'ledsc4.acceso.como.heading' | t }}</h2>
-    <p>{{ 'ledsc4.acceso.como.intro_html' | t }}</p>
-
-    <div class="b2b-acceso__paths">
-      <div class="b2b-acceso__path">
-        <span class="b2b-acceso__path-tag b2b-acceso__path-tag--fast">{{ 'ledsc4.acceso.como.fast_tag' | t }}</span>
-        <h3 class="b2b-acceso__h3">{{ 'ledsc4.acceso.como.fast_title' | t }}</h3>
-        <p>{{ 'ledsc4.acceso.como.fast_desc' | t }}</p>
-      </div>
-
-      <div class="b2b-acceso__path">
-        <span class="b2b-acceso__path-tag">{{ 'ledsc4.acceso.como.std_tag' | t }}</span>
-        <h3 class="b2b-acceso__h3">{{ 'ledsc4.acceso.como.std_title' | t }}</h3>
-        <p>{{ 'ledsc4.acceso.como.std_desc_html' | t }}</p>
-      </div>
-    </div>
-
-    <ol class="b2b-acceso__steps" aria-label="{{ 'ledsc4.acceso.como.steps_aria' | t }}">
-      <li class="b2b-acceso__step">
-        <span class="b2b-acceso__step-num" aria-hidden="true">1</span>
-        <svg class="b2b-acceso__step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>
-        <h3 class="b2b-acceso__step-title">{{ 'ledsc4.acceso.como.step1_title' | t }}</h3>
-        <p class="b2b-acceso__step-desc">{{ 'ledsc4.acceso.como.step1_desc' | t }}</p>
-      </li>
-      <li class="b2b-acceso__step">
-        <span class="b2b-acceso__step-num" aria-hidden="true">2</span>
-        <svg class="b2b-acceso__step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/></svg>
-        <h3 class="b2b-acceso__step-title">{{ 'ledsc4.acceso.como.step2_title' | t }}</h3>
-        <p class="b2b-acceso__step-desc">{{ 'ledsc4.acceso.como.step2_desc' | t }}</p>
-      </li>
-      <li class="b2b-acceso__step">
-        <span class="b2b-acceso__step-num" aria-hidden="true">3</span>
-        <svg class="b2b-acceso__step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <h3 class="b2b-acceso__step-title">{{ 'ledsc4.acceso.como.step3_title' | t }}</h3>
-        <p class="b2b-acceso__step-desc">{{ 'ledsc4.acceso.como.step3_desc' | t }}</p>
-      </li>
-    </ol>
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-instalador-dentro">
+    <h2 id="b2b-acceso-instalador-dentro" class="b2b-acceso__h2">{{ 'ledsc4.acceso_instalador.dentro.heading' | t }}</h2>
+    <p>{{ 'ledsc4.acceso_instalador.dentro.body_html' | t }}</p>
   </article>
 
-  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-dentro">
-    <h2 id="b2b-acceso-dentro" class="b2b-acceso__h2">{{ 'ledsc4.acceso.dentro.heading' | t }}</h2>
-    <ul class="b2b-acceso__features">
-      <li class="b2b-acceso__feature">
-        <svg class="b2b-acceso__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><line x1="2" y1="13" x2="22" y2="13"/></svg>
-        <div>
-          <h3 class="b2b-acceso__h3">{{ 'ledsc4.acceso.dentro.f1_title' | t }}</h3>
-          <p>{{ 'ledsc4.acceso.dentro.f1_desc_html' | t }}</p>
-        </div>
-      </li>
-      <li class="b2b-acceso__feature">
-        <svg class="b2b-acceso__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <div>
-          <h3 class="b2b-acceso__h3">{{ 'ledsc4.acceso.dentro.f2_title' | t }}</h3>
-          <p>{{ 'ledsc4.acceso.dentro.f2_desc' | t }}</p>
-        </div>
-      </li>
-      <li class="b2b-acceso__feature">
-        <svg class="b2b-acceso__feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-        <div>
-          <h3 class="b2b-acceso__h3">{{ 'ledsc4.acceso.dentro.f3_title' | t }}</h3>
-          <p>{{ 'ledsc4.acceso.dentro.f3_desc' | t }}</p>
-        </div>
-      </li>
-    </ul>
-  </article>
-
-  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-faq">
-    <h2 id="b2b-acceso-faq" class="b2b-acceso__h2">{{ 'ledsc4.acceso.faq.heading' | t }}</h2>
+  <article class="b2b-acceso__block" aria-labelledby="b2b-acceso-instalador-faq">
+    <h2 id="b2b-acceso-instalador-faq" class="b2b-acceso__h2">{{ 'ledsc4.acceso_instalador.faq.heading' | t }}</h2>
 
     <details class="b2b-acceso__faq">
-      <summary>{{ 'ledsc4.acceso.faq.q1_summary' | t }}</summary>
-      <p>{{ 'ledsc4.acceso.faq.q1_body' | t }}</p>
+      <summary>{{ 'ledsc4.acceso_instalador.faq.q1_summary' | t }}</summary>
+      <p>{{ 'ledsc4.acceso_instalador.faq.q1_body' | t }}</p>
     </details>
 
     <details class="b2b-acceso__faq">
-      <summary>{{ 'ledsc4.acceso.faq.q2_summary' | t }}</summary>
-      <p>{{ 'ledsc4.acceso.faq.q2_body_html' | t }}</p>
-    </details>
-
-    <details class="b2b-acceso__faq">
-      <summary>{{ 'ledsc4.acceso.faq.q4_summary' | t }}</summary>
-      <p>{{ 'ledsc4.acceso.faq.q4_body_html' | t }}</p>
-    </details>
-
-    <details class="b2b-acceso__faq">
-      <summary>{{ 'ledsc4.acceso.faq.q5_summary' | t }}</summary>
-      <p>{{ 'ledsc4.acceso.faq.q5_body' | t }}</p>
-    </details>
-
-    <details class="b2b-acceso__faq">
-      <summary>{{ 'ledsc4.acceso.faq.q6_summary' | t }}</summary>
-      <p>{{ 'ledsc4.acceso.faq.q6_body' | t }}</p>
+      <summary>{{ 'ledsc4.acceso_instalador.faq.q2_summary' | t }}</summary>
+      <p>{{ 'ledsc4.acceso_instalador.faq.q2_body' | t }}</p>
     </details>
   </article>
 
   <div class="b2b-acceso__ctas-block">
-    <p class="b2b-acceso__ctas-lead">{{ 'ledsc4.acceso.ctas_lead' | t }}</p>
+    <p class="b2b-acceso__ctas-lead">{{ 'ledsc4.acceso_instalador.ctas_lead' | t }}</p>
     <div class="b2b-acceso__ctas">
       <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
         {{ 'ledsc4.common.cta.solicitar_acceso' | t }}
@@ -220,23 +130,9 @@
   </div>
 
   {%- comment -%}
-    Form de registro B2B real.
-
-    Sustituye al /account/register clásico (que Shopify rompió al forzar new
-    customer accounts: redirige a OAuth y pierde campos custom). Ver
-    docs/pagina-acceso-profesional.md y supabase/README.md
-    (función register-b2b-customer).
-
-    Al enviar, fetch a la edge function `register-b2b-customer` (URL en
-    settings.register_b2b_endpoint). Auth: HMAC-SHA256 de
-    `<timestamp>:<nonce>` firmado por Liquid SSR con el metafield de shop
-    `b2b.hmac_secret` (access.storefront = NONE: legible en Liquid, NO
-    expuesto a Storefront API ni HTML). TTL 5 min.
-
-    Si el metafield no está seteado, el HMAC se computa contra cadena
-    vacía y el server lo rechaza — comportamiento correcto durante setup.
-    Setear el metafield de shop b2b.hmac_secret con valor idéntico al
-    Supabase secret REGISTER_B2B_HMAC_SECRET.
+    Form de registro instalador. Mismo backend, mismo HMAC, misma edge
+    function que la landing de distribuidor — ver comentario equivalente
+    en main-acceso-profesional.liquid para el detalle de firma.
   {%- endcomment -%}
   {%- assign register_now_ts = 'now' | date: '%s' -%}
   {%- assign register_nonce_seed = register_now_ts | append: ':' | append: section.id | append: ':' | append: shop.id -%}
@@ -244,8 +140,8 @@
   {%- assign register_hmac_payload = register_now_ts | append: ':' | append: register_nonce -%}
   {%- assign register_hmac_sig = register_hmac_payload | hmac_sha256: shop.metafields.b2b.hmac_secret.value -%}
 
-  <section id="registro" class="b2b-acceso__form-block" aria-labelledby="b2b-acceso-form-heading">
-    <h2 id="b2b-acceso-form-heading" class="b2b-acceso__h2">{{ 'ledsc4.acceso.form.heading' | t }}</h2>
+  <section id="registro" class="b2b-acceso__form-block" aria-labelledby="b2b-acceso-instalador-form-heading">
+    <h2 id="b2b-acceso-instalador-form-heading" class="b2b-acceso__h2">{{ 'ledsc4.acceso.form.heading' | t }}</h2>
     <ol class="b2b-acceso__form-steps">
       <li>{{ 'ledsc4.acceso.form.step1_html' | t }}</li>
       <li>{{ 'ledsc4.acceso.form.step2_html' | t }}</li>
@@ -292,35 +188,21 @@
       </fieldset>
 
       <fieldset class="b2b-acceso__fieldset">
-        <legend class="b2b-acceso__fieldset-legend">{{ 'ledsc4.acceso.form.legend_empresa' | t }}</legend>
+        <legend class="b2b-acceso__fieldset-legend">{{ 'ledsc4.acceso_instalador.form.legend_fiscal' | t }}</legend>
         <div class="b2b-acceso__form-grid">
-          <div class="b2b-acceso__field b2b-acceso__field--wide">
-            <label for="reg-empresa">{{ 'ledsc4.acceso.form.label_razon_social' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
-            <input type="text" name="empresa" id="reg-empresa" autocomplete="organization" required maxlength="200">
-            <span class="b2b-acceso__field-error" data-field="empresa" hidden></span>
-          </div>
           <div class="b2b-acceso__field">
-            <label for="reg-nif">{{ 'ledsc4.acceso.form.label_nif' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
-            <input type="text" name="nif" id="reg-nif" required maxlength="20" autocapitalize="characters" spellcheck="false">
+            <label for="reg-nif">{{ 'ledsc4.acceso.form.label_nif' | t }} <span class="b2b-acceso__optional">{{ 'ledsc4.common.form.optional' | t }}</span></label>
+            <input type="text" name="nif" id="reg-nif" maxlength="20" autocapitalize="characters" spellcheck="false">
             <span class="b2b-acceso__field-error" data-field="nif" hidden></span>
           </div>
           {%- comment -%}
-            Sector eliminado del UI (PR A, mayo 2026). Mantenemos un hidden
-            con valor "otro" para que la edge function `register-b2b-customer`
-            (que valida sector ∈ SECTOR_ENUM y popula el metafield b2b.sector)
-            siga funcionando sin cambios server-side. El metafield queda
-            poblado con "otro" hasta que el equipo decida si lo retira del
-            esquema o lo deja como histórico.
+            Hidden sector="instalador" — a diferencia del form de
+            distribuidor (hidden "otro"). register-b2b-customer relaja
+            empresa/nif a opcionales cuando sector === "instalador".
           {%- endcomment -%}
-          <input type="hidden" name="sector" value="otro">
+          <input type="hidden" name="sector" value="instalador">
           <div class="b2b-acceso__field">
             <label for="reg-pais">{{ 'ledsc4.acceso.form.label_pais' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
-            {%- comment -%}
-              Lista de 90 países (Europa + América + N. África + Oriente Medio),
-              orden: España primero, resto alfabético por nombre en español.
-              Label "UK" literal para GB en todos los locales. Backend
-              normalizeCountry acepta cualquier ISO-2 sin allowlist.
-            {%- endcomment -%}
             <select name="pais" id="reg-pais" required>
               <option value="" disabled selected>{{ 'ledsc4.common.form.option_select' | t }}</option>
               <option value="ES">{{ 'ledsc4.common.country.es' | t }}</option>
@@ -420,18 +302,6 @@
             <input type="text" name="codigo_postal" id="reg-codigo_postal" autocomplete="postal-code" required maxlength="12">
             <span class="b2b-acceso__field-error" data-field="codigo_postal" hidden></span>
           </div>
-          <div class="b2b-acceso__field b2b-acceso__field--wide">
-            <label for="reg-volumen">{{ 'ledsc4.acceso.form.label_volumen' | t }} <span class="b2b-acceso__optional">{{ 'ledsc4.common.form.optional' | t }}</span></label>
-            <select name="volumen_estimado" id="reg-volumen">
-              <option value="">{{ 'ledsc4.acceso.form.volumen.no_decir' | t }}</option>
-              <option value="<5k">{{ 'ledsc4.acceso.form.volumen.lt_5k' | t }}</option>
-              <option value="5k-25k">{{ 'ledsc4.acceso.form.volumen.5k_25k' | t }}</option>
-              <option value="25k-100k">{{ 'ledsc4.acceso.form.volumen.25k_100k' | t }}</option>
-              <option value=">100k">{{ 'ledsc4.acceso.form.volumen.gt_100k' | t }}</option>
-              <option value="no_se">{{ 'ledsc4.acceso.form.volumen.no_se' | t }}</option>
-            </select>
-            <span class="b2b-acceso__field-error" data-field="volumen_estimado" hidden></span>
-          </div>
         </div>
       </fieldset>
 
@@ -470,10 +340,13 @@
   </footer>
 </section>
 
+{%- comment -%}
+  <style> duplicado intacto de main-acceso-profesional.liquid — páginas
+  hermanas que nunca se cargan a la vez (mismo patrón que
+  main-completar-registro.liquid).
+{%- endcomment -%}
 <style>
   .b2b-acceso {
-    /* Paleta ledsc4.com — blanco + negro, acento azul corporativo
-       `var(--color-ledsc4-accent)`. Esquema único (sin dark/light alternativos). */
     --bg: #ffffff;
     --bg-alt: #f5f5f7;
     --bg-card: rgba(0, 0, 0, 0.04);
@@ -500,19 +373,11 @@
     box-sizing: border-box;
   }
 
-  /* Tema Dawn convención: html { font-size: 62.5% } → 1rem = 10px.
-     Toda la sección usa rem en escala Dawn (1.7rem = 17px, 4rem = 40px,
-     etc.) para que el cuerpo y los headings rendericen al tamaño real
-     que el copy de lectura larga necesita. Si en el futuro se cambia
-     `--font-body-scale` desde theme settings, los rem escalan
-     proporcionalmente — comportamiento correcto. */
-
   .b2b-acceso > * {
     width: 100%;
     max-width: 780px;
   }
 
-  /* HERO */
   .b2b-acceso__brand {
     text-align: center;
     margin-bottom: 2.5rem;
@@ -582,7 +447,6 @@
     max-width: 60ch;
   }
 
-  /* Bloques de contenido */
   .b2b-acceso__block {
     margin: 0 0 3.5rem;
   }
@@ -597,24 +461,12 @@
     letter-spacing: -0.01em;
   }
 
-  .b2b-acceso__h3 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 2rem;
-    font-weight: 400;
-    line-height: 1.3;
-    margin: 0 0 0.625rem;
-    color: var(--fg-strong);
-    letter-spacing: -0.005em;
-  }
-
   .b2b-acceso__block p {
     font-size: 1.7rem;
     line-height: 1.6;
     color: var(--fg-muted);
     margin: 0 0 1rem;
   }
-  /* Constrain top-level reading paragraphs to a comfortable line length
-     (~65ch). Cards/grids inside the block keep their own paragraph rules. */
   .b2b-acceso__block > p {
     max-width: 65ch;
   }
@@ -634,167 +486,6 @@
   }
   .b2b-acceso__block a:hover {
     color: var(--fg-strong);
-  }
-
-  .b2b-acceso__list {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 1rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 0.625rem 1.5rem;
-  }
-  .b2b-acceso__list li {
-    position: relative;
-    padding-left: 1.5rem;
-    font-size: 1.7rem;
-    color: var(--fg-muted);
-    line-height: 1.55;
-  }
-  .b2b-acceso__list li::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0.625rem;
-    width: 6px;
-    height: 6px;
-    background: var(--accent);
-    border-radius: 50%;
-  }
-
-  .b2b-acceso__note {
-    margin-top: 1.5rem;
-    padding: 1rem 1.25rem;
-    background: var(--bg-card);
-    border-left: 2px solid var(--accent);
-    font-size: 1.6rem;
-    line-height: 1.55;
-    color: var(--fg-muted);
-    max-width: 65ch;
-  }
-
-  /* Caminos: pre-aprobados vs manual */
-  .b2b-acceso__paths {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1.5rem;
-    margin: 2rem 0;
-  }
-  .b2b-acceso__path {
-    padding: 1.75rem 1.5rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-  }
-  .b2b-acceso__path-tag {
-    display: inline-block;
-    padding: 0.25rem 0.625rem;
-    font-size: 1.3rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.06);
-    color: var(--fg-dim);
-    margin-bottom: 0.875rem;
-  }
-  /* Card paragraphs are short blurbs in 2-col grid — slightly more compact
-     than long-form body. */
-  .b2b-acceso__path p {
-    font-size: 1.6rem;
-    line-height: 1.55;
-  }
-  .b2b-acceso__path-tag--fast {
-    background: rgba(0, 81, 255, 0.10);
-    color: var(--accent);
-  }
-
-  /* Steps numerados */
-  .b2b-acceso__steps {
-    list-style: none;
-    padding: 0;
-    margin: 2.5rem 0 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    counter-reset: b2b-step;
-  }
-  .b2b-acceso__step {
-    position: relative;
-    padding: 1.5rem 1.25rem 1.25rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    text-align: left;
-  }
-  .b2b-acceso__step-num {
-    position: absolute;
-    top: -1.4rem;
-    left: 1.5rem;
-    width: 2.8rem;
-    height: 2.8rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #ffffff;
-    font-weight: 700;
-    font-size: 1.5rem;
-    font-family: Georgia, "Times New Roman", serif;
-  }
-  .b2b-acceso__step-icon {
-    width: 26px;
-    height: 26px;
-    color: var(--accent);
-    margin: 0.5rem 0 0.75rem;
-    stroke-width: 1.25;
-  }
-  .b2b-acceso__step-title {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 2rem;
-    font-weight: 400;
-    line-height: 1.3;
-    margin: 0 0 0.375rem;
-    color: var(--fg-strong);
-  }
-  .b2b-acceso__step-desc {
-    font-size: 1.6rem;
-    line-height: 1.55;
-    color: var(--fg-muted);
-    margin: 0;
-  }
-
-  /* Features dentro */
-  .b2b-acceso__features {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  .b2b-acceso__feature {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 1.25rem;
-    align-items: flex-start;
-    padding: 1.25rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .b2b-acceso__feature:last-child {
-    border-bottom: none;
-  }
-  .b2b-acceso__feature-icon {
-    width: 28px;
-    height: 28px;
-    color: var(--accent);
-    margin-top: 0.25rem;
-    stroke-width: 1.25;
-    flex-shrink: 0;
-  }
-  .b2b-acceso__feature p {
-    margin: 0;
   }
 
   /* FAQ */
@@ -856,7 +547,6 @@
     border-radius: 16px;
   }
 
-  /* Bloque alto (sin caja) — visible above-the-fold para conversión rápida. */
   .b2b-acceso__ctas-top {
     text-align: center;
     margin: 0 0 3.5rem;
@@ -1195,9 +885,6 @@
     animation: b2b-acceso-spin 0.8s linear infinite;
     vertical-align: -0.2rem;
   }
-  /* Browser user-agent [hidden] { display:none } pierde specificity vs el
-     selector de clase de arriba. Forzamos display:none cuando el atributo
-     hidden está presente. */
   .b2b-acceso__btn-spinner[hidden] {
     display: none;
   }
@@ -1217,14 +904,7 @@
 </style>
 
 <script>
-  // i18n bundle inyectado antes del script defer del asset para garantizar
-  // disponibilidad de window.LEDSC4_I18N.acceso_form cuando se ejecuta el IIFE.
   window.LEDSC4_I18N = window.LEDSC4_I18N || {};
-  // ?dest= (2026-06-10): el gate manda aquí a los anónimos conservando el
-  // destino original (enlace compartido a un producto, etc.). Si viene un
-  // dest válido (ruta relativa, sin '//' para evitar open redirect),
-  // reescribimos el return_to de los CTAs de login para que un usuario
-  // aprobado aterrice donde quería ir tras el OTP.
   (function () {
     try {
       var dest = new URLSearchParams(window.location.search).get('dest');
@@ -1238,20 +918,7 @@
       });
     } catch (e) { /* dest es mejora opcional; nunca romper la landing */ }
   })();
-  // locale_prefix: '' en home, '/fr' en /fr (ver hotfix doc). Consumers
-  // en JS hacen `LOCALE_PREFIX + '/path/X'` con slash inicial al path.
   window.LEDSC4_I18N.locale_prefix = {{ locale_prefix | json }};
-  {%- comment -%}
-    login_url_full (Sprint 3.5): construye el URL de login outcome (b)+
-    para inyectarlo en email_exists_html via t: login_url:. Si en QA
-    real falla `?locale=`, eliminar SOLO el sufijo `&locale=...` de la
-    línea de abajo — return_to con prefijo se mantiene.
-
-    return_to → /pages/completar-registro (2026-06-10): el 409 suele ser
-    una cuenta fantasma (newsletter/alta nativa) sin datos B2B; aterrizar
-    ahí cierra el ciclo directamente. La página maneja todos los estados:
-    aprobado/rechazado ven "cuenta ya gestionada", el resto el form.
-  {%- endcomment -%}
   {%- assign exists_return_to = locale_prefix | append: '/pages/completar-registro' | url_encode -%}
   {%- assign login_url_full = '/customer_authentication/login?return_to=' | append: exists_return_to | append: '&locale=' | append: request.locale.iso_code -%}
   window.LEDSC4_I18N.acceso_form = {
@@ -1278,9 +945,9 @@
 
 {% schema %}
 {
-  "name": "Acceso profesional",
+  "name": "Acceso instalador",
   "tag": "section",
-  "class": "section-b2b-acceso",
+  "class": "section-b2b-acceso-instalador",
   "settings": [
     {
       "type": "header",
@@ -1290,8 +957,7 @@
       "type": "checkbox",
       "id": "show_logo_header",
       "label": "Mostrar logo en cabecera",
-      "default": false,
-      "info": "Off por defecto: la página ya está dentro del flujo del portal y la cabecera del tema (b2b-header-simple) ya muestra el logo."
+      "default": false
     },
     {
       "type": "header",
@@ -1320,7 +986,7 @@
   ],
   "presets": [
     {
-      "name": "Acceso profesional"
+      "name": "Acceso instalador"
     }
   ]
 }
