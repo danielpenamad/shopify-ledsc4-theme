@@ -325,14 +325,37 @@ como segunda red de seguridad, porque W2 (`Customer tags added` con
 `aprobado`) se dispara igualmente cuando W1 taguea a un instalador y vuelve
 a invocar esa función; aborta sola sin problema.
 
-### Pasos operativos post-merge (ninguno automático)
+### Decisiones de cierre (2026-07)
 
-1. `scripts/apply-metafield-definitions.mjs` — crea la definition real de `b2b.codigo_postal` en la tienda.
-2. `scripts/create-b2b-pages.mjs` — crea la Page `/pages/acceso-instalador` en Shopify (entrada ya añadida a `scripts/pages-manifest.json`).
-3. `supabase functions deploy` de `register-b2b-customer` y `complete-b2b-registration`.
-4. Aplicar a mano el cambio de Flow W1 descrito arriba.
-5. `scripts/audit-customer-state.js` ya está actualizado para no marcar `approved_without_company` en clientes con tag `instalador` (era un falso positivo real que este cambio habría introducido).
-6. Crear en Shopify Messaging el template `B2B · 08 · Bienvenida instalador` (fuente: `email-templates/08-bienvenida-instalador.liquid`) cuando se active el envío de marketing mail — hoy sigue marcado `[PENDIENTE GROW]` igual que los demás.
+- **Sin email interno de FYI a backoffice en el carril instalador.** En
+  captación masiva, un aviso por cada alta genera ruido; el email que
+  importa operativamente es el de la oferta (Fase 3, por draft order), no
+  uno por registro. El carril instalador queda sin ningún email hasta que
+  se active el de bienvenida (pendiente Grow).
+- **Clientes sin `b2b.sector` (altas manuales en Admin, imports, apps
+  ajenas a los dos formularios) ya no entran a W1 ni reciben tag de
+  estado.** Es la operativa aceptada de LedsC4, no un fallo a corregir —
+  cerrado, no requiere acción.
+
+### Pasos operativos (estado)
+
+1. ✅ `scripts/apply-metafield-definitions.mjs` — `b2b.codigo_postal` creada y fijada en la tienda (2026-07).
+2. ✅ `scripts/create-b2b-pages.mjs` — Page `/pages/acceso-instalador` creada (2026-07).
+3. ✅ `supabase functions deploy` de `register-b2b-customer` (v39) y `complete-b2b-registration` (v13) — hecho (2026-07).
+4. ⬜ Aplicar a mano el cambio de Flow W1 descrito arriba — **sigue pendiente**, es lo único que falta para que el enrutado real funcione en producción.
+5. ✅ `scripts/audit-customer-state.js` actualizado para no marcar `approved_without_company` en clientes con tag `instalador`.
+6. ⬜ Crear en Shopify Messaging el template `B2B · 08 · Bienvenida instalador` (fuente: `email-templates/08-bienvenida-instalador.liquid`) cuando se active el envío de marketing mail — hoy sigue marcado `[PENDIENTE GROW]` igual que los demás.
+
+### Extra A — atribución de campaña (UTMs, 2026-07)
+
+Captura y persistencia únicamente (uso en oferta/email interno es Fase 3).
+`assets/b2b-register-v2.js` lee `utm_source/medium/campaign/term/content`
+de `window.location.search` (un único sitio, las dos landings comparten el
+asset) y los manda opcionales a `register-b2b-customer`, que los sanea sin
+validar formato y los persiste como 5 metafields `b2b.utm_*` (omitidos si
+vienen vacíos). No aplica a `complete-b2b-registration` (fuera de alcance).
+Nuevas definitions en `scripts/metafield-definitions.json` — **pendiente
+de `apply-metafield-definitions.mjs`** tras el merge de esta rama.
 
 ## REGLA PERMANENTE: ningún secret en `settings_data.json`
 

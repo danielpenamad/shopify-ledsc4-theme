@@ -43,8 +43,21 @@
 //     pais: "ES",                   // ISO 3166-1 alpha-2
 //     volumen_estimado: "5k-25k",   // opcional
 //     codigo_postal: "28001",       // obligatorio (Fase 2 instalador, 2026-07)
+//     utm_source: "meta",           // opcional (Extra A, 2026-07)
+//     utm_medium: "paid_social",    // opcional
+//     utm_campaign: "instalador_q3", // opcional
+//     utm_term: "instalador+electricista", // opcional
+//     utm_content: "carrusel_v2",   // opcional
 //     condiciones: true             // checkbox términos
 //   }
+//
+// Extra A — atribución de campaña (2026-07): utm_source/medium/campaign/
+// term/content capturados de la URL por assets/b2b-register-v2.js
+// (window.location.search) y persistidos tal cual, sin validación de
+// formato (texto libre de terceros — Meta, Google Ads, etc.), solo saneo
+// genérico + tope de longitud. Los 5 son opcionales y se omiten del
+// customerCreate si vienen vacíos. Uso en la oferta/email interno es
+// Fase 3 — aquí solo se capturan y persisten.
 //
 // Fase 2 instalador completa (2026-07): esta función NO decide el rol ni
 // aprueba a nadie — solo crea el customer con sus metafields y lo deja en
@@ -332,6 +345,11 @@ interface IncomingBody {
   pais?: string;
   volumen_estimado?: string;
   codigo_postal?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
   condiciones?: boolean;
 }
 
@@ -390,6 +408,16 @@ async function handle(req: Request): Promise<Response> {
     const paisRaw = sanitizeText(body.pais, 60);
     const volumenEstimado = sanitizeText(body.volumen_estimado, 30);
     const codigoPostal = sanitizeText(body.codigo_postal, 12);
+
+    // Atribución de campaña (UTMs, Extra A 2026-07): texto libre de
+    // terceros (Meta, Google Ads, etc.) — sin validación de formato, solo
+    // saneo genérico + tope de longitud (mismo criterio que codigo_postal).
+    // Los 5 son opcionales; un alta sin UTMs en la URL funciona igual.
+    const utmSource = sanitizeText(body.utm_source, 150);
+    const utmMedium = sanitizeText(body.utm_medium, 150);
+    const utmCampaign = sanitizeText(body.utm_campaign, 150);
+    const utmTerm = sanitizeText(body.utm_term, 150);
+    const utmContent = sanitizeText(body.utm_content, 150);
 
     // Instalador (landing dedicada, sector fijo "instalador"): sin Company
     // por decisión de negocio → empresa/nif dejan de ser obligatorios.
@@ -530,6 +558,23 @@ async function handle(req: Request): Promise<Response> {
                 ? [{ namespace: "b2b", key: "volumen_estimado", type: "single_line_text_field", value: volumenEstimado }]
                 : []),
               { namespace: "b2b", key: "codigo_postal", type: "single_line_text_field", value: codigoPostal },
+              // UTMs: los 5 opcionales, se omiten enteros si vienen vacíos
+              // (mismo motivo que empresa/nif/volumen_estimado).
+              ...(utmSource
+                ? [{ namespace: "b2b", key: "utm_source", type: "single_line_text_field", value: utmSource }]
+                : []),
+              ...(utmMedium
+                ? [{ namespace: "b2b", key: "utm_medium", type: "single_line_text_field", value: utmMedium }]
+                : []),
+              ...(utmCampaign
+                ? [{ namespace: "b2b", key: "utm_campaign", type: "single_line_text_field", value: utmCampaign }]
+                : []),
+              ...(utmTerm
+                ? [{ namespace: "b2b", key: "utm_term", type: "single_line_text_field", value: utmTerm }]
+                : []),
+              ...(utmContent
+                ? [{ namespace: "b2b", key: "utm_content", type: "single_line_text_field", value: utmContent }]
+                : []),
               { namespace: "b2b", key: "fecha_registro", type: "date", value: today },
             ],
           },
