@@ -872,33 +872,38 @@
     },
     "acceso_instalador": {
       "hero": {
-        "eyebrow": "PLACEHOLDER — Acceso instaladores",
-        "heading_html": "PLACEHOLDER — <em>Alta de instaladores</em> LedsC4 Outlet",
-        "lead": "PLACEHOLDER — Texto pendiente del cliente: presentación de la landing de instaladores (alta con mínima fricción, sin necesidad de razón social)."
+        "eyebrow": "Acceso instaladores",
+        "heading_html": "El Outlet B2B de LedsC4, <em>ahora también para instaladores</em>",
+        "lead": "Date de alta en un minuto y accede al catálogo de outlet de LedsC4 con precios profesionales. Sin razón social y sin esperas: tu cuenta se activa al momento."
       },
-      "keep_reading": "PLACEHOLDER — ¿Aún no lo tienes claro? Sigue leyendo ↓",
+      "keep_reading": "¿Aún no lo tienes claro? Sigue leyendo ↓",
       "que_es": {
-        "heading": "PLACEHOLDER — Qué es este portal",
-        "body_html": "PLACEHOLDER — Texto pendiente del cliente: qué es el portal, enfocado a instaladores."
+        "heading": "Qué es este portal",
+        "body_html": "LedsC4 Outlet B2B es un portal mayorista privado para liquidar stocks excedentes y descatalogados de LedsC4 entre profesionales del sector. Como instalador entras con un <strong>alta simplificada</strong>, sin necesidad de razón social. Es independiente de la web pública <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C): ni el catálogo, ni los precios, ni la cuenta se comparten."
       },
       "como": {
-        "heading": "PLACEHOLDER — Cómo funciona el acceso",
-        "intro_html": "PLACEHOLDER — Texto pendiente del cliente: el alta de instalador se activa automáticamente, sin espera de revisión manual."
+        "heading": "Cómo funciona",
+        "intro_html": "El alta de instalador se activa <strong>automáticamente</strong> al registrarte: sin revisión manual ni espera. Una vez dentro, navegas todo el catálogo con precios profesionales, montas tu selección y pulsas <strong>«Solicitar oferta»</strong>. Recibes tu oferta en PDF y, para cerrarla, solo tienes que <strong>ponerte en contacto con tu distribuidor</strong>."
       },
       "dentro": {
-        "heading": "PLACEHOLDER — Qué encontrarás dentro",
-        "body_html": "PLACEHOLDER — Texto pendiente del cliente."
+        "heading": "Qué encontrarás dentro",
+        "body_html": "Acceso a más de <strong>745 referencias</strong> de stocks excedentes, fin de serie y descatalogados, actualizadas semanalmente y con precios profesionales. No es compra directa: preparas tu selección, la conviertes en una oferta descargable en PDF y <strong>te pones en contacto con tu distribuidor</strong> para formalizar el pedido. Cada oferta queda guardada en tu área privada con su estado."
       },
       "faq": {
-        "heading": "PLACEHOLDER — Preguntas frecuentes",
-        "q1_summary": "PLACEHOLDER — ¿Necesito tener una empresa dada de alta?",
-        "q1_body": "PLACEHOLDER — Texto pendiente del cliente: no, esta landing no pide razón social.",
-        "q2_summary": "PLACEHOLDER — ¿Cuánto tarda la aprobación?",
-        "q2_body": "PLACEHOLDER — Texto pendiente del cliente: la cuenta se activa automáticamente."
+        "heading": "Preguntas frecuentes",
+        "q1_summary": "¿Necesito tener una empresa o razón social?",
+        "q1_body": "No. El alta de instalador no pide razón social y el NIF es opcional. Solo necesitamos tus datos de contacto, país y código postal.",
+        "q2_summary": "¿Cuánto tarda el alta?",
+        "q2_body": "Nada: tu cuenta se activa automáticamente al registrarte. Recibes un email de bienvenida con el enlace al catálogo y ya puedes entrar.",
+        "q3_summary": "¿Puedo comprar directamente en el portal?",
+        "q3_body": "No. Consultas catálogo y precios y preparas ofertas; para formalizar el pedido, ponte en contacto con tu distribuidor habitual."
       },
-      "ctas_lead": "PLACEHOLDER — ¿Te encaja? Empieza por solicitar acceso.",
+      "ctas_lead": "¿Te encaja? Date de alta y empieza a preparar tus ofertas. Si ya tienes cuenta, entra a tu área privada.",
       "form": {
-        "legend_fiscal": "Datos fiscales"
+        "legend_fiscal": "Datos fiscales",
+        "step1_html": "<strong>Rellena tus datos.</strong> Sin razón social; el NIF es opcional.",
+        "step2_html": "<strong>Te enviamos un email</strong> con un enlace para activar tu cuenta.",
+        "step3_html": "<strong>Entras al catálogo al momento</strong>, con precios profesionales, y ya puedes solicitar ofertas."
       }
     },
     "completar": {
