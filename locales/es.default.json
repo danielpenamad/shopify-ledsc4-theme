@@ -602,6 +602,7 @@
         "sa": "Arabia Saudita",
         "dz": "Argelia",
         "ar": "Argentina",
+        "am": "Armenia",
         "at": "Austria",
         "bs": "Bahamas",
         "bb": "Barbados",
@@ -633,6 +634,7 @@
         "ee": "Estonia",
         "fi": "Finlandia",
         "fr": "Francia",
+        "ge": "Georgia",
         "gr": "Grecia",
         "gt": "Guatemala",
         "gy": "Guyana",
@@ -646,6 +648,7 @@
         "it": "Italia",
         "jm": "Jamaica",
         "jo": "Jordania",
+        "kz": "Kazajistán",
         "kw": "Kuwait",
         "lv": "Letonia",
         "lb": "Líbano",
@@ -683,6 +686,7 @@
         "tr": "Turquía",
         "ua": "Ucrania",
         "uy": "Uruguay",
+        "uz": "Uzbekistán",
         "ye": "Yemen"
       },
       "currency": {

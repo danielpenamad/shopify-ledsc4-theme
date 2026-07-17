@@ -538,6 +538,12 @@
   },
   "ledsc4": {
     "common": {
+      "country": {
+        "am": "Armenien",
+        "ge": "Georgien",
+        "kz": "Kasachstan",
+        "uz": "Usbekistan"
+      },
       "currency": {
         "switcher_label": "Währung wechseln",
         "fx_disclaimer": "Richtpreise · Abrechnung in EUR"
