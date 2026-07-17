@@ -98,7 +98,15 @@ function draftOrderNode(overrides: Record<string, unknown> = {}) {
       { key: "Símbolo moneda", value: "€" },
     ],
     pdfUrlMetafield: null,
-    customer: { id: "gid://shopify/Customer/1", tags: ["aprobado"] },
+    customer: {
+      id: "gid://shopify/Customer/1",
+      tags: ["aprobado"],
+      locale: "es",
+      cp: { value: "28001" },
+      utmSource: { value: "meta" },
+      utmMedium: { value: "paid_social" },
+      utmCampaign: { value: "instalador_q3" },
+    },
     lineItems: {
       edges: [
         {
@@ -154,6 +162,14 @@ Deno.test("idempotencia: si ya hay pdf_url, lo devuelve sin regenerar", async ()
     assertEquals(res.status, 200);
     const json = await res.json();
     assertEquals(json.pdf_url, "https://cdn.shopify.com/existing.pdf");
+    // El hit idempotente también debe traer total_oferta y el passthrough
+    // (cp/locale/utm_*) — Flow necesita el mismo shape se regenere o no el PDF.
+    assertEquals(json.total_oferta, "100,00 €");
+    assertEquals(json.cp, "28001");
+    assertEquals(json.locale, "es");
+    assertEquals(json.utm_source, "meta");
+    assertEquals(json.utm_medium, "paid_social");
+    assertEquals(json.utm_campaign, "instalador_q3");
     // Solo debe haber llamado al fetch del draft — nada de staged upload/fileCreate.
     assertEquals(calls.filter((c) => c.kind === "graphql").length, 1);
   } finally {
@@ -199,6 +215,12 @@ Deno.test("happy path: genera PDF, sube a Files, escribe metafield", async () =>
     assertEquals(json.pdf_url, "https://cdn.shopify.com/files/oferta-D9999.pdf");
     // Sin markup (customer no instalador): total_oferta = totalPrice tal cual, en EUR.
     assertEquals(json.total_oferta, "100,00 €");
+    // Passthrough para Flow: cp/locale/utm_* del customer (metafields b2b.*).
+    assertEquals(json.cp, "28001");
+    assertEquals(json.locale, "es");
+    assertEquals(json.utm_source, "meta");
+    assertEquals(json.utm_medium, "paid_social");
+    assertEquals(json.utm_campaign, "instalador_q3");
 
     const uploadCall = calls.find((c) => c.kind === "staged_upload");
     assertExists(uploadCall);
@@ -356,6 +378,13 @@ Deno.test("sin tag instalador: total_oferta NO lleva markup (mismo valor que el 
     assertEquals(res.status, 200);
     const json = await res.json();
     assertEquals(json.total_oferta, "9,90 €");
+    // Este customer no trae locale/cp/utm_* (metafields inexistentes) —
+    // deben venir como "" y NUNCA como null/undefined.
+    assertEquals(json.cp, "");
+    assertEquals(json.locale, "");
+    assertEquals(json.utm_source, "");
+    assertEquals(json.utm_medium, "");
+    assertEquals(json.utm_campaign, "");
   } finally {
     restoreFetch();
   }
