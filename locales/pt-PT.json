@@ -550,6 +550,12 @@
   },
   "ledsc4": {
     "common": {
+      "country": {
+        "am": "Arménia",
+        "kz": "Cazaquistão",
+        "ge": "Geórgia",
+        "uz": "Uzbequistão"
+      },
       "currency": {
         "switcher_label": "Alterar moeda",
         "fx_disclaimer": "Preços indicativos · faturação em EUR"
