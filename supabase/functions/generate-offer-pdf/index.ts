@@ -17,13 +17,26 @@
 //   { "draftOrderId": "gid://shopify/DraftOrder/123..." }
 //
 // Output:
-//   { "pdf_url": "https://...", "total_oferta": "1.234,56 €" }      (200)
-//   { "error": "...", ... }                                        (4xx/5xx)
+//   { "pdf_url": "https://...", "total_oferta": "1.234,56 €",
+//     "cp": "28001", "locale": "es", "utm_source": "meta",
+//     "utm_medium": "paid_social", "utm_campaign": "instalador_q3" }  (200)
+//   { "error": "...", ... }                                          (4xx/5xx)
+//
+// cp/locale/utm_* son passthrough de datos de registro (Fase 1/2) para que
+// Flow arme el email sin tener que releer el customer aparte. SIEMPRE
+// string, "" (nunca null) si el metafield/campo no existe. cp y los utm_*
+// vienen de metafields `b2b.codigo_postal`/`b2b.utm_source`/`utm_medium`/
+// `utm_campaign` (namespace y claves confirmados leyendo
+// register-b2b-customer/index.ts — el CP NO es `b2b.cp`, es
+// `b2b.codigo_postal`). locale es `customer.locale` tal cual (crudo, sin
+// normalizar — Flow ya ramea con starts_with).
 //
 // Idempotencia (paso 1): si el draft ya tiene metafield b2b.pdf_url, se
-// devuelve tal cual sin regenerar — evita duplicar en reintentos de Flow.
-// (En el hit de idempotencia NO se recalcula total_oferta — no hace falta
-// releer líneas solo para eso; se devuelve solo pdf_url.)
+// devuelve sin regenerar el PDF — evita duplicar en reintentos de Flow.
+// La respuesta SIGUE incluyendo total_oferta/cp/locale/utm_* igual que en
+// el camino normal (se calculan antes del check de idempotencia,
+// independientes de si hace falta generar el PDF) — Flow necesita el
+// mismo shape de respuesta se procese o no el PDF en esta invocación.
 //
 // total_oferta SIEMPRE en EUR (€) — la divisa real del draft
 // (presentmentMoney.currencyCode, igual que sections/b2b-solicitud-
@@ -150,7 +163,15 @@ interface DraftOrderData {
     tags: string[];
     totalPrice: string;
     pdfUrlMetafield: { value: string } | null;
-    customer: { id: string; tags: string[] } | null;
+    customer: {
+      id: string;
+      tags: string[];
+      locale: string | null;
+      cp: { value: string } | null;
+      utmSource: { value: string } | null;
+      utmMedium: { value: string } | null;
+      utmCampaign: { value: string } | null;
+    } | null;
     lineItems: {
       edges: Array<{
         node: {
@@ -176,7 +197,15 @@ const DRAFT_ORDER_QUERY = `
       tags
       totalPrice
       pdfUrlMetafield: metafield(namespace: "b2b", key: "pdf_url") { value }
-      customer { id tags }
+      customer {
+        id
+        tags
+        locale
+        cp: metafield(namespace: "b2b", key: "codigo_postal") { value }
+        utmSource: metafield(namespace: "b2b", key: "utm_source") { value }
+        utmMedium: metafield(namespace: "b2b", key: "utm_medium") { value }
+        utmCampaign: metafield(namespace: "b2b", key: "utm_campaign") { value }
+      }
       lineItems(first: 100) {
         edges {
           node {
@@ -627,17 +656,36 @@ async function handle(req: Request): Promise<Response> {
       return jsonResponse({ startedAt, error: "draft_order_not_found", draftOrderId }, 404);
     }
 
-    // 3. Idempotencia: si ya hay PDF, devolverlo tal cual sin regenerar.
+    // 3. Passthrough para Flow (cp/locale/utm_*) + total_oferta — calculados
+    // ANTES del check de idempotencia para que la respuesta tenga siempre
+    // el mismo shape, se regenere o no el PDF en esta invocación (ver
+    // comentario de cabecera). Nunca null: "" si el metafield/campo falta.
+    const customer = draft.customer;
+    const cp = customer?.cp?.value ?? "";
+    const locale = customer?.locale ?? "";
+    const utmSource = customer?.utmSource?.value ?? "";
+    const utmMedium = customer?.utmMedium?.value ?? "";
+    const utmCampaign = customer?.utmCampaign?.value ?? "";
+    const passthrough = { cp, locale, utm_source: utmSource, utm_medium: utmMedium, utm_campaign: utmCampaign };
+
+    // Markup instalador — cosmético, calculado aquí (ver comentario de
+    // cabecera). NUNCA se escribe de vuelta en Shopify.
+    const isInstalador = customer?.tags.includes("instalador") ?? false;
+    const markup = isInstalador ? MARKUP_INSTALADOR : 1;
+    const totalAmountRaw = Number.parseFloat(draft.totalPrice);
+    const totalOfertaValue = (totalAmountRaw * markup).toLocaleString("es-ES", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const totalOferta = `${totalOfertaValue} €`;
+
+    // 4. Idempotencia: si ya hay PDF, devolverlo sin regenerar — pero con
+    // el mismo total_oferta/passthrough que en el camino normal.
     const existingUrl = draft.pdfUrlMetafield?.value;
     if (existingUrl) {
       logJson("info", "idempotent_hit", { draftOrderId, pdf_url: existingUrl });
-      return jsonResponse({ startedAt, pdf_url: existingUrl });
+      return jsonResponse({ startedAt, pdf_url: existingUrl, total_oferta: totalOferta, ...passthrough });
     }
-
-    // 4. Markup instalador — cosmético, calculado aquí (ver comentario de
-    // cabecera). NUNCA se escribe de vuelta en Shopify.
-    const isInstalador = draft.customer?.tags.includes("instalador") ?? false;
-    const markup = isInstalador ? MARKUP_INSTALADOR : 1;
 
     // Importes CRUDOS (precio distribuidor tal cual está en el draft) — el
     // ×markup se aplica solo al formatear, nunca aquí (ver comentario de
@@ -659,7 +707,6 @@ async function handle(req: Request): Promise<Response> {
       };
     });
 
-    const totalAmountRaw = Number.parseFloat(draft.totalPrice);
     const currencyCode = lines[0]?.currencyCode ?? "EUR";
     const status = mapStatus(draft.tags);
 
@@ -685,24 +732,9 @@ async function handle(req: Request): Promise<Response> {
     // 7. Escribir metafield b2b.pdf_url en el draft.
     await writePdfUrlMetafield(draft.id, pdfUrl);
 
-    // total_oferta — para el email (Flow), no para el PDF (que ya lleva su
-    // propio total dibujado arriba). Mismo importe (total crudo × markup)
-    // que el PDF, SIEMPRE en EUR (€) — la divisa real del draft
-    // (presentmentMoney.currencyCode, igual que sections/b2b-solicitud-
-    // detalle.liquid). NO se usa el símbolo de los customAttributes
-    // "Moneda mostrada"/"Símbolo moneda": ese es solo el display cosmético
-    // que vio el cliente al enviar la solicitud, y poner $/£ sobre un
-    // importe sin conversión de tasa sería engañoso (decisión Dani
-    // 2026-07-17). Se mantiene la decisión de no aplicar FX aquí.
-    const totalOfertaValue = (totalAmountRaw * markup).toLocaleString("es-ES", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    const totalOferta = `${totalOfertaValue} €`;
-
     logJson("info", "pdf_generated", { draftOrderId, name: draft.name, pdf_url: pdfUrl, total_oferta: totalOferta });
 
-    return jsonResponse({ startedAt, pdf_url: pdfUrl, total_oferta: totalOferta });
+    return jsonResponse({ startedAt, pdf_url: pdfUrl, total_oferta: totalOferta, ...passthrough });
   } catch (e) {
     logJson("error", "unhandled_error", { error: (e as Error).message });
     return jsonResponse({ startedAt, error: (e as Error).message }, 500);
