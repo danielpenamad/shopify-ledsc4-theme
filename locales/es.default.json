@@ -883,15 +883,15 @@
       "keep_reading": "¿Aún no lo tienes claro? Sigue leyendo ↓",
       "que_es": {
         "heading": "Qué es este portal",
-        "body_html": "LedsC4 Outlet B2B es un portal mayorista privado para liquidar stocks excedentes y descatalogados de LedsC4 entre profesionales del sector. Como instalador entras con un <strong>alta simplificada</strong>, sin necesidad de razón social. Es independiente de la web pública <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C): ni el catálogo, ni los precios, ni la cuenta se comparten."
+        "body_html": "Portal mayorista privado para liquidar stocks excedentes y descatalogados de LedsC4 exclusivamente entre profesionales."
       },
       "como": {
         "heading": "Cómo funciona",
-        "intro_html": "El alta de instalador se activa <strong>automáticamente</strong> al registrarte: sin revisión manual ni espera. Una vez dentro, navegas todo el catálogo con precios profesionales, montas tu selección y pulsas <strong>«Solicitar oferta»</strong>. Recibes tu oferta en PDF y, para cerrarla, solo tienes que <strong>ponerte en contacto con tu distribuidor</strong>."
+        "intro_html": "Te registras, navegas el catálogo a precios profesionales, montas tu selección y pulsas «Solicitar oferta»: recibes el PDF y contactas con tu distribuidor para cerrarla."
       },
       "dentro": {
         "heading": "Qué encontrarás dentro",
-        "body_html": "Acceso a más de <strong>745 referencias</strong> de stocks excedentes, fin de serie y descatalogados, actualizadas semanalmente y con precios profesionales. No es compra directa: preparas tu selección, la conviertes en una oferta descargable en PDF y <strong>te pones en contacto con tu distribuidor</strong> para formalizar el pedido. Cada oferta queda guardada en tu área privada con su estado."
+        "body_html": "Centenares de referencias, actualizadas cada semana y a precios profesionales. Preparas tu selección, la descargas como oferta en PDF y la cierras con tu distribuidor. Cada oferta queda guardada en tu área privada."
       },
       "faq": {
         "heading": "Preguntas frecuentes",
@@ -903,8 +903,13 @@
         "q3_body": "No. Consultas catálogo y precios y preparas ofertas; para formalizar el pedido, ponte en contacto con tu distribuidor habitual."
       },
       "ctas_lead": "¿Te encaja? Date de alta y empieza a preparar tus ofertas. Si ya tienes cuenta, entra a tu área privada.",
+      "cta": {
+        "registrarse": "Registrarse"
+      },
       "form": {
         "legend_fiscal": "Datos fiscales",
+        "submit": "Registrarse",
+        "submit_loading": "Registrando…",
         "step1_html": "<strong>Rellena tus datos.</strong> Sin razón social; el NIF es opcional.",
         "step2_html": "<strong>Te enviamos un email</strong> con un enlace para activar tu cuenta.",
         "step3_html": "<strong>Entras al catálogo al momento</strong>, con precios profesionales, y ya puedes solicitar ofertas."
