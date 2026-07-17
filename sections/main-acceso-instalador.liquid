@@ -21,10 +21,11 @@
   cambios de por-landing salvo la relajación empresa/nif cuando
   sector === "instalador").
 
-  Copies de esta sección son PLACEHOLDER — pendientes de texto definitivo
-  del cliente. Estructura y namespace i18n (`ledsc4.acceso_instalador.*`
-  para contenido editorial, `ledsc4.acceso.form.*` compartido para
-  mecánica de formulario) ya preparados es/en/fr.
+  Copy definitivo cargado en es/en/fr (2026-07). Namespace i18n:
+  `ledsc4.acceso_instalador.*` para contenido editorial propio, más
+  `ledsc4.acceso.form.*` compartido con distribuidor para mecánica de
+  formulario (labels de campo, errores, banners). de/it/pt-PT caen a
+  fallback: la landing solo es visible en es/en/fr esta fase.
 
   Gate: /pages/acceso-instalador debe añadirse a gate_exempt_paths en
   layout/theme.liquid para que sea pública (igual que acceso-profesional).
@@ -115,6 +116,11 @@
       <summary>{{ 'ledsc4.acceso_instalador.faq.q2_summary' | t }}</summary>
       <p>{{ 'ledsc4.acceso_instalador.faq.q2_body' | t }}</p>
     </details>
+
+    <details class="b2b-acceso__faq">
+      <summary>{{ 'ledsc4.acceso_instalador.faq.q3_summary' | t }}</summary>
+      <p>{{ 'ledsc4.acceso_instalador.faq.q3_body' | t }}</p>
+    </details>
   </article>
 
   <div class="b2b-acceso__ctas-block">
@@ -143,9 +149,9 @@
   <section id="registro" class="b2b-acceso__form-block" aria-labelledby="b2b-acceso-instalador-form-heading">
     <h2 id="b2b-acceso-instalador-form-heading" class="b2b-acceso__h2">{{ 'ledsc4.acceso.form.heading' | t }}</h2>
     <ol class="b2b-acceso__form-steps">
-      <li>{{ 'ledsc4.acceso.form.step1_html' | t }}</li>
-      <li>{{ 'ledsc4.acceso.form.step2_html' | t }}</li>
-      <li>{{ 'ledsc4.acceso.form.step3_html' | t }}</li>
+      <li>{{ 'ledsc4.acceso_instalador.form.step1_html' | t }}</li>
+      <li>{{ 'ledsc4.acceso_instalador.form.step2_html' | t }}</li>
+      <li>{{ 'ledsc4.acceso_instalador.form.step3_html' | t }}</li>
     </ol>
 
     <form
