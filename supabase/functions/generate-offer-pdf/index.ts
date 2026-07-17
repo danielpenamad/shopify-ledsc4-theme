@@ -5,8 +5,8 @@
 // draft para que Shopify Flow la lea y la incluya en el email de oferta.
 // Esta función NO envía email — eso sigue siendo responsabilidad de Flow.
 //
-// Invocada desde Shopify Flow (pendiente de configurar — Fase 3, fuera de
-// este repo, mismo patrón que create-company-for-customer) cuando una
+// Invocada desde Shopify Flow (ya configurado — Fase 3, fuera de este
+// repo, mismo patrón que create-company-for-customer) cuando una
 // solicitud está lista para convertirse en oferta.
 //
 // Auth: header X-Webhook-Secret == env GENERATE_OFFER_PDF_WEBHOOK_SECRET.
@@ -17,21 +17,54 @@
 //   { "draftOrderId": "gid://shopify/DraftOrder/123..." }
 //
 // Output:
-//   { "pdf_url": "https://..." }                                   (200)
+//   { "pdf_url": "https://...", "total_oferta": "1.234,56 €" }      (200)
 //   { "error": "...", ... }                                        (4xx/5xx)
 //
 // Idempotencia (paso 1): si el draft ya tiene metafield b2b.pdf_url, se
 // devuelve tal cual sin regenerar — evita duplicar en reintentos de Flow.
+// (En el hit de idempotencia NO se recalcula total_oferta — no hace falta
+// releer líneas solo para eso; se devuelve solo pdf_url.)
 //
-// Markup instalador (corrección de premisa, ver informe de recon): el +15%
-// de Fase 1 es puramente cosmético (ledsc4-currency-display.js reescribe el
-// DOM) — NUNCA se aplica al crear el Draft Order en submit-order-request.
-// Esta función NO toca submit-order-request (prohibido en el encargo), así
-// que replica el mismo criterio: si el customer del draft tiene tag
-// 'instalador', el PDF muestra precio unitario / subtotal / total ×1.15,
-// calculado aquí en el momento de renderizar, sin escribir nada en Shopify.
-// Mismo principio que el tema: "puramente visual", nunca toca el precio
-// real del draft ni de una eventual Order.
+// total_oferta SIEMPRE en EUR (€) — la divisa real del draft
+// (presentmentMoney.currencyCode, igual que sections/b2b-solicitud-
+// detalle.liquid). NO se usa el símbolo cosmético de "Moneda mostrada"/
+// "Símbolo moneda" que guarda submit-order-request: sin conversión de
+// tasa, poner $/£ sobre un importe EUR sería engañoso (decisión Dani
+// 2026-07-17).
+//
+// Markup instalador — CONFIRMADO por Dani (base de datos): los precios
+// grabados en el Draft Order son SIEMPRE precio distribuidor. El precio
+// instalador (distribuidor × 1,15) hoy se construye SOLO en el frontend de
+// compra, nunca en el draft. Esta función NO toca submit-order-request
+// (prohibido en el encargo), así que replica EXACTAMENTE la lógica del
+// frontend — no una fórmula inventada:
+//
+//   Fuente única del factor: `layout/theme.liquid` línea ~72,
+//     {%- assign ledsc4_installer_markup_factor = 1.15 -%}
+//   — literal hardcodeado, NO es un setting ni metafield (confirmado
+//   leyendo el Liquid; nada que leer de Shopify en runtime).
+//
+//   Fórmula real (assets/ledsc4-currency-display.js, función
+//   `formatAmount(eurCents, currency, withApprox, skipMarkup)`):
+//     value = (eurCents / 100) * rate * markup     // rate=1 para EUR
+//     formatted = value.toLocaleString('es-ES', {
+//       minimumFractionDigits: 2, maximumFractionDigits: 2,
+//     })
+//     body = formatted + ' ' + simbolo             // "11,39 €"
+//
+//   Punto clave replicado aquí: el frontend NO reescala un total ya
+//   redondeado — cada nodo `data-eur-amount` (precio unitario, subtotal de
+//   línea, total del carrito) es una lectura independiente de céntimos que
+//   se multiplica y redondea POR SEPARADO. Esta función hace lo mismo:
+//   `formatFrontendStyle()` se llama de forma independiente para precio
+//   unitario, subtotal de línea y total — nunca suma subtotales ya
+//   redondeados. Verificado empíricamente que `toLocaleString('es-ES', …)`
+//   en Deno (V8) redondea igual que en el navegador (mismo motor, casos de
+//   empate incluidos, p.ej. 9,90 × 1,15 = 11,385 → "11,39").
+//
+//   El markup se aplica a: precio unitario de línea, subtotal de línea y
+//   total — nunca se escribe de vuelta en Shopify (puramente cosmético en
+//   el PDF, igual que en el tema).
 //
 // Logo (ver informe de recon): sections/b2b-solicitud-detalle.liquid usa
 // 'logo-ledsc4.svg' (asset del tema, SVG). pdf-lib NO puede incrustar SVG
@@ -296,18 +329,38 @@ interface OfferLine {
   variantTitle: string | null;
   sku: string | null;
   quantity: number;
-  unitAmount: number;
-  lineAmount: number;
+  // Importes CRUDOS (precio distribuidor, sin markup) — el ×markup se
+  // aplica solo al formatear para render, nunca se guarda ya multiplicado
+  // (mismo criterio que el frontend: cada nodo se calcula de forma
+  // independiente en el momento de pintar).
+  unitAmountRaw: number;
+  lineAmountRaw: number;
   currencyCode: string;
   imageUrl: string | null;
 }
 
-function fmtMoney(amount: number, currency: string): string {
+// Mismo mapa que SYMBOLS en assets/ledsc4-currency-display.js.
+const CURRENCY_SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
+
+// Réplica EXACTA de `formatAmount()` en assets/ledsc4-currency-display.js
+// — mismo orden de operaciones (multiplicar, luego redondear a 2 decimales
+// con toLocaleString('es-ES', ...)), mismo formato de salida
+// ("<número> <símbolo>"). NO es una fórmula nueva: es la misma función,
+// puerto 1:1. `rate` se omite porque el draft siempre está en EUR (rate=1
+// por diseño — ver CLAUDE.md "Currency cosmético"); si currencyCode no
+// fuera EUR (no debería pasar nunca en un draft real) cae al símbolo de
+// ese código igualmente, sin conversión de tasa (no hay tasa que aplicar
+// aquí, igual que el frontend no la aplicaría para currency==='EUR').
+function formatFrontendStyle(amountEur: number, markup: number, currencyCode: string): string {
+  const value = amountEur * markup;
+  let formatted: string;
   try {
-    return new Intl.NumberFormat("es-ES", { style: "currency", currency }).format(amount);
+    formatted = value.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   } catch {
-    return `${amount.toFixed(2)} ${currency}`;
+    formatted = value.toFixed(2);
   }
+  const sym = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
+  return `${formatted} ${sym}`;
 }
 
 function fmtDate(iso: string): string {
@@ -393,11 +446,12 @@ async function generateOfferPdf(params: {
   createdAtIso: string;
   status: string;
   note: string | null;
-  totalAmount: number;
+  totalAmountRaw: number;
   currencyCode: string;
+  markup: number;
   lines: OfferLine[];
 }): Promise<Uint8Array> {
-  const { name, createdAtIso, status, note, totalAmount, currencyCode, lines } = params;
+  const { name, createdAtIso, status, note, totalAmountRaw, currencyCode, markup, lines } = params;
 
   const pdfDoc = await PDFDocument.create();
   const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -494,10 +548,13 @@ async function generateOfferPdf(params: {
     const qtyStr = String(line.quantity);
     page.drawText(qtyStr, { x: COL_UDS_X, y: rowTop - 9, size: 9, font: helv, color: black });
 
-    const unitStr = fmtMoney(line.unitAmount, line.currencyCode);
+    // Cada nodo se calcula de forma independiente (importe crudo × markup,
+    // redondeado ahí mismo) — igual que el frontend, nunca a partir de un
+    // valor ya redondeado de otro nodo.
+    const unitStr = formatFrontendStyle(line.unitAmountRaw, markup, line.currencyCode);
     page.drawText(unitStr, { x: COL_PRECIO_X, y: rowTop - 9, size: 9, font: helv, color: black });
 
-    const subtotalStr = fmtMoney(line.lineAmount, line.currencyCode);
+    const subtotalStr = formatFrontendStyle(line.lineAmountRaw, markup, line.currencyCode);
     page.drawText(subtotalStr, { x: COL_SUBTOTAL_X, y: rowTop - 9, size: 9, font: helvBold, color: black });
 
     y = rowTop - ROW_HEIGHT;
@@ -510,7 +567,7 @@ async function generateOfferPdf(params: {
   // Totales — SOLO "Importe estimado". El CBM sigue oculto a propósito
   // (paso 4 del encargo, paridad con b2b-solicitud-detalle.liquid).
   const totalLabel = "Importe estimado";
-  const totalValue = fmtMoney(totalAmount, currencyCode);
+  const totalValue = formatFrontendStyle(totalAmountRaw, markup, currencyCode);
   page.drawText(totalLabel, { x: MARGIN, y, size: 12, font: helvBold, color: black });
   const totalValueWidth = helvBold.widthOfTextAtSize(totalValue, 14);
   page.drawText(totalValue, { x: PAGE_WIDTH - MARGIN - totalValueWidth, y: y - 2, size: 14, font: helvBold, color: accent });
@@ -582,6 +639,10 @@ async function handle(req: Request): Promise<Response> {
     const isInstalador = draft.customer?.tags.includes("instalador") ?? false;
     const markup = isInstalador ? MARKUP_INSTALADOR : 1;
 
+    // Importes CRUDOS (precio distribuidor tal cual está en el draft) — el
+    // ×markup se aplica solo al formatear, nunca aquí (ver comentario de
+    // cabecera: cada nodo se redondea de forma independiente, igual que el
+    // frontend, no a partir de un subtotal ya redondeado).
     const lines: OfferLine[] = draft.lineItems.edges.map((e) => {
       const n = e.node;
       const unitMoney = n.originalUnitPriceSet.presentmentMoney;
@@ -591,27 +652,29 @@ async function handle(req: Request): Promise<Response> {
         variantTitle: n.variantTitle,
         sku: n.sku,
         quantity: n.quantity,
-        unitAmount: Number.parseFloat(unitMoney.amount) * markup,
-        lineAmount: Number.parseFloat(lineMoney.amount) * markup,
+        unitAmountRaw: Number.parseFloat(unitMoney.amount),
+        lineAmountRaw: Number.parseFloat(lineMoney.amount),
         currencyCode: unitMoney.currencyCode,
         imageUrl: n.image?.url ?? null,
       };
     });
 
-    const totalAmount = Number.parseFloat(draft.totalPrice) * markup;
+    const totalAmountRaw = Number.parseFloat(draft.totalPrice);
     const currencyCode = lines[0]?.currencyCode ?? "EUR";
     const status = mapStatus(draft.tags);
 
     logJson("info", "generating_pdf", { draftOrderId, name: draft.name, isInstalador, lineCount: lines.length });
 
-    // 5. Generar PDF.
+    // 5. Generar PDF. El markup (×1,15 o ×1) se aplica dentro, al formatear
+    // cada precio — nunca antes.
     const pdfBytes = await generateOfferPdf({
       name: draft.name,
       createdAtIso: new Date().toISOString(), // fecha de generación de la oferta, no de creación del draft
       status,
       note: draft.note2,
-      totalAmount,
+      totalAmountRaw,
       currencyCode,
+      markup,
       lines,
     });
 
@@ -622,9 +685,24 @@ async function handle(req: Request): Promise<Response> {
     // 7. Escribir metafield b2b.pdf_url en el draft.
     await writePdfUrlMetafield(draft.id, pdfUrl);
 
-    logJson("info", "pdf_generated", { draftOrderId, name: draft.name, pdf_url: pdfUrl });
+    // total_oferta — para el email (Flow), no para el PDF (que ya lleva su
+    // propio total dibujado arriba). Mismo importe (total crudo × markup)
+    // que el PDF, SIEMPRE en EUR (€) — la divisa real del draft
+    // (presentmentMoney.currencyCode, igual que sections/b2b-solicitud-
+    // detalle.liquid). NO se usa el símbolo de los customAttributes
+    // "Moneda mostrada"/"Símbolo moneda": ese es solo el display cosmético
+    // que vio el cliente al enviar la solicitud, y poner $/£ sobre un
+    // importe sin conversión de tasa sería engañoso (decisión Dani
+    // 2026-07-17). Se mantiene la decisión de no aplicar FX aquí.
+    const totalOfertaValue = (totalAmountRaw * markup).toLocaleString("es-ES", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const totalOferta = `${totalOfertaValue} €`;
 
-    return jsonResponse({ startedAt, pdf_url: pdfUrl });
+    logJson("info", "pdf_generated", { draftOrderId, name: draft.name, pdf_url: pdfUrl, total_oferta: totalOferta });
+
+    return jsonResponse({ startedAt, pdf_url: pdfUrl, total_oferta: totalOferta });
   } catch (e) {
     logJson("error", "unhandled_error", { error: (e as Error).message });
     return jsonResponse({ startedAt, error: (e as Error).message }, 500);
