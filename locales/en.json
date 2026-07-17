@@ -710,15 +710,15 @@
       "keep_reading": "Still not sure? Keep reading ↓",
       "que_es": {
         "heading": "What this portal is",
-        "body_html": "LedsC4 Outlet B2B is a private wholesale portal for clearing LedsC4's surplus and discontinued stock among professionals in the sector. As an installer you join through a <strong>simplified sign-up</strong>, with no company registration required. It is independent from the public site <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C): the catalogue, the prices and your account are not shared."
+        "body_html": "A private wholesale portal for clearing LedsC4's surplus and discontinued stock, exclusively among professionals."
       },
       "como": {
         "heading": "How it works",
-        "intro_html": "Your installer account is activated <strong>automatically</strong> when you register — no manual review, no waiting. Once inside, you browse the whole catalogue at professional prices, build your selection and click <strong>“Request a quote”</strong>. You receive your quote as a PDF and, to close it, you simply <strong>get in touch with your distributor</strong>."
+        "intro_html": "You sign up, browse the catalogue at professional prices, build your selection and click “Request a quote”: you get the PDF and contact your distributor to close it."
       },
       "dentro": {
         "heading": "What you'll find inside",
-        "body_html": "Access to more than <strong>745 references</strong> of surplus, end-of-line and discontinued stock, updated weekly and at professional prices. It's not direct purchase: you prepare your selection, turn it into a downloadable PDF quote and <strong>get in touch with your distributor</strong> to place the order. Every quote is saved in your private area with its status."
+        "body_html": "Hundreds of references, updated weekly and at professional prices. You prepare your selection, download it as a PDF quote and close it with your distributor. Every quote is saved in your private area."
       },
       "faq": {
         "heading": "Frequently asked questions",
@@ -730,8 +730,13 @@
         "q3_body": "No. You browse the catalogue and prices and prepare quotes; to place the order, get in touch with your usual distributor."
       },
       "ctas_lead": "Sounds right? Sign up and start preparing your quotes. Already have an account? Go to your private area.",
+      "cta": {
+        "registrarse": "Sign up"
+      },
       "form": {
         "legend_fiscal": "Tax details",
+        "submit": "Sign up",
+        "submit_loading": "Signing up…",
         "step1_html": "<strong>Fill in your details.</strong> No company registration; the tax ID is optional.",
         "step2_html": "<strong>We send you an email</strong> with a link to activate your account.",
         "step3_html": "<strong>You get into the catalogue right away</strong>, at professional prices, and can start requesting quotes."

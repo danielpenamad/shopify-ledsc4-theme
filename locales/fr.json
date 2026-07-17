@@ -710,15 +710,15 @@
       "keep_reading": "Vous hésitez encore ? Continuez la lecture ↓",
       "que_es": {
         "heading": "Qu'est-ce que ce portail",
-        "body_html": "LedsC4 Outlet B2B est un portail de vente en gros privé destiné à écouler les stocks excédentaires et déréférencés de LedsC4 auprès des professionnels du secteur. En tant qu'installateur, vous accédez via une <strong>inscription simplifiée</strong>, sans raison sociale obligatoire. Il est indépendant du site public <a href=\"https://ledsc4.com\" rel=\"external\">ledsc4.com</a> (B2C) : ni le catalogue, ni les prix, ni le compte ne sont partagés."
+        "body_html": "Portail de vente en gros privé pour écouler les stocks excédentaires et déréférencés de LedsC4, exclusivement entre professionnels."
       },
       "como": {
         "heading": "Comment ça marche",
-        "intro_html": "Votre compte installateur est activé <strong>automatiquement</strong> dès l'inscription : sans validation manuelle ni attente. Une fois connecté, vous parcourez tout le catalogue à des prix professionnels, composez votre sélection et cliquez sur <strong>« Demander une offre »</strong>. Vous recevez votre offre en PDF et, pour la finaliser, il vous suffit de <strong>contacter votre distributeur</strong>."
+        "intro_html": "Vous vous inscrivez, parcourez le catalogue à prix professionnels, composez votre sélection et cliquez sur « Demander une offre » : vous recevez le PDF et contactez votre distributeur pour la finaliser."
       },
       "dentro": {
         "heading": "Ce que vous trouverez à l'intérieur",
-        "body_html": "Accès à plus de <strong>745 références</strong> de stocks excédentaires, de fins de série et déréférencés, mis à jour chaque semaine et à des prix professionnels. Ce n'est pas de l'achat direct : vous préparez votre sélection, la transformez en une offre téléchargeable en PDF et <strong>contactez votre distributeur</strong> pour passer commande. Chaque offre est enregistrée dans votre espace privé avec son statut."
+        "body_html": "Des centaines de références, mises à jour chaque semaine et à prix professionnels. Vous préparez votre sélection, la téléchargez en PDF et la finalisez avec votre distributeur. Chaque offre est enregistrée dans votre espace privé."
       },
       "faq": {
         "heading": "Questions fréquentes",
@@ -730,8 +730,13 @@
         "q3_body": "Non. Vous consultez le catalogue et les prix et préparez des offres ; pour passer commande, contactez votre distributeur habituel."
       },
       "ctas_lead": "Cela vous correspond ? Inscrivez-vous et commencez à préparer vos offres. Vous avez déjà un compte ? Accédez à votre espace privé.",
+      "cta": {
+        "registrarse": "S'inscrire"
+      },
       "form": {
         "legend_fiscal": "Données fiscales",
+        "submit": "S'inscrire",
+        "submit_loading": "Inscription…",
         "step1_html": "<strong>Renseignez vos données.</strong> Sans raison sociale ; le numéro fiscal est facultatif.",
         "step2_html": "<strong>Nous vous envoyons un e-mail</strong> avec un lien pour activer votre compte.",
         "step3_html": "<strong>Vous accédez au catalogue immédiatement</strong>, à des prix professionnels, et pouvez demander des offres."

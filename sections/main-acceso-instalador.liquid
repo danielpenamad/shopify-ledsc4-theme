@@ -78,7 +78,7 @@
   <div class="b2b-acceso__ctas-top">
     <div class="b2b-acceso__ctas">
       <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
-        {{ 'ledsc4.common.cta.solicitar_acceso' | t }}
+        {{ 'ledsc4.acceso_instalador.cta.registrarse' | t }}
       </a>
       <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-acceso__btn b2b-acceso__btn--secondary">
         {{ 'ledsc4.common.cta.login_existente' | t }}
@@ -127,7 +127,7 @@
     <p class="b2b-acceso__ctas-lead">{{ 'ledsc4.acceso_instalador.ctas_lead' | t }}</p>
     <div class="b2b-acceso__ctas">
       <a href="#registro" class="b2b-acceso__btn b2b-acceso__btn--primary">
-        {{ 'ledsc4.common.cta.solicitar_acceso' | t }}
+        {{ 'ledsc4.acceso_instalador.cta.registrarse' | t }}
       </a>
       <a href="/customer_authentication/login?return_to={{ login_return_to }}&locale={{ request.locale.iso_code }}" class="b2b-acceso__btn b2b-acceso__btn--secondary">
         {{ 'ledsc4.common.cta.login_existente' | t }}
@@ -326,7 +326,7 @@
         id="b2b-registro-submit"
         class="b2b-acceso__btn b2b-acceso__btn--primary b2b-acceso__btn--submit"
       >
-        <span class="b2b-acceso__btn-label">{{ 'ledsc4.acceso.form.submit' | t }}</span>
+        <span class="b2b-acceso__btn-label">{{ 'ledsc4.acceso_instalador.form.submit' | t }}</span>
         <span class="b2b-acceso__btn-spinner" aria-hidden="true" hidden></span>
       </button>
     </form>
@@ -939,8 +939,8 @@
       nif_format: {{ 'ledsc4.acceso.form.err.nif_format' | t | json }},
       terms:      {{ 'ledsc4.acceso.form.err.terms' | t | json }}
     },
-    submit:         {{ 'ledsc4.acceso.form.submit' | t | json }},
-    submit_loading: {{ 'ledsc4.acceso.form.submit_loading' | t | json }},
+    submit:         {{ 'ledsc4.acceso_instalador.form.submit' | t | json }},
+    submit_loading: {{ 'ledsc4.acceso_instalador.form.submit_loading' | t | json }},
     banner: {
       config_missing:           {{ 'ledsc4.acceso.form.banner.config_missing' | t | json }},
       email_exists_html:        {{ 'ledsc4.acceso.form.banner.email_exists_html' | t: login_url: login_url_full | json }},
