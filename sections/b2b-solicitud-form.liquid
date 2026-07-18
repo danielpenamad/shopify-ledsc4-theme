@@ -87,8 +87,8 @@
               {%- endif -%}
             </td>
             <td class="num">{{ item.quantity }}</td>
-            <td class="num">{{ item.price | money }}</td>
-            <td class="num">{{ item.line_price | money }}</td>
+            <td class="num" data-eur-amount="{{ item.price }}" data-fx-approx="1">{{ item.price | money }}</td>
+            <td class="num" data-eur-amount="{{ item.line_price }}">{{ item.line_price | money }}</td>
           </tr>
         {%- endfor -%}
       </tbody>
@@ -97,7 +97,7 @@
     <div class="b2b-solicitud__totals">
       <div class="row">
         <span>{{ 'ledsc4.solicitudes.table.importe_estimado' | t }}</span>
-        <span>{{ cart.total_price | money }}</span>
+        <span data-eur-amount="{{ cart.total_price }}" data-fx-approx="1">{{ cart.total_price | money }}</span>
       </div>
       <p class="b2b-solicitud__warn">{{ 'ledsc4.solicitudes.form.warn' | t }}</p>
     </div>
