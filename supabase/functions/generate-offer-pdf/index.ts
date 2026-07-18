@@ -94,14 +94,18 @@
 //   total — nunca se escribe de vuelta en Shopify (puramente cosmético en
 //   el PDF, igual que en el tema).
 //
-// Logo (ver informe de recon): sections/b2b-solicitud-detalle.liquid usa
-// 'logo-ledsc4.svg' (asset del tema, SVG). pdf-lib NO puede incrustar SVG
-// (solo PNG/JPG vía embedPng/embedJpg) y no hay conversor SVG→raster en
-// este runtime sin añadir una dependencia nueva. Se usa el mismo wordmark
-// de texto que ya sirve de fallback en los email templates cuando no hay
-// logo raster disponible ("LEDS C4 · Outlet", ver email-templates/01-
-// bienvenida-auto.liquid) — cero dependencias nuevas, consistente con un
-// patrón ya establecido en el repo.
+// Logo: sections/b2b-solicitud-detalle.liquid usa 'logo-ledsc4.svg' (asset
+// del tema, SVG) pero pdf-lib NO puede incrustar SVG (solo PNG/JPG vía
+// embedPng/embedJpg). En su lugar se descarga e incrusta el PNG real
+// (LOGO_URL, misma función tryEmbedImage que ya usan las miniaturas de
+// producto — reutilizado, no una descarga nueva independiente) en el
+// header, ancho fijo LOGO_WIDTH con alto proporcional (nunca se deforma:
+// se escala por el ratio real de la imagen, nunca con width+height fijos
+// distintos). Si el fetch falla o el contenido no es una imagen válida,
+// tryEmbedImage devuelve null (nunca lanza) y drawHeader() cae al wordmark
+// de texto ("LEDS C4 · Outlet", el mismo que ya sirve de fallback en los
+// email templates cuando no hay logo raster — email-templates/01-
+// bienvenida-auto.liquid) — el PDF nunca falla por el logo.
 //
 // Fuente (ver informe de recon): Helvetica estándar de pdf-lib basta — su
 // codificación WinAnsi (cp1252) ya cubre acentos españoles y € sin
@@ -494,6 +498,11 @@ async function tryEmbedImage(
   }
 }
 
+// Logo real (PNG, 800×181px) — reemplaza el wordmark de texto en el header
+// cuando la descarga funciona; ver comentario más arriba sobre el fallback.
+const LOGO_URL = "https://shop.ledsc4.com/cdn/shop/files/logo-ledsc4.png";
+const LOGO_WIDTH = 160;
+
 const PAGE_WIDTH = 595.28; // A4
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 40;
@@ -524,6 +533,10 @@ async function generateOfferPdf(params: {
   const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const helvOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
+  // Se descarga/incrusta UNA vez (el header solo se pinta en la primera
+  // página) — null si falla, drawHeader() cae al wordmark de texto.
+  const logoImage = await tryEmbedImage(pdfDoc, LOGO_URL);
+
   const gray = rgb(0.4, 0.4, 0.4);
   const black = rgb(0.08, 0.09, 0.1);
   const accent = rgb(0, 0.32, 1); // aprox var(--color-ledsc4-accent)
@@ -532,11 +545,25 @@ async function generateOfferPdf(params: {
   let y = PAGE_HEIGHT - MARGIN;
 
   function drawHeader(): void {
-    page.drawText("LEDS C4 · Outlet", { x: MARGIN, y, size: 13, font: helvBold, color: black });
     const dateLabel = fmtDate(createdAtIso);
     const dateWidth = helv.widthOfTextAtSize(dateLabel, 9);
     page.drawText(dateLabel, { x: PAGE_WIDTH - MARGIN - dateWidth, y: y + 2, size: 9, font: helv, color: gray });
-    y -= 34;
+
+    if (logoImage) {
+      // Ancho fijo, alto proporcional al ratio real de la imagen — nunca se
+      // deforma (nunca se fuerza width+height independientes).
+      const logoScale = LOGO_WIDTH / logoImage.width;
+      const logoHeight = logoImage.height * logoScale;
+      page.drawImage(logoImage, { x: MARGIN, y: y - logoHeight, width: LOGO_WIDTH, height: logoHeight });
+      // El siguiente elemento (drawTitleAndMeta) dibuja texto a 20pt cuyo
+      // ascender sube ~14pt por encima de su baseline — el padding tiene
+      // que cubrir eso + un margen visual, si no el título "sube" hasta
+      // solapar el logo (medido visualmente contra un PDF real).
+      y -= logoHeight + 26;
+    } else {
+      page.drawText("LEDS C4 · Outlet", { x: MARGIN, y, size: 13, font: helvBold, color: black });
+      y -= 34;
+    }
   }
 
   function drawTitleAndMeta(): void {

@@ -48,7 +48,12 @@ function tinyPngBytes(): Uint8Array {
   return bytes;
 }
 
-function installFetchMock(h: Handler): void {
+// URL real del logo (assets/... del theme, fuera de cdn.shopify.com) — se
+// mockea aparte para no depender de red real en los tests ni acoplar el
+// mock al dominio exacto usado en producción.
+const LOGO_URL = "https://shop.ledsc4.com/cdn/shop/files/logo-ledsc4.png";
+
+function installFetchMock(h: Handler, opts: { logoFails?: boolean } = {}): void {
   calls = [];
   handler = h;
   globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit): Promise<Response> => {
@@ -60,6 +65,11 @@ function installFetchMock(h: Handler): void {
       calls.push(call);
       const data = handler(call);
       return new Response(JSON.stringify({ data }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (url === LOGO_URL) {
+      calls.push({ kind: "image", url });
+      if (opts.logoFails) return new Response("not found", { status: 404 });
+      return new Response(tinyPngBytes() as BodyInit, { status: 200, headers: { "Content-Type": "image/png" } });
     }
     if (url.includes("cdn.shopify.com")) {
       calls.push({ kind: "image", url });
@@ -262,6 +272,44 @@ Deno.test("happy path: genera PDF, sube a Files, escribe metafield", async () =>
     assertEquals(byKey.ultima_oferta_pdf, "https://cdn.shopify.com/files/oferta-D9999.pdf");
     assertEquals(byKey.ultima_oferta_ref, "D9999");
     assertEquals(byKey.ultima_oferta_total, "100,00 €");
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test("logo: si la descarga del PNG falla, el PDF se genera igual (fallback a wordmark de texto, nunca falla)", async () => {
+  installFetchMock(
+    (call) => {
+      const query = (call.body as { query: string } | undefined)?.query ?? "";
+      if (call.kind === "graphql" && query.includes("GenerateOfferPdf")) {
+        return { draftOrder: draftOrderNode() };
+      }
+      if (call.kind === "graphql" && query.includes("StagedUploadsCreate")) {
+        return {
+          stagedUploadsCreate: {
+            stagedTargets: [{ url: "https://staged-upload.example.com/upload", resourceUrl: "https://staged-upload.example.com/resource/abc", parameters: [] }],
+            userErrors: [],
+          },
+        };
+      }
+      if (call.kind === "graphql" && query.includes("FileCreate")) {
+        return { fileCreate: { files: [{ id: "gid://shopify/GenericFile/1", fileStatus: "READY", url: "https://cdn.shopify.com/files/oferta.pdf" }], userErrors: [] } };
+      }
+      if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
+        return { metafieldsSet: { metafields: [], userErrors: [] } };
+      }
+      throw new Error("unexpected call");
+    },
+    { logoFails: true },
+  );
+  try {
+    const res = await handle(makeReq({ draftOrderId: DRAFT_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertExists(json.pdf_url);
+    // Se intentó descargar el logo (404) pero no propagó el error.
+    const logoCall = calls.find((c) => c.kind === "image" && c.url === LOGO_URL);
+    assertExists(logoCall);
   } finally {
     restoreFetch();
   }
