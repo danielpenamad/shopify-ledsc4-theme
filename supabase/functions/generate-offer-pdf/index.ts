@@ -19,17 +19,19 @@
 // Output:
 //   { "pdf_url": "https://...", "total_oferta": "1.234,56 €",
 //     "cp": "28001", "locale": "es", "utm_source": "meta",
-//     "utm_medium": "paid_social", "utm_campaign": "instalador_q3" }  (200)
+//     "utm_medium": "paid_social", "utm_campaign": "instalador_q3",
+//     "utm_term": "instalador+electricista", "utm_content": "carrusel_v2" } (200)
 //   { "error": "...", ... }                                          (4xx/5xx)
 //
 // cp/locale/utm_* son passthrough de datos de registro (Fase 1/2) para que
 // Flow arme el email sin tener que releer el customer aparte. SIEMPRE
 // string, "" (nunca null) si el metafield/campo no existe. cp y los utm_*
 // vienen de metafields `b2b.codigo_postal`/`b2b.utm_source`/`utm_medium`/
-// `utm_campaign` (namespace y claves confirmados leyendo
-// register-b2b-customer/index.ts — el CP NO es `b2b.cp`, es
-// `b2b.codigo_postal`). locale es `customer.locale` tal cual (crudo, sin
-// normalizar — Flow ya ramea con starts_with).
+// `utm_campaign`/`utm_term`/`utm_content` (namespace y claves confirmados
+// leyendo register-b2b-customer/index.ts — el CP NO es `b2b.cp`, es
+// `b2b.codigo_postal`; los 5 UTM son opcionales ahí igual que aquí). locale
+// es `customer.locale` tal cual (crudo, sin normalizar — Flow ya ramea con
+// starts_with).
 //
 // Idempotencia (paso 1): si el draft ya tiene metafield b2b.pdf_url, se
 // devuelve sin regenerar el PDF — evita duplicar en reintentos de Flow.
@@ -203,6 +205,8 @@ interface DraftOrderData {
       utmSource: { value: string } | null;
       utmMedium: { value: string } | null;
       utmCampaign: { value: string } | null;
+      utmTerm: { value: string } | null;
+      utmContent: { value: string } | null;
     } | null;
     lineItems: {
       edges: Array<{
@@ -236,6 +240,8 @@ const DRAFT_ORDER_QUERY = `
         utmSource: metafield(namespace: "b2b", key: "utm_source") { value }
         utmMedium: metafield(namespace: "b2b", key: "utm_medium") { value }
         utmCampaign: metafield(namespace: "b2b", key: "utm_campaign") { value }
+        utmTerm: metafield(namespace: "b2b", key: "utm_term") { value }
+        utmContent: metafield(namespace: "b2b", key: "utm_content") { value }
       }
       lineItems(first: 100) {
         edges {
@@ -779,7 +785,17 @@ async function handle(req: Request): Promise<Response> {
     const utmSource = customer?.utmSource?.value ?? "";
     const utmMedium = customer?.utmMedium?.value ?? "";
     const utmCampaign = customer?.utmCampaign?.value ?? "";
-    const passthrough = { cp, locale, utm_source: utmSource, utm_medium: utmMedium, utm_campaign: utmCampaign };
+    const utmTerm = customer?.utmTerm?.value ?? "";
+    const utmContent = customer?.utmContent?.value ?? "";
+    const passthrough = {
+      cp,
+      locale,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
+      utm_term: utmTerm,
+      utm_content: utmContent,
+    };
 
     // Markup instalador — cosmético, calculado aquí (ver comentario de
     // cabecera). NUNCA se escribe de vuelta en Shopify.
