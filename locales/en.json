@@ -734,6 +734,7 @@
         "registrarse": "Sign up"
       },
       "form": {
+        "heading": "Sign up",
         "legend_fiscal": "Tax details",
         "submit": "Sign up",
         "submit_loading": "Signing up…",

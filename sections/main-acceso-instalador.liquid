@@ -147,7 +147,7 @@
   {%- assign register_hmac_sig = register_hmac_payload | hmac_sha256: shop.metafields.b2b.hmac_secret.value -%}
 
   <section id="registro" class="b2b-acceso__form-block" aria-labelledby="b2b-acceso-instalador-form-heading">
-    <h2 id="b2b-acceso-instalador-form-heading" class="b2b-acceso__h2">{{ 'ledsc4.acceso.form.heading' | t }}</h2>
+    <h2 id="b2b-acceso-instalador-form-heading" class="b2b-acceso__h2">{{ 'ledsc4.acceso_instalador.form.heading' | t }}</h2>
     <ol class="b2b-acceso__form-steps">
       <li>{{ 'ledsc4.acceso_instalador.form.step1_html' | t }}</li>
       <li>{{ 'ledsc4.acceso_instalador.form.step2_html' | t }}</li>

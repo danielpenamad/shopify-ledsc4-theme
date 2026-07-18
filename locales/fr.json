@@ -734,6 +734,7 @@
         "registrarse": "S'inscrire"
       },
       "form": {
+        "heading": "S'inscrire",
         "legend_fiscal": "Données fiscales",
         "submit": "S'inscrire",
         "submit_loading": "Inscription…",

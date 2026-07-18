@@ -907,6 +907,7 @@
         "registrarse": "Registrarse"
       },
       "form": {
+        "heading": "Registrarse",
         "legend_fiscal": "Datos fiscales",
         "submit": "Registrarse",
         "submit_loading": "Registrando…",
