@@ -21,6 +21,10 @@ Deno.env.set("GENERATE_OFFER_PDF_WEBHOOK_SECRET", "test_webhook_secret");
 
 const mod = await import("./index.ts");
 const handle: (req: Request) => Promise<Response> = mod.handle;
+const computeOfferAmounts: (
+  lines: Array<{ title: string; variantTitle: string | null; sku: string | null; quantity: number; unitAmountRaw: number; currencyCode: string; imageUrl: string | null }>,
+  markup: number,
+) => { lines: Array<{ quantity: number; unitRounded: number; lineSubtotalRounded: number }>; totalRounded: number } = mod.computeOfferAmounts;
 
 const SECRET = "test_webhook_secret";
 const DRAFT_GID = "gid://shopify/DraftOrder/999";
@@ -126,7 +130,6 @@ function draftOrderNode(overrides: Record<string, unknown> = {}) {
             sku: "SKU-1",
             quantity: 2,
             originalUnitPriceSet: { presentmentMoney: { amount: "50.00", currencyCode: "EUR" } },
-            discountedTotalSet: { presentmentMoney: { amount: "100.00", currencyCode: "EUR" } },
             image: { url: "https://cdn.shopify.com/fake.png" },
           },
         },
@@ -342,7 +345,6 @@ Deno.test("markup instalador: ×1.15 solo si el customer tiene tag instalador, c
                 sku: "SKU-1",
                 quantity: 1,
                 originalUnitPriceSet: { presentmentMoney: { amount: "9.90", currencyCode: "EUR" } },
-                discountedTotalSet: { presentmentMoney: { amount: "9.90", currencyCode: "EUR" } },
                 image: null,
               },
             }],
@@ -422,14 +424,25 @@ Deno.test("total_oferta ignora el símbolo cosmético de customAttributes (siemp
   }
 });
 
-Deno.test("sin tag instalador: total_oferta NO lleva markup (mismo valor que el draft)", async () => {
+Deno.test("sin tag instalador: total_oferta NO lleva markup (mismo valor que la suma de líneas)", async () => {
   installFetchMock((call) => {
     const query = (call.body as { query: string } | undefined)?.query ?? "";
     if (call.kind === "graphql" && query.includes("GenerateOfferPdf")) {
       return {
         draftOrder: draftOrderNode({
-          totalPrice: "9.90",
           customer: { id: "gid://shopify/Customer/1", tags: ["aprobado"] }, // sin 'instalador'
+          lineItems: {
+            edges: [{
+              node: {
+                title: "Producto de prueba",
+                variantTitle: "Default Title",
+                sku: "SKU-1",
+                quantity: 1,
+                originalUnitPriceSet: { presentmentMoney: { amount: "9.90", currencyCode: "EUR" } },
+                image: null,
+              },
+            }],
+          },
         }),
       };
     }
@@ -502,6 +515,105 @@ Deno.test("draft sin customer asociado: no falla, salta la escritura de 'última
     const vars = (setCall!.body as { variables: { metafields: Array<Record<string, unknown>> } }).variables;
     assertEquals(vars.metafields.length, 1);
     assertEquals(vars.metafields[0].key, "pdf_url");
+  } finally {
+    restoreFetch();
+  }
+});
+
+// Mismo redondeo que usa el módulo internamente (roundToCents) — NO usa
+// toFixed(2), que tiene un bug de redondeo en casos de empate por
+// imprecisión de coma flotante (ver comentario en index.ts).
+function roundTo2(v: number): number {
+  return Number.parseFloat(v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }));
+}
+
+Deno.test("coherencia aritmética: unitario × cantidad == subtotal, y suma de subtotales == total (bug real #D35)", () => {
+  // Caso real que expuso el bug (2026-07-19): unit distribuidor 9,85 €,
+  // markup instalador ×1,15. ANTES del fix, PDF mostraba
+  // "11,33 € × 8 uds = 90,62 €" — pero 11,33 × 8 = 90,64 €, no 90,62 €
+  // (el subtotal se redondeaba por separado desde el importe crudo de
+  // línea, no desde el unitario ya redondeado). Segunda línea con
+  // cantidad/precio distintos para probar que la suma es genuina (no un
+  // caso trivial de una sola línea).
+  const lines = [
+    { title: "A", variantTitle: null, sku: "A", quantity: 8, unitAmountRaw: 9.85, currencyCode: "EUR", imageUrl: null },
+    { title: "B", variantTitle: null, sku: "B", quantity: 3, unitAmountRaw: 14.0, currencyCode: "EUR", imageUrl: null },
+  ];
+  const { lines: computed, totalRounded } = computeOfferAmounts(lines, 1.15);
+
+  for (const line of computed) {
+    // unitario × cantidad == subtotal impreso, EXACTO — no solo "cerca".
+    assertEquals(roundTo2(line.unitRounded * line.quantity), line.lineSubtotalRounded);
+  }
+  const sumOfSubtotals = roundTo2(computed.reduce((sum, l) => sum + l.lineSubtotalRounded, 0));
+  assertEquals(sumOfSubtotals, totalRounded);
+
+  // Valores concretos del caso real: 9,85 × 1,15 -> 11,33; × 8 -> 90,64
+  // (no 90,62, el valor incoherente que mostraba el bug).
+  assertEquals(computed[0].unitRounded, 11.33);
+  assertEquals(computed[0].lineSubtotalRounded, 90.64);
+  assertEquals(computed[1].unitRounded, 16.1);
+  assertEquals(computed[1].lineSubtotalRounded, 48.3);
+  assertEquals(totalRounded, 138.94);
+});
+
+Deno.test("coherencia aritmética end-to-end: total_oferta (email) sale del MISMO cálculo que el PDF, nunca discrepan", async () => {
+  installFetchMock((call) => {
+    const query = (call.body as { query: string } | undefined)?.query ?? "";
+    if (call.kind === "graphql" && query.includes("GenerateOfferPdf")) {
+      return {
+        draftOrder: draftOrderNode({
+          customer: { id: "gid://shopify/Customer/1", tags: ["aprobado", "instalador"] },
+          lineItems: {
+            edges: [
+              {
+                node: {
+                  title: "Hide Round Ø140mm",
+                  variantTitle: null,
+                  sku: "PX-0534-ANT",
+                  quantity: 8,
+                  originalUnitPriceSet: { presentmentMoney: { amount: "9.85", currencyCode: "EUR" } },
+                  image: null,
+                },
+              },
+              {
+                node: {
+                  title: "Producto B",
+                  variantTitle: null,
+                  sku: "B",
+                  quantity: 3,
+                  originalUnitPriceSet: { presentmentMoney: { amount: "14.00", currencyCode: "EUR" } },
+                  image: null,
+                },
+              },
+            ],
+          },
+        }),
+      };
+    }
+    if (call.kind === "graphql" && query.includes("StagedUploadsCreate")) {
+      return {
+        stagedUploadsCreate: {
+          stagedTargets: [{ url: "https://staged-upload.example.com/upload", resourceUrl: "https://staged-upload.example.com/resource/abc", parameters: [] }],
+          userErrors: [],
+        },
+      };
+    }
+    if (call.kind === "graphql" && query.includes("FileCreate")) {
+      return { fileCreate: { files: [{ id: "gid://shopify/GenericFile/1", fileStatus: "READY", url: "https://cdn.shopify.com/files/oferta.pdf" }], userErrors: [] } };
+    }
+    if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
+      return { metafieldsSet: { metafields: [], userErrors: [] } };
+    }
+    throw new Error("unexpected call");
+  });
+  try {
+    const res = await handle(makeReq({ draftOrderId: DRAFT_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    // Suma de subtotales de línea (90,64 + 48,30 = 138,94), NO
+    // draft.totalPrice*markup (que habría dado un valor distinto).
+    assertEquals(json.total_oferta, "138,94 €");
   } finally {
     restoreFetch();
   }

@@ -80,19 +80,32 @@
 //     })
 //     body = formatted + ' ' + simbolo             // "11,39 €"
 //
-//   Punto clave replicado aquí: el frontend NO reescala un total ya
-//   redondeado — cada nodo `data-eur-amount` (precio unitario, subtotal de
-//   línea, total del carrito) es una lectura independiente de céntimos que
-//   se multiplica y redondea POR SEPARADO. Esta función hace lo mismo:
-//   `formatFrontendStyle()` se llama de forma independiente para precio
-//   unitario, subtotal de línea y total — nunca suma subtotales ya
-//   redondeados. Verificado empíricamente que `toLocaleString('es-ES', …)`
-//   en Deno (V8) redondea igual que en el navegador (mismo motor, casos de
-//   empate incluidos, p.ej. 9,90 × 1,15 = 11,385 → "11,39").
+//   El precio UNITARIO de cada línea replica exactamente el nodo
+//   `data-eur-amount` del frontend: `round(unitAmountRaw × markup, 2)` vía
+//   `toLocaleString('es-ES', …)`. Verificado empíricamente que ese
+//   redondeo en Deno (V8) coincide con el navegador, casos de empate
+//   incluidos (p.ej. 9,90 × 1,15 = 11,385 → "11,39").
 //
-//   El markup se aplica a: precio unitario de línea, subtotal de línea y
-//   total — nunca se escribe de vuelta en Shopify (puramente cosmético en
-//   el PDF, igual que en el tema).
+//   Coherencia aritmética del DOCUMENTO (corrección 2026-07-19, bug real
+//   detectado en #D35: PDF mostraba "11,33 € × 8 = 90,62 €", pero
+//   11,33 × 8 = 90,64 €). El frontend redondea precio unitario/subtotal de
+//   línea/total como nodos de UI independientes porque nadie los lee "en
+//   columna" — pero un PDF SÍ se lee así, y el lector espera que
+//   unitario × cantidad dé el subtotal impreso, y que la suma de
+//   subtotales dé el total. Por eso el PDF (y SOLO el PDF — no cambia
+//   nada del frontend ni de submit-order-request) deriva en cascada desde
+//   el unitario YA redondeado, no desde importes crudos independientes:
+//     1. unitRounded  = round(unitAmountRaw × markup, 2)     — fuente única
+//     2. lineSubtotal = round(unitRounded × cantidad, 2)     — NO usa
+//        discountedTotalSet del draft
+//     3. total        = round(Σ lineSubtotal, 2)             — NO usa
+//        draft.totalPrice
+//   Ver `computeOfferAmounts()`. NUNCA se escribe de vuelta en Shopify
+//   (puramente cosmético en el PDF, igual que en el tema).
+//
+//   total_oferta (respuesta JSON / b2b.ultima_oferta_total, lo que lee el
+//   email de Flow) sale del MISMO `computeOfferAmounts()` que el PDF — no
+//   hay una segunda fórmula: PDF y email nunca pueden discrepar entre sí.
 //
 // Logo: sections/b2b-solicitud-detalle.liquid usa 'logo-ledsc4.svg' (asset
 // del tema, SVG) pero pdf-lib NO puede incrustar SVG (solo PNG/JPG vía
@@ -199,7 +212,6 @@ interface DraftOrderData {
           sku: string | null;
           quantity: number;
           originalUnitPriceSet: { presentmentMoney: { amount: string; currencyCode: string } };
-          discountedTotalSet: { presentmentMoney: { amount: string; currencyCode: string } };
           image: { url: string } | null;
         };
       }>;
@@ -233,7 +245,6 @@ const DRAFT_ORDER_QUERY = `
             sku
             quantity
             originalUnitPriceSet { presentmentMoney { amount currencyCode } }
-            discountedTotalSet { presentmentMoney { amount currencyCode } }
             image { url(transform: { maxWidth: 96, maxHeight: 96 }) }
           }
         }
@@ -399,12 +410,21 @@ interface OfferLine {
   variantTitle: string | null;
   sku: string | null;
   quantity: number;
-  // Importes CRUDOS (precio distribuidor, sin markup) — el ×markup se
-  // aplica solo al formatear para render, nunca se guarda ya multiplicado
-  // (mismo criterio que el frontend: cada nodo se calcula de forma
-  // independiente en el momento de pintar).
+  // Importe CRUDO (precio distribuidor, sin markup) — fuente única para el
+  // precio unitario. El resto (subtotal de línea, total) se DERIVA del
+  // unitario ya redondeado, ver computeOfferAmounts().
   unitAmountRaw: number;
-  lineAmountRaw: number;
+  currencyCode: string;
+  imageUrl: string | null;
+}
+
+interface ComputedLine {
+  title: string;
+  variantTitle: string | null;
+  sku: string | null;
+  quantity: number;
+  unitRounded: number;
+  lineSubtotalRounded: number;
   currencyCode: string;
   imageUrl: string | null;
 }
@@ -412,25 +432,56 @@ interface OfferLine {
 // Mismo mapa que SYMBOLS en assets/ledsc4-currency-display.js.
 const CURRENCY_SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
 
-// Réplica EXACTA de `formatAmount()` en assets/ledsc4-currency-display.js
-// — mismo orden de operaciones (multiplicar, luego redondear a 2 decimales
-// con toLocaleString('es-ES', ...)), mismo formato de salida
-// ("<número> <símbolo>"). NO es una fórmula nueva: es la misma función,
-// puerto 1:1. `rate` se omite porque el draft siempre está en EUR (rate=1
-// por diseño — ver CLAUDE.md "Currency cosmético"); si currencyCode no
-// fuera EUR (no debería pasar nunca en un draft real) cae al símbolo de
-// ese código igualmente, sin conversión de tasa (no hay tasa que aplicar
-// aquí, igual que el frontend no la aplicaría para currency==='EUR').
-function formatFrontendStyle(amountEur: number, markup: number, currencyCode: string): string {
-  const value = amountEur * markup;
-  let formatted: string;
-  try {
-    formatted = value.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  } catch {
-    formatted = value.toFixed(2);
-  }
+// Redondeo a 2 decimales — devuelve el NÚMERO (no un string), para poder
+// seguir operando con él (unitario_redondeado × cantidad). OJO: NO usar
+// `value.toFixed(2)` aquí — tiene un bug conocido de redondeo en casos de
+// empate por imprecisión de coma flotante (9,90 × 1,15 = 11.385 en binario
+// es en realidad 11.384999999999998..., así que toFixed da "11.38", pero
+// `toLocaleString`/Intl SÍ redondea correctamente a "11,39", que es lo que
+// muestra el frontend — verificado empíricamente, ver comentario de
+// cabecera). Formateamos con locale 'en-US' (mismo motor Intl que
+// 'es-ES', el redondeo numérico no depende del locale — solo cambia el
+// separador decimal) para poder re-parsear el resultado con
+// Number.parseFloat sin lidiar con comas.
+function roundToCents(value: number): number {
+  const formatted = value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  });
+  return Number.parseFloat(formatted);
+}
+
+function formatEur(amount: number, currencyCode: string): string {
   const sym = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
+  const formatted = amount.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${formatted} ${sym}`;
+}
+
+// Fuente única de verdad para los importes de la oferta — usada TANTO por
+// el PDF (generateOfferPdf) COMO por total_oferta (respuesta JSON /
+// b2b.ultima_oferta_total): PDF y email nunca pueden discrepar entre sí.
+// Ver comentario de cabecera "Coherencia aritmética del documento".
+function computeOfferAmounts(
+  lines: OfferLine[],
+  markup: number,
+): { lines: ComputedLine[]; totalRounded: number } {
+  const computedLines: ComputedLine[] = lines.map((line) => {
+    const unitRounded = roundToCents(line.unitAmountRaw * markup);
+    const lineSubtotalRounded = roundToCents(unitRounded * line.quantity);
+    return {
+      title: line.title,
+      variantTitle: line.variantTitle,
+      sku: line.sku,
+      quantity: line.quantity,
+      unitRounded,
+      lineSubtotalRounded,
+      currencyCode: line.currencyCode,
+      imageUrl: line.imageUrl,
+    };
+  });
+  const totalRounded = roundToCents(computedLines.reduce((sum, l) => sum + l.lineSubtotalRounded, 0));
+  return { lines: computedLines, totalRounded };
 }
 
 function fmtDate(iso: string): string {
@@ -521,12 +572,11 @@ async function generateOfferPdf(params: {
   createdAtIso: string;
   status: string;
   note: string | null;
-  totalAmountRaw: number;
+  totalRounded: number;
   currencyCode: string;
-  markup: number;
-  lines: OfferLine[];
+  lines: ComputedLine[];
 }): Promise<Uint8Array> {
-  const { name, createdAtIso, status, note, totalAmountRaw, currencyCode, markup, lines } = params;
+  const { name, createdAtIso, status, note, totalRounded, currencyCode, lines } = params;
 
   const pdfDoc = await PDFDocument.create();
   const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -641,13 +691,12 @@ async function generateOfferPdf(params: {
     const qtyStr = String(line.quantity);
     page.drawText(qtyStr, { x: COL_UDS_X, y: rowTop - 9, size: 9, font: helv, color: black });
 
-    // Cada nodo se calcula de forma independiente (importe crudo × markup,
-    // redondeado ahí mismo) — igual que el frontend, nunca a partir de un
-    // valor ya redondeado de otro nodo.
-    const unitStr = formatFrontendStyle(line.unitAmountRaw, markup, line.currencyCode);
+    // unitRounded/lineSubtotalRounded ya vienen calculados en cascada
+    // desde computeOfferAmounts() — aquí solo se formatean para imprimir.
+    const unitStr = formatEur(line.unitRounded, line.currencyCode);
     page.drawText(unitStr, { x: COL_PRECIO_X, y: rowTop - 9, size: 9, font: helv, color: black });
 
-    const subtotalStr = formatFrontendStyle(line.lineAmountRaw, markup, line.currencyCode);
+    const subtotalStr = formatEur(line.lineSubtotalRounded, line.currencyCode);
     page.drawText(subtotalStr, { x: COL_SUBTOTAL_X, y: rowTop - 9, size: 9, font: helvBold, color: black });
 
     y = rowTop - ROW_HEIGHT;
@@ -660,7 +709,7 @@ async function generateOfferPdf(params: {
   // Totales — SOLO "Importe estimado". El CBM sigue oculto a propósito
   // (paso 4 del encargo, paridad con b2b-solicitud-detalle.liquid).
   const totalLabel = "Importe estimado";
-  const totalValue = formatFrontendStyle(totalAmountRaw, markup, currencyCode);
+  const totalValue = formatEur(totalRounded, currencyCode);
   page.drawText(totalLabel, { x: MARGIN, y, size: 12, font: helvBold, color: black });
   const totalValueWidth = helvBold.widthOfTextAtSize(totalValue, 14);
   page.drawText(totalValue, { x: PAGE_WIDTH - MARGIN - totalValueWidth, y: y - 2, size: 14, font: helvBold, color: accent });
@@ -736,12 +785,29 @@ async function handle(req: Request): Promise<Response> {
     // cabecera). NUNCA se escribe de vuelta en Shopify.
     const isInstalador = customer?.tags.includes("instalador") ?? false;
     const markup = isInstalador ? MARKUP_INSTALADOR : 1;
-    const totalAmountRaw = Number.parseFloat(draft.totalPrice);
-    const totalOfertaValue = (totalAmountRaw * markup).toLocaleString("es-ES", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+
+    // Importe CRUDO por línea (precio distribuidor) — la extracción es
+    // barata (solo mapea datos ya traídos por la query, sin red extra), así
+    // que se hace SIEMPRE, incluso en el camino idempotente: total_oferta
+    // tiene que salir del mismo computeOfferAmounts() que el PDF, se
+    // regenere o no el PDF en esta invocación (ver comentario de cabecera
+    // "Coherencia aritmética del documento" — PDF y email nunca discrepan).
+    const lines: OfferLine[] = draft.lineItems.edges.map((e) => {
+      const n = e.node;
+      const unitMoney = n.originalUnitPriceSet.presentmentMoney;
+      return {
+        title: n.title,
+        variantTitle: n.variantTitle,
+        sku: n.sku,
+        quantity: n.quantity,
+        unitAmountRaw: Number.parseFloat(unitMoney.amount),
+        currencyCode: unitMoney.currencyCode,
+        imageUrl: n.image?.url ?? null,
+      };
     });
-    const totalOferta = `${totalOfertaValue} €`;
+    const currencyCode = lines[0]?.currencyCode ?? "EUR";
+    const { lines: computedLines, totalRounded } = computeOfferAmounts(lines, markup);
+    const totalOferta = `${totalRounded.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
     // 4. Idempotencia: si ya hay PDF, devolverlo sin regenerar — pero
     // reescribiendo igualmente "última oferta" en el customer, para que un
@@ -756,42 +822,21 @@ async function handle(req: Request): Promise<Response> {
       return jsonResponse({ startedAt, pdf_url: existingUrl, total_oferta: totalOferta, ...passthrough });
     }
 
-    // Importes CRUDOS (precio distribuidor tal cual está en el draft) — el
-    // ×markup se aplica solo al formatear, nunca aquí (ver comentario de
-    // cabecera: cada nodo se redondea de forma independiente, igual que el
-    // frontend, no a partir de un subtotal ya redondeado).
-    const lines: OfferLine[] = draft.lineItems.edges.map((e) => {
-      const n = e.node;
-      const unitMoney = n.originalUnitPriceSet.presentmentMoney;
-      const lineMoney = n.discountedTotalSet.presentmentMoney;
-      return {
-        title: n.title,
-        variantTitle: n.variantTitle,
-        sku: n.sku,
-        quantity: n.quantity,
-        unitAmountRaw: Number.parseFloat(unitMoney.amount),
-        lineAmountRaw: Number.parseFloat(lineMoney.amount),
-        currencyCode: unitMoney.currencyCode,
-        imageUrl: n.image?.url ?? null,
-      };
-    });
-
-    const currencyCode = lines[0]?.currencyCode ?? "EUR";
     const status = mapStatus(draft.tags);
 
     logJson("info", "generating_pdf", { draftOrderId, name: draft.name, isInstalador, lineCount: lines.length });
 
-    // 5. Generar PDF. El markup (×1,15 o ×1) se aplica dentro, al formatear
-    // cada precio — nunca antes.
+    // 5. Generar PDF. unitRounded/lineSubtotalRounded/totalRounded ya
+    // vienen calculados en cascada por computeOfferAmounts() — el markup
+    // no se vuelve a aplicar aquí.
     const pdfBytes = await generateOfferPdf({
       name: draft.name,
       createdAtIso: new Date().toISOString(), // fecha de generación de la oferta, no de creación del draft
       status,
       note: draft.note2,
-      totalAmountRaw,
+      totalRounded,
       currencyCode,
-      markup,
-      lines,
+      lines: computedLines,
     });
 
     // 6. Subir a Shopify Files.
@@ -829,4 +874,4 @@ if (!Deno.env.get("GENERATE_OFFER_PDF_TEST_MODE")) {
   Deno.serve(handle);
 }
 
-export { handle };
+export { computeOfferAmounts, handle };
