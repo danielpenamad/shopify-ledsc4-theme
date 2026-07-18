@@ -20,6 +20,12 @@
   if locale_prefix == '/'
     assign locale_prefix = ''
   endif
+
+  # Fase 2 instalador (julio 2026): ver nota en main-cart-footer.liquid.
+  assign ledsc4_is_instalador = false
+  if customer and customer.tags contains 'instalador'
+    assign ledsc4_is_instalador = true
+  endif
 -%}
 
 <style>
@@ -52,8 +58,13 @@
 </style>
 
 <div class="b2b-solicitud">
-  <h1>{{ 'ledsc4.solicitudes.form.heading' | t }}</h1>
-  <p class="b2b-solicitud__lead">{{ 'ledsc4.solicitudes.form.lead' | t }}</p>
+  {%- if ledsc4_is_instalador -%}
+    <h1>{{ 'ledsc4.solicitudes.form.heading_instalador' | t }}</h1>
+    <p class="b2b-solicitud__lead">{{ 'ledsc4.solicitudes.form.lead_instalador' | t }}</p>
+  {%- else -%}
+    <h1>{{ 'ledsc4.solicitudes.form.heading' | t }}</h1>
+    <p class="b2b-solicitud__lead">{{ 'ledsc4.solicitudes.form.lead' | t }}</p>
+  {%- endif -%}
 
   {%- if cart.item_count == 0 -%}
     <div class="b2b-solicitud__empty">
@@ -99,7 +110,13 @@
         <span>{{ 'ledsc4.solicitudes.table.importe_estimado' | t }}</span>
         <span>{{ cart.total_price | money }}</span>
       </div>
-      <p class="b2b-solicitud__warn">{{ 'ledsc4.solicitudes.form.warn' | t }}</p>
+      <p class="b2b-solicitud__warn">
+        {%- if ledsc4_is_instalador -%}
+          {{ 'ledsc4.solicitudes.form.warn_instalador' | t }}
+        {%- else -%}
+          {{ 'ledsc4.solicitudes.form.warn' | t }}
+        {%- endif -%}
+      </p>
     </div>
 
     <form id="b2b-solicitud-form" onsubmit="return false;">
@@ -119,7 +136,13 @@
       <p class="ledsc4-fx-disclaimer caption">{{ 'ledsc4.common.currency.fx_disclaimer' | t }}</p>
 
       <div class="b2b-solicitud__actions">
-        <button type="submit" id="b2b-submit" class="b2b-solicitud__submit">{{ 'ledsc4.solicitudes.form.submit' | t }}</button>
+        <button type="submit" id="b2b-submit" class="b2b-solicitud__submit">
+          {%- if ledsc4_is_instalador -%}
+            {{ 'ledsc4.solicitudes.form.submit_instalador' | t }}
+          {%- else -%}
+            {{ 'ledsc4.solicitudes.form.submit' | t }}
+          {%- endif -%}
+        </button>
         <a href="{{ routes.cart_url }}" class="b2b-solicitud__cancel">{{ 'ledsc4.solicitudes.form.cancel' | t }}</a>
       </div>
     </form>
@@ -160,7 +183,11 @@
         const CURRENCY_CODE = readDisplayCurrency();
 
         const T = {
+          {%- if ledsc4_is_instalador -%}
+          submit: {{ 'ledsc4.solicitudes.form.submit_instalador' | t | json }},
+          {%- else -%}
           submit: {{ 'ledsc4.solicitudes.form.submit' | t | json }},
+          {%- endif -%}
           submit_loading: {{ 'ledsc4.solicitudes.form.submit_loading' | t | json }},
           aviso_required: {{ 'ledsc4.solicitudes.form.js_errors.aviso_required' | t | json }},
           cart_read_failed: {{ 'ledsc4.solicitudes.form.js_errors.cart_read_failed' | t | json }},

@@ -990,15 +990,19 @@
     "solicitudes": {
       "form": {
         "heading": "Demande de commande",
+        "heading_instalador": "Demande d'offre",
         "submit_loading": "Envoi en cours…",
         "lead": "Vérifiez votre commande, ajoutez un commentaire facultatif et envoyez la demande. Notre équipe commerciale examinera votre demande et confirmera la disponibilité, les prix finaux (TVA et frais de port) et les dates dans les prochaines 48 heures ouvrables.",
+        "lead_instalador": "Vérifiez votre sélection, ajoutez un commentaire facultatif et demandez votre offre. Nous vous l'enverrons en PDF par e-mail.",
         "empty_html": "Votre panier est vide. <a href=\"/collections/coleccion-2026\">Voir le catalogue</a>.",
         "warn": "* Les prix définitifs seront confirmés par l'équipe commerciale après vérification de la disponibilité et ajustement des volumes.",
+        "warn_instalador": "* Les prix affichés correspondent à votre tarif installateur et n'incluent ni TVA ni frais de port.",
         "comentario_label": "Commentaire ou proposition. Veuillez indiquer l’adresse de livraison de votre commande",
         "comentario_placeholder": "Ex: J'ai besoin de recevoir la commande avant le 15 mai. Renseignez-vous sur les remises de volume si j'atteins X unités. Voici l’adresse de livraison de la commande",
         "comentario_hint": "",
         "aviso": "J'ai lu que le montant affiché est indicatif et ne comprend pas la TVA ni les frais de port, qui seront confirmés par l'équipe commerciale avant de traiter la commande.",
         "submit": "Confirmer et envoyer la demande",
+        "submit_instalador": "Demander l'offre",
         "cancel": "Retour au panier",
         "js_errors": {
           "aviso_required": "Vous devez cocher la case d'avertissement avant de soumettre.",
@@ -1013,9 +1017,11 @@
       "enviada": {
         "heading": "Demande envoyée",
         "thanks": "Merci, {{ name }}. Nous avons bien reçu votre demande de commande.",
+        "thanks_instalador": "Merci, {{ name }}. Nous avons bien reçu votre demande d'offre.",
         "thanks_fallback_name": "client",
         "ref_label": "Référence",
         "next": "Vous recevrez une confirmation par e-mail sous peu. Notre équipe commerciale examinera votre demande dans les prochaines 48 heures ouvrables et vous contactera pour confirmer la disponibilité, les prix finaux et les dates de livraison.",
+        "next_instalador": "Vous recevrez votre offre en PDF par e-mail dans quelques minutes. Pour passer commande, contactez votre distributeur.",
         "cta_lista": "Voir mes demandes",
         "cta_catalogo": "Retour au catalogue"
       },
@@ -1075,7 +1081,9 @@
     },
     "cart": {
       "cta_solicitud": "Envoyer une demande de commande",
-      "disclaimer": "Les prix indiqués sont indicatifs · hors TVA et frais de port · sous réserve de confirmation par notre équipe commerciale"
+      "cta_solicitud_instalador": "Demander une offre",
+      "disclaimer": "Les prix indiqués sont indicatifs · hors TVA et frais de port · sous réserve de confirmation par notre équipe commerciale",
+      "disclaimer_instalador": "Les prix affichés sont indicatifs · TVA et frais de port non inclus"
     },
     "header": {
       "brand_aria_inicio": "Accueil",

@@ -1004,14 +1004,18 @@
       },
       "form": {
         "heading": "Solicitud de pedido",
+        "heading_instalador": "Solicitud de oferta",
         "lead": "Revisa tu pedido, añade un comentario opcional y envía la solicitud. Nuestro equipo comercial revisará tu petición y confirmará disponibilidad, precios finales (IVA y portes) y fechas en las próximas 48h laborables.",
+        "lead_instalador": "Revisa tu selección, añade un comentario opcional y solicita tu oferta. Te la enviaremos en PDF por email.",
         "empty_html": "Tu carrito está vacío. <a href=\"/collections/coleccion-2026\">Ver catálogo</a>.",
         "warn": "* Los precios definitivos los confirmará el equipo comercial tras revisar disponibilidad y ajustes de volumen.",
+        "warn_instalador": "* Los precios mostrados corresponden a tu tarifa de instalador y no incluyen IVA ni portes.",
         "comentario_label": "Comentario o propuesta. Por favor, incluye la dirección de envío de tu pedido",
         "comentario_placeholder": "Ej: Necesito recibir el pedido antes del 15 de mayo. Pregúntame por descuento por volumen si llego a X unidades. Os dejo la dirección de envío del pedido",
         "comentario_hint": "",
         "aviso": "He leído que el importe mostrado es orientativo y no incluye IVA ni costes de envío, que se confirmarán por el equipo comercial antes de procesar el pedido.",
         "submit": "Confirmar y enviar solicitud",
+        "submit_instalador": "Solicitar oferta",
         "submit_loading": "Enviando…",
         "cancel": "Volver al carrito",
         "js_errors": {
@@ -1055,9 +1059,11 @@
       "enviada": {
         "heading": "Solicitud enviada",
         "thanks": "Gracias, {{ name }}. Hemos recibido tu solicitud de pedido.",
+        "thanks_instalador": "Gracias, {{ name }}. Hemos recibido tu solicitud de oferta.",
         "thanks_fallback_name": "cliente",
         "ref_label": "Referencia",
         "next": "Recibirás una confirmación por email en breve. Nuestro equipo comercial revisará tu solicitud en las próximas 48h laborables y se pondrá en contacto contigo para confirmar disponibilidad, precios finales y fechas de entrega.",
+        "next_instalador": "Recibirás tu oferta en PDF por email en unos minutos. Para tramitar el pedido, ponte en contacto con tu distribuidor.",
         "cta_lista": "Ver mis solicitudes",
         "cta_catalogo": "Volver al catálogo"
       },
@@ -1076,7 +1082,9 @@
     },
     "cart": {
       "cta_solicitud": "Enviar solicitud de pedido",
-      "disclaimer": "Los precios mostrados son orientativos · no incluyen IVA ni portes · sujeto a confirmación por nuestro equipo comercial"
+      "cta_solicitud_instalador": "Solicitar oferta",
+      "disclaimer": "Los precios mostrados son orientativos · no incluyen IVA ni portes · sujeto a confirmación por nuestro equipo comercial",
+      "disclaimer_instalador": "Los precios mostrados son orientativos · no incluyen IVA ni portes"
     },
     "account": {
       "dashboard": {

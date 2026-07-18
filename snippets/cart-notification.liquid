@@ -15,6 +15,12 @@
   if locale_prefix == '/'
     assign locale_prefix = ''
   endif
+
+  # Fase 2 instalador (julio 2026): ver nota en main-cart-footer.liquid.
+  assign ledsc4_is_instalador = false
+  if customer and customer.tags contains 'instalador'
+    assign ledsc4_is_instalador = true
+  endif
 -%}
 
 <cart-notification>
@@ -53,7 +59,11 @@
         </a>
         {%- comment -%}B2B override (Fase D): link al flujo de solicitud.{%- endcomment -%}
         <a href="{{ locale_prefix }}/pages/solicitud" class="button button--primary button--full-width">
-          {{ 'ledsc4.cart.cta_solicitud' | t }}
+          {%- if ledsc4_is_instalador -%}
+            {{ 'ledsc4.cart.cta_solicitud_instalador' | t }}
+          {%- else -%}
+            {{ 'ledsc4.cart.cta_solicitud' | t }}
+          {%- endif -%}
         </a>
         <button type="button" class="link button-label">{{ 'general.continue_shopping' | t }}</button>
       </div>

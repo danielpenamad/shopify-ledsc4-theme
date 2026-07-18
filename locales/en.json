@@ -831,14 +831,18 @@
       },
       "form": {
         "heading": "Purchase order",
+        "heading_instalador": "Quote request",
         "lead": "Review your order, add an optional comment, and send the request. Our sales team will review your request and confirm availability, final prices (VAT and shipping), and dates within the next 48 business hours.",
+        "lead_instalador": "Review your selection, add an optional comment and request your quote. We'll email it to you as a PDF.",
         "empty_html": "Your cart is empty. <a href=\"/collections/coleccion-2026\">View catalog</a>.",
         "warn": "* The sales team will confirm final pricing after reviewing availability and volume adjustments.",
+        "warn_instalador": "* Prices shown correspond to your installer rate and do not include VAT or shipping.",
         "comentario_label": "Comment or proposal. Please include the shipping address for your order",
         "comentario_placeholder": "E.g.: I need to receive the order before May 15th. Ask me about a volume discount if I reach X units. Here is the shipping address for the order",
         "comentario_hint": "",
         "aviso": "I have read that the amount shown is indicative and does not include VAT or shipping costs, which will be confirmed by the sales team before processing the order.",
         "submit": "Confirm and submit application",
+        "submit_instalador": "Request quote",
         "submit_loading": "Sending…",
         "cancel": "Return to cart",
         "js_errors": {
@@ -882,9 +886,11 @@
       "enviada": {
         "heading": "Request submitted",
         "thanks": "Thank you, {{ name }}. We have received your order request.",
+        "thanks_instalador": "Thank you, {{ name }}. We have received your quote request.",
         "thanks_fallback_name": "client",
         "ref_label": "Reference",
         "next": "You will receive an email confirmation shortly. Our sales team will review your request within the next 48 business hours and will contact you to confirm availability, final prices, and delivery dates.",
+        "next_instalador": "You'll receive your quote as a PDF by email in a few minutes. To place the order, please contact your distributor.",
         "cta_lista": "View my requests",
         "cta_catalogo": "Back to catalog"
       },
@@ -1075,7 +1081,9 @@
     },
     "cart": {
       "cta_solicitud": "Send purchase order request",
-      "disclaimer": "The prices shown are approximate · do not include VAT or shipping · subject to confirmation by our sales team"
+      "cta_solicitud_instalador": "Request a quote",
+      "disclaimer": "The prices shown are approximate · do not include VAT or shipping · subject to confirmation by our sales team",
+      "disclaimer_instalador": "Prices shown are indicative · VAT and shipping not included"
     },
     "account": {
       "dashboard": {
