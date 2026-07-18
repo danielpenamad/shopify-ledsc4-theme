@@ -120,6 +120,8 @@ function draftOrderNode(overrides: Record<string, unknown> = {}) {
       utmSource: { value: "meta" },
       utmMedium: { value: "paid_social" },
       utmCampaign: { value: "instalador_q3" },
+      utmTerm: { value: "instalador+electricista" },
+      utmContent: { value: "carrusel_v2" },
     },
     lineItems: {
       edges: [
@@ -187,6 +189,8 @@ Deno.test("idempotencia: si ya hay pdf_url, lo devuelve sin regenerar (pero rees
     assertEquals(json.utm_source, "meta");
     assertEquals(json.utm_medium, "paid_social");
     assertEquals(json.utm_campaign, "instalador_q3");
+    assertEquals(json.utm_term, "instalador+electricista");
+    assertEquals(json.utm_content, "carrusel_v2");
     // NO debe subir PDF ni tocar el metafield b2b.pdf_url del draft (ya
     // existe) — pero SÍ debe reescribir "última oferta" en el customer, para
     // que un reintento sobre un draft ya procesado no lo deje desfasado.
@@ -249,6 +253,8 @@ Deno.test("happy path: genera PDF, sube a Files, escribe metafield", async () =>
     assertEquals(json.utm_source, "meta");
     assertEquals(json.utm_medium, "paid_social");
     assertEquals(json.utm_campaign, "instalador_q3");
+    assertEquals(json.utm_term, "instalador+electricista");
+    assertEquals(json.utm_content, "carrusel_v2");
 
     const uploadCall = calls.find((c) => c.kind === "staged_upload");
     assertExists(uploadCall);
@@ -474,6 +480,8 @@ Deno.test("sin tag instalador: total_oferta NO lleva markup (mismo valor que la 
     assertEquals(json.utm_source, "");
     assertEquals(json.utm_medium, "");
     assertEquals(json.utm_campaign, "");
+    assertEquals(json.utm_term, "");
+    assertEquals(json.utm_content, "");
   } finally {
     restoreFetch();
   }
@@ -507,6 +515,8 @@ Deno.test("draft sin customer asociado: no falla, salta la escritura de 'última
     const json = await res.json();
     assertEquals(json.cp, "");
     assertEquals(json.locale, "");
+    assertEquals(json.utm_term, "");
+    assertEquals(json.utm_content, "");
     // El metafieldsSet SÍ se llama (sigue escribiendo b2b.pdf_url en el
     // draft) pero solo con esa entrada — sin customer no hay a quién
     // escribirle "última oferta".
