@@ -539,7 +539,11 @@
             LedsC4. Ver clave locale ledsc4.checkout.disclaimers.body_html.
           {%- endcomment -%}
           <div class="tax-note caption-large rte">
-            {{ 'ledsc4.checkout.disclaimers.body_html' | t }}
+            {%- if ledsc4_is_instalador -%}
+              {{ 'ledsc4.checkout.disclaimers.body_html_instalador' | t }}
+            {%- else -%}
+              {{ 'ledsc4.checkout.disclaimers.body_html' | t }}
+            {%- endif -%}
           </div>
         </div>
 

@@ -14,6 +14,14 @@
 {% # theme-check-disable %}
 {%- assign items_in_cart = cart | line_items_for: product | sum: 'quantity' -%}
 {% # theme-check-enable %}
+
+{%- comment -%}
+  Fase 2 instalador (julio 2026): ver nota en main-cart-footer.liquid.
+{%- endcomment -%}
+{%- assign ledsc4_is_instalador = false -%}
+{%- if customer and customer.tags contains 'instalador' -%}
+  {%- assign ledsc4_is_instalador = true -%}
+{%- endif -%}
 <div class="quick-order-list-container color-{{ section.settings.color_scheme }}{% unless is_modal %} gradient{% endunless %}">
   <quick-order-list
     class="page-width section-{{ section.id }}-padding"
@@ -188,7 +196,11 @@
               comerciales LedsC4. Ver ledsc4.checkout.disclaimers.body_html.
             {%- endcomment -%}
             <div class="tax-note caption-large rte">
-              {{ 'ledsc4.checkout.disclaimers.body_html' | t }}
+              {%- if ledsc4_is_instalador -%}
+                {{ 'ledsc4.checkout.disclaimers.body_html_instalador' | t }}
+              {%- else -%}
+                {{ 'ledsc4.checkout.disclaimers.body_html' | t }}
+              {%- endif -%}
             </div>
           </div>
           <div class="quick-order-list-total__column large-up-hide">
