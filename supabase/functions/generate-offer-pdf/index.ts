@@ -38,6 +38,21 @@
 // independientes de si hace falta generar el PDF) — Flow necesita el
 // mismo shape de respuesta se procese o no el PDF en esta invocación.
 //
+// Metafields del CUSTOMER (además de b2b.pdf_url en el draft, que se
+// mantiene): las plantillas de Shopify Messaging (marketing mail) NO
+// reciben contexto de draft order — {{ draft_order.name }} llega vacío,
+// verificado — solo leen customer.metafields/shop.metafields. Por eso, en
+// cada generación (Y en el hit idempotente, para no dejarlos desfasados
+// tras un reintento) se escribe también:
+//   b2b.ultima_oferta_pdf    = pdf_url
+//   b2b.ultima_oferta_ref    = nombre del draft (draft.name, tal cual)
+//   b2b.ultima_oferta_total  = total_oferta (string ya formateado con
+//                              símbolo, NO el número crudo)
+// Se sobrescriben en cada solicitud — es "última oferta", no un historial.
+// Si el draft no tiene customer asociado (no debería pasar en un
+// solicitud-b2b real), se salta esta escritura y se loguea un warning; el
+// pdf_url del draft se escribe igual.
+//
 // total_oferta SIEMPRE en EUR (€) — la divisa real del draft
 // (presentmentMoney.currencyCode, igual que sections/b2b-solicitud-
 // detalle.liquid). NO se usa el símbolo cosmético de "Moneda mostrada"/
@@ -224,9 +239,24 @@ const DRAFT_ORDER_QUERY = `
 `;
 
 // --- 2. Metafield write ----------------------------------------------------
+//
+// Un único mutation genérico: escribe b2b.pdf_url en el DRAFT y, en el
+// mismo lote, "última oferta" (pdf/ref/total) en el CUSTOMER — las
+// plantillas de Shopify Messaging (marketing mail) NO reciben contexto de
+// draft order (verificado: {{ draft_order.name }} llega vacío), solo leen
+// customer.metafields/shop.metafields, así que el email al instalador
+// necesita estos datos colgados del customer, no solo del draft.
 
-const METAFIELDS_SET_MUTATION = `
-  mutation SetPdfUrl($metafields: [MetafieldsSetInput!]!) {
+interface MetafieldEntry {
+  ownerId: string;
+  namespace: string;
+  key: string;
+  type: string;
+  value: string;
+}
+
+const SET_OFFER_METAFIELDS_MUTATION = `
+  mutation SetOfferMetafields($metafields: [MetafieldsSetInput!]!) {
     metafieldsSet(metafields: $metafields) {
       metafields { id namespace key value }
       userErrors { field message code }
@@ -234,18 +264,25 @@ const METAFIELDS_SET_MUTATION = `
   }
 `;
 
-async function writePdfUrlMetafield(draftOrderId: string, url: string): Promise<void> {
+async function writeOfferMetafields(metafields: MetafieldEntry[]): Promise<void> {
+  if (metafields.length === 0) return;
   const data = await gql<{
     metafieldsSet: { userErrors: Array<{ field: string[] | null; message: string; code: string }> };
-  }>(METAFIELDS_SET_MUTATION, {
-    metafields: [
-      { ownerId: draftOrderId, namespace: "b2b", key: "pdf_url", type: "url", value: url },
-    ],
-  });
+  }>(SET_OFFER_METAFIELDS_MUTATION, { metafields });
   const errs = data.metafieldsSet.userErrors;
   if (errs.length > 0) {
-    throw new Error(`metafieldsSet b2b.pdf_url errors: ${JSON.stringify(errs)}`);
+    throw new Error(`metafieldsSet errors: ${JSON.stringify(errs)}`);
   }
+}
+
+// "Última oferta" del customer — se SOBRESCRIBE en cada solicitud (no es un
+// historial, es un puntero al último PDF generado); comportamiento deseado.
+function customerOfferMetafields(customerId: string, pdfUrl: string, ref: string, total: string): MetafieldEntry[] {
+  return [
+    { ownerId: customerId, namespace: "b2b", key: "ultima_oferta_pdf", type: "single_line_text_field", value: pdfUrl },
+    { ownerId: customerId, namespace: "b2b", key: "ultima_oferta_ref", type: "single_line_text_field", value: ref },
+    { ownerId: customerId, namespace: "b2b", key: "ultima_oferta_total", type: "single_line_text_field", value: total },
+  ];
 }
 
 // --- 3. Staged upload + fileCreate (patrón de scripts/lib/image-upload.mjs, adaptado a Deno) ---
@@ -679,11 +716,16 @@ async function handle(req: Request): Promise<Response> {
     });
     const totalOferta = `${totalOfertaValue} €`;
 
-    // 4. Idempotencia: si ya hay PDF, devolverlo sin regenerar — pero con
-    // el mismo total_oferta/passthrough que en el camino normal.
+    // 4. Idempotencia: si ya hay PDF, devolverlo sin regenerar — pero
+    // reescribiendo igualmente "última oferta" en el customer, para que un
+    // reintento de Flow sobre un draft ya procesado no lo deje desfasado
+    // (ref/total corresponden a ESTE draft aunque el PDF ya existiera).
     const existingUrl = draft.pdfUrlMetafield?.value;
     if (existingUrl) {
       logJson("info", "idempotent_hit", { draftOrderId, pdf_url: existingUrl });
+      if (customer?.id) {
+        await writeOfferMetafields(customerOfferMetafields(customer.id, existingUrl, draft.name, totalOferta));
+      }
       return jsonResponse({ startedAt, pdf_url: existingUrl, total_oferta: totalOferta, ...passthrough });
     }
 
@@ -729,8 +771,18 @@ async function handle(req: Request): Promise<Response> {
     const filenameSafe = draft.name.replace(/[^A-Za-z0-9]/g, "");
     const pdfUrl = await uploadPdfToShopifyFiles(pdfBytes, `oferta-${filenameSafe}.pdf`);
 
-    // 7. Escribir metafield b2b.pdf_url en el draft.
-    await writePdfUrlMetafield(draft.id, pdfUrl);
+    // 7. Escribir b2b.pdf_url en el draft + "última oferta" en el customer
+    // (mismo lote de metafieldsSet — ver comentario de cabecera de la
+    // sección 2 sobre por qué el customer también necesita estos datos).
+    const metafields: MetafieldEntry[] = [
+      { ownerId: draft.id, namespace: "b2b", key: "pdf_url", type: "url", value: pdfUrl },
+    ];
+    if (customer?.id) {
+      metafields.push(...customerOfferMetafields(customer.id, pdfUrl, draft.name, totalOferta));
+    } else {
+      logJson("warn", "no_customer_for_offer_metafields", { draftOrderId });
+    }
+    await writeOfferMetafields(metafields);
 
     logJson("info", "pdf_generated", { draftOrderId, name: draft.name, pdf_url: pdfUrl, total_oferta: totalOferta });
 
