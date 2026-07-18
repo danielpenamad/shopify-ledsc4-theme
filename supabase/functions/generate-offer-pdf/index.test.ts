@@ -150,10 +150,14 @@ Deno.test("draft no encontrado (404)", async () => {
   }
 });
 
-Deno.test("idempotencia: si ya hay pdf_url, lo devuelve sin regenerar", async () => {
+Deno.test("idempotencia: si ya hay pdf_url, lo devuelve sin regenerar (pero reescribe última oferta en el customer)", async () => {
   installFetchMock((call) => {
-    if (call.kind === "graphql" && (call.body as { query: string }).query.includes("GenerateOfferPdf")) {
+    const query = (call.body as { query: string } | undefined)?.query ?? "";
+    if (call.kind === "graphql" && query.includes("GenerateOfferPdf")) {
       return { draftOrder: draftOrderNode({ pdfUrlMetafield: { value: "https://cdn.shopify.com/existing.pdf" } }) };
+    }
+    if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
+      return { metafieldsSet: { metafields: [], userErrors: [] } };
     }
     throw new Error("unexpected call: " + JSON.stringify(call));
   });
@@ -170,8 +174,19 @@ Deno.test("idempotencia: si ya hay pdf_url, lo devuelve sin regenerar", async ()
     assertEquals(json.utm_source, "meta");
     assertEquals(json.utm_medium, "paid_social");
     assertEquals(json.utm_campaign, "instalador_q3");
-    // Solo debe haber llamado al fetch del draft — nada de staged upload/fileCreate.
-    assertEquals(calls.filter((c) => c.kind === "graphql").length, 1);
+    // NO debe subir PDF ni tocar el metafield b2b.pdf_url del draft (ya
+    // existe) — pero SÍ debe reescribir "última oferta" en el customer, para
+    // que un reintento sobre un draft ya procesado no lo deje desfasado.
+    assertEquals(calls.filter((c) => c.kind === "staged_upload").length, 0);
+    const setCall = calls.find((c) => c.kind === "graphql" && (c.body as { query: string }).query.includes("SetOfferMetafields"));
+    assertExists(setCall);
+    const vars = (setCall!.body as { variables: { metafields: Array<Record<string, unknown>> } }).variables;
+    assertEquals(vars.metafields.length, 3);
+    assertEquals(vars.metafields.every((m) => m.ownerId === "gid://shopify/Customer/1"), true);
+    const byKey = Object.fromEntries(vars.metafields.map((m) => [m.key, m.value]));
+    assertEquals(byKey.ultima_oferta_pdf, "https://cdn.shopify.com/existing.pdf");
+    assertEquals(byKey.ultima_oferta_ref, "D9999");
+    assertEquals(byKey.ultima_oferta_total, "100,00 €");
   } finally {
     restoreFetch();
   }
@@ -203,7 +218,7 @@ Deno.test("happy path: genera PDF, sube a Files, escribe metafield", async () =>
         },
       };
     }
-    if (call.kind === "graphql" && query.includes("SetPdfUrl")) {
+    if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
       return { metafieldsSet: { metafields: [{ id: "1", namespace: "b2b", key: "pdf_url", value: "https://cdn.shopify.com/files/oferta-D9999.pdf" }], userErrors: [] } };
     }
     throw new Error("unexpected call: " + JSON.stringify(call));
@@ -225,15 +240,28 @@ Deno.test("happy path: genera PDF, sube a Files, escribe metafield", async () =>
     const uploadCall = calls.find((c) => c.kind === "staged_upload");
     assertExists(uploadCall);
 
-    const setPdfUrlCall = calls.find(
-      (c) => c.kind === "graphql" && (c.body as { query: string }).query.includes("SetPdfUrl"),
+    const setCall = calls.find(
+      (c) => c.kind === "graphql" && (c.body as { query: string }).query.includes("SetOfferMetafields"),
     );
-    assertExists(setPdfUrlCall);
-    const vars = (setPdfUrlCall!.body as { variables: { metafields: Array<Record<string, unknown>> } }).variables;
+    assertExists(setCall);
+    const vars = (setCall!.body as { variables: { metafields: Array<Record<string, unknown>> } }).variables;
+    // 1 metafield en el DRAFT (b2b.pdf_url, sin cambios) + 3 en el CUSTOMER
+    // ("última oferta") — mismo lote de metafieldsSet.
+    assertEquals(vars.metafields.length, 4);
     assertEquals(vars.metafields[0].namespace, "b2b");
     assertEquals(vars.metafields[0].key, "pdf_url");
     assertEquals(vars.metafields[0].type, "url");
     assertEquals(vars.metafields[0].value, "https://cdn.shopify.com/files/oferta-D9999.pdf");
+    assertEquals(vars.metafields[0].ownerId, DRAFT_GID);
+
+    const customerEntries = vars.metafields.slice(1);
+    assertEquals(customerEntries.every((m) => m.ownerId === "gid://shopify/Customer/1"), true);
+    assertEquals(customerEntries.every((m) => m.namespace === "b2b"), true);
+    assertEquals(customerEntries.every((m) => m.type === "single_line_text_field"), true);
+    const byKey = Object.fromEntries(customerEntries.map((m) => [m.key, m.value]));
+    assertEquals(byKey.ultima_oferta_pdf, "https://cdn.shopify.com/files/oferta-D9999.pdf");
+    assertEquals(byKey.ultima_oferta_ref, "D9999");
+    assertEquals(byKey.ultima_oferta_total, "100,00 €");
   } finally {
     restoreFetch();
   }
@@ -285,7 +313,7 @@ Deno.test("markup instalador: ×1.15 solo si el customer tiene tag instalador, c
     if (call.kind === "graphql" && query.includes("FileCreate")) {
       return { fileCreate: { files: [{ id: "gid://shopify/GenericFile/1", fileStatus: "READY", url: "https://cdn.shopify.com/files/oferta.pdf" }], userErrors: [] } };
     }
-    if (call.kind === "graphql" && query.includes("SetPdfUrl")) {
+    if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
       return { metafieldsSet: { metafields: [], userErrors: [] } };
     }
     throw new Error("unexpected call");
@@ -331,7 +359,7 @@ Deno.test("total_oferta ignora el símbolo cosmético de customAttributes (siemp
     if (call.kind === "graphql" && query.includes("FileCreate")) {
       return { fileCreate: { files: [{ id: "gid://shopify/GenericFile/1", fileStatus: "READY", url: "https://cdn.shopify.com/files/oferta.pdf" }], userErrors: [] } };
     }
-    if (call.kind === "graphql" && query.includes("SetPdfUrl")) {
+    if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
       return { metafieldsSet: { metafields: [], userErrors: [] } };
     }
     throw new Error("unexpected call");
@@ -368,7 +396,7 @@ Deno.test("sin tag instalador: total_oferta NO lleva markup (mismo valor que el 
     if (call.kind === "graphql" && query.includes("FileCreate")) {
       return { fileCreate: { files: [{ id: "gid://shopify/GenericFile/1", fileStatus: "READY", url: "https://cdn.shopify.com/files/oferta.pdf" }], userErrors: [] } };
     }
-    if (call.kind === "graphql" && query.includes("SetPdfUrl")) {
+    if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
       return { metafieldsSet: { metafields: [], userErrors: [] } };
     }
     throw new Error("unexpected call");
@@ -385,6 +413,47 @@ Deno.test("sin tag instalador: total_oferta NO lleva markup (mismo valor que el 
     assertEquals(json.utm_source, "");
     assertEquals(json.utm_medium, "");
     assertEquals(json.utm_campaign, "");
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test("draft sin customer asociado: no falla, salta la escritura de 'última oferta'", async () => {
+  installFetchMock((call) => {
+    const query = (call.body as { query: string } | undefined)?.query ?? "";
+    if (call.kind === "graphql" && query.includes("GenerateOfferPdf")) {
+      return { draftOrder: draftOrderNode({ customer: null }) };
+    }
+    if (call.kind === "graphql" && query.includes("StagedUploadsCreate")) {
+      return {
+        stagedUploadsCreate: {
+          stagedTargets: [{ url: "https://staged-upload.example.com/upload", resourceUrl: "https://staged-upload.example.com/resource/abc", parameters: [] }],
+          userErrors: [],
+        },
+      };
+    }
+    if (call.kind === "graphql" && query.includes("FileCreate")) {
+      return { fileCreate: { files: [{ id: "gid://shopify/GenericFile/1", fileStatus: "READY", url: "https://cdn.shopify.com/files/oferta.pdf" }], userErrors: [] } };
+    }
+    if (call.kind === "graphql" && query.includes("SetOfferMetafields")) {
+      return { metafieldsSet: { metafields: [], userErrors: [] } };
+    }
+    throw new Error("unexpected call");
+  });
+  try {
+    const res = await handle(makeReq({ draftOrderId: DRAFT_GID }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    assertEquals(json.cp, "");
+    assertEquals(json.locale, "");
+    // El metafieldsSet SÍ se llama (sigue escribiendo b2b.pdf_url en el
+    // draft) pero solo con esa entrada — sin customer no hay a quién
+    // escribirle "última oferta".
+    const setCall = calls.find((c) => c.kind === "graphql" && (c.body as { query: string }).query.includes("SetOfferMetafields"));
+    assertExists(setCall);
+    const vars = (setCall!.body as { variables: { metafields: Array<Record<string, unknown>> } }).variables;
+    assertEquals(vars.metafields.length, 1);
+    assertEquals(vars.metafields[0].key, "pdf_url");
   } finally {
     restoreFetch();
   }
