@@ -579,11 +579,23 @@
     },
     "solicitudes": {
       "form": {
-        "comentario_hint": ""
+        "comentario_hint": "",
+        "heading_instalador": "Quote request",
+        "lead_instalador": "Review your selection, add an optional comment and request your quote. We'll email it to you as a PDF.",
+        "warn_instalador": "* Prices shown correspond to your installer rate and do not include VAT or shipping.",
+        "submit_instalador": "Request quote"
       },
       "detalle": {
         "download_pdf": "Scarica PDF"
+      },
+      "enviada": {
+        "thanks_instalador": "Thank you, {{ name }}. We have received your quote request.",
+        "next_instalador": "You'll receive your quote as a PDF by email in a few minutes. To place the order, please contact your distributor."
       }
+    },
+    "cart": {
+      "cta_solicitud_instalador": "Request a quote",
+      "disclaimer_instalador": "Prices shown are indicative · VAT and shipping not included"
     },
     "header": {
       "menu_aria": "Abrir menú",
