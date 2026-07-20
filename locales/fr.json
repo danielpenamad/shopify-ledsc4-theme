@@ -778,7 +778,7 @@
     "checkout": {
       "disclaimers": {
         "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Les prix sont toujours un Sous-total qui ne comprend pas les taxes.</li><li>Les frais de port seront calculés et facturés selon la fiche de conditions client de LedsC4. Ils apparaîtront sur la confirmation de commande.</li><li>Les produits de la promotion ne sont pas échangeables ni remboursables. Une fois la demande de commande envoyée, notre équipe du service client confirmera les quantités finales disponibles ; il s’agit d’unités limitées pouvant faire l’objet de variations.</li></ol>",
-        "body_html_instalador": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Les prix sont toujours un Sous-total qui ne comprend pas les taxes.</li><li>Les frais de port seront calculés et facturés selon la fiche de conditions client de LedsC4. Ils apparaîtront sur la confirmation de commande.</li><li>Les produits en promotion ne sont pas retournables. Les quantités sont limitées et la disponibilité peut varier.</li></ol>"
+        "body_instalador_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Les prix sont toujours un Sous-total qui ne comprend pas les taxes.</li><li>Les frais de port seront calculés et facturés selon la fiche de conditions client de LedsC4. Ils apparaîtront sur la confirmation de commande.</li><li>Les produits en promotion ne sont pas retournables. Les quantités sont limitées et la disponibilité peut varier.</li></ol>"
       }
     },
     "collection": {

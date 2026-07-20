@@ -951,7 +951,7 @@
     "checkout": {
       "disclaimers": {
         "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Los precios son siempre un Subtotal que no incluye impuestos.</li><li>Los gastos de envío serán calculados y emitidos en factura según la ficha de condiciones de cliente de LedsC4. Aparecerán reflejados en la confirmación de pedido.</li><li>Los productos de la promoción no admiten devoluciones. Una vez solicitada la petición de pedido, nuestro equipo de atención al cliente confirmará las cantidades finales disponibles; se trata de unidades limitadas que pueden estar sujetas a variaciones.</li></ol>",
-        "body_html_instalador": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Los precios son siempre un Subtotal que no incluye impuestos.</li><li>Los gastos de envío serán calculados y emitidos en factura según la ficha de condiciones de cliente de LedsC4. Aparecerán reflejados en la confirmación de pedido.</li><li>Los productos de la promoción no admiten devoluciones. Se trata de unidades limitadas que pueden estar sujetas a variaciones de disponibilidad.</li></ol>"
+        "body_instalador_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Los precios son siempre un Subtotal que no incluye impuestos.</li><li>Los gastos de envío serán calculados y emitidos en factura según la ficha de condiciones de cliente de LedsC4. Aparecerán reflejados en la confirmación de pedido.</li><li>Los productos de la promoción no admiten devoluciones. Se trata de unidades limitadas que pueden estar sujetas a variaciones de disponibilidad.</li></ol>"
       }
     },
     "collection": {

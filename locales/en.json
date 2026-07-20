@@ -778,7 +778,7 @@
     "checkout": {
       "disclaimers": {
         "body_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Prices are always a Subtotal that does not include taxes.</li><li>Shipping costs will be calculated and invoiced according to LedsC4's customer conditions sheet. They will be reflected in the order confirmation.</li><li>Promotional products cannot be returned. Once the order request has been submitted, our customer service team will confirm the final available quantities; these are limited units that may be subject to variations.</li></ol>",
-        "body_html_instalador": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Prices are always a Subtotal that does not include taxes.</li><li>Shipping costs will be calculated and invoiced according to LedsC4's customer conditions sheet. They will be reflected in the order confirmation.</li><li>Promotional products are non-returnable. Stock is limited and availability may vary.</li></ol>"
+        "body_instalador_html": "<ol type=\"i\" class=\"ledsc4-checkout-disclaimers\"><li>Prices are always a Subtotal that does not include taxes.</li><li>Shipping costs will be calculated and invoiced according to LedsC4's customer conditions sheet. They will be reflected in the order confirmation.</li><li>Promotional products are non-returnable. Stock is limited and availability may vary.</li></ol>"
       }
     },
     "collection": {
