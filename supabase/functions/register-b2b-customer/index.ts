@@ -667,7 +667,7 @@ async function handle(req: Request): Promise<Response> {
         try {
           const tagsData = await gql<TagsAddResp>(
             TAGS_ADD_MUTATION,
-            { id: customer.id, tags: ["pendiente"] },
+            { id: customer.id, tags: isInstalador ? ["pendiente", "instalador"] : ["pendiente"] },
           );
           if (tagsData.tagsAdd.userErrors.length > 0) {
             tagsAdded = false;
