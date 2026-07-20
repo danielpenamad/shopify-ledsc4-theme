@@ -13,6 +13,7 @@ Los `.md` originales (`W1-registro.md` … `W4-whitelist-reeval.md`) describen e
 2. [W2-walkthrough.md](W2-walkthrough.md) — ejecuta cuando staff añade el tag `aprobado` a un cliente `pendiente`.
 3. [W3-walkthrough.md](W3-walkthrough.md) — ejecuta cuando staff añade el tag `rechazado`.
 4. [W4-walkthrough.md](W4-walkthrough.md) — **MOVIDO A SUPABASE**. Ver `supabase/`.
+5. [W6-walkthrough.md](W6-walkthrough.md) — ejecuta al crear un draft order de solicitud B2B (`tags` incluye `solicitud-b2b`); si el customer es instalador, genera el PDF de la oferta (Supabase `generate-offer-pdf`), avisa a ventas y envía la oferta al instalador. No actúa sobre solicitudes de distribuidor.
 
 ## Dependencias
 
