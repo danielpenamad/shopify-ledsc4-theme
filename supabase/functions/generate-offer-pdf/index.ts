@@ -18,20 +18,28 @@
 //
 // Output:
 //   { "pdf_url": "https://...", "total_oferta": "1.234,56 €",
-//     "cp": "28001", "locale": "es", "utm_source": "meta",
+//     "cp": "28001", "locale": "es", "nombre": "Juan",
+//     "apellidos": "Pérez García", "email": "juan@empresa.com",
+//     "telefono": "+34600000000", "nif": "12345678Z",
+//     "utm_source": "meta",
 //     "utm_medium": "paid_social", "utm_campaign": "instalador_q3",
 //     "utm_term": "instalador+electricista", "utm_content": "carrusel_v2" } (200)
 //   { "error": "...", ... }                                          (4xx/5xx)
 //
-// cp/locale/utm_* son passthrough de datos de registro (Fase 1/2) para que
-// Flow arme el email sin tener que releer el customer aparte. SIEMPRE
-// string, "" (nunca null) si el metafield/campo no existe. cp y los utm_*
-// vienen de metafields `b2b.codigo_postal`/`b2b.utm_source`/`utm_medium`/
-// `utm_campaign`/`utm_term`/`utm_content` (namespace y claves confirmados
-// leyendo register-b2b-customer/index.ts — el CP NO es `b2b.cp`, es
-// `b2b.codigo_postal`; los 5 UTM son opcionales ahí igual que aquí). locale
-// es `customer.locale` tal cual (crudo, sin normalizar — Flow ya ramea con
-// starts_with).
+// cp/locale/nombre/apellidos/email/telefono/nif/utm_* son passthrough de
+// datos de registro (Fase 1/2) para que Flow arme el email (incl. el email
+// interno "solicitud de oferta de instalador" con los datos de contacto
+// para que el comercial pueda llamar) sin tener que releer el customer
+// aparte. SIEMPRE string, "" (nunca null) si el metafield/campo no existe.
+// nombre/apellidos vienen de firstName/lastName nativos del customer;
+// email/telefono de defaultEmailAddress.emailAddress/
+// defaultPhoneNumber.phoneNumber (también nativos, no metafields). cp y nif
+// vienen de metafields `b2b.codigo_postal`/`b2b.nif`; los utm_* de
+// `b2b.utm_source`/`utm_medium`/`utm_campaign`/`utm_term`/`utm_content`
+// (namespace y claves confirmados leyendo register-b2b-customer/index.ts —
+// el CP NO es `b2b.cp`, es `b2b.codigo_postal`; nif y los 5 UTM son
+// opcionales ahí igual que aquí). locale es `customer.locale` tal cual
+// (crudo, sin normalizar — Flow ya ramea con starts_with).
 //
 // Idempotencia (paso 1): si el draft ya tiene metafield b2b.pdf_url, se
 // devuelve sin regenerar el PDF — evita duplicar en reintentos de Flow.
@@ -201,7 +209,12 @@ interface DraftOrderData {
       id: string;
       tags: string[];
       locale: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      defaultEmailAddress: { emailAddress: string } | null;
+      defaultPhoneNumber: { phoneNumber: string } | null;
       cp: { value: string } | null;
+      nif: { value: string } | null;
       utmSource: { value: string } | null;
       utmMedium: { value: string } | null;
       utmCampaign: { value: string } | null;
@@ -236,7 +249,12 @@ const DRAFT_ORDER_QUERY = `
         id
         tags
         locale
+        firstName
+        lastName
+        defaultEmailAddress { emailAddress }
+        defaultPhoneNumber { phoneNumber }
         cp: metafield(namespace: "b2b", key: "codigo_postal") { value }
+        nif: metafield(namespace: "b2b", key: "nif") { value }
         utmSource: metafield(namespace: "b2b", key: "utm_source") { value }
         utmMedium: metafield(namespace: "b2b", key: "utm_medium") { value }
         utmCampaign: metafield(namespace: "b2b", key: "utm_campaign") { value }
@@ -782,6 +800,11 @@ async function handle(req: Request): Promise<Response> {
     const customer = draft.customer;
     const cp = customer?.cp?.value ?? "";
     const locale = customer?.locale ?? "";
+    const nombre = customer?.firstName ?? "";
+    const apellidos = customer?.lastName ?? "";
+    const email = customer?.defaultEmailAddress?.emailAddress ?? "";
+    const telefono = customer?.defaultPhoneNumber?.phoneNumber ?? "";
+    const nif = customer?.nif?.value ?? "";
     const utmSource = customer?.utmSource?.value ?? "";
     const utmMedium = customer?.utmMedium?.value ?? "";
     const utmCampaign = customer?.utmCampaign?.value ?? "";
@@ -790,6 +813,11 @@ async function handle(req: Request): Promise<Response> {
     const passthrough = {
       cp,
       locale,
+      nombre,
+      apellidos,
+      email,
+      telefono,
+      nif,
       utm_source: utmSource,
       utm_medium: utmMedium,
       utm_campaign: utmCampaign,
