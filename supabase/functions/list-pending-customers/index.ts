@@ -2,8 +2,11 @@
 //
 // Devuelve a la página /pages/admin-backoffice toda la información que
 // necesita en una sola llamada:
-//   - Lista de customers con tag 'pendiente' (hasta 250, los más recientes
-//     primero).
+//   - Lista de customers con tag 'pendiente' Y SIN tag 'instalador' (hasta
+//     250, los más recientes primero). Los instaladores se auto-aprueban
+//     en W1 y no requieren revisión manual, pero arrastran el tag
+//     'pendiente' desde el alta — se excluyen aquí en vez de tocar sus
+//     tags (ver flows/W1-walkthrough.md).
 //   - Counts agregados de pendiente / aprobado / rechazado vía
 //     `customers(first: 250, query: "tag:X")` y .length.
 //   - Whitelist actual (emails y fecha de última actualización).
@@ -212,7 +215,7 @@ Deno.serve(async (req) => {
       };
     }>(`
       query {
-        pending: customers(first: ${PENDING_HARD_CAP}, query: "tag:'pendiente'", sortKey: CREATED_AT, reverse: true) {
+        pending: customers(first: ${PENDING_HARD_CAP}, query: "tag:'pendiente' AND -tag:'instalador'", sortKey: CREATED_AT, reverse: true) {
           edges {
             node {
               id
