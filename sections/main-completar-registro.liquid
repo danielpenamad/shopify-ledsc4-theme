@@ -278,6 +278,11 @@
               </select>
               <span class="b2b-acceso__field-error" data-field="pais" hidden></span>
             </div>
+            <div class="b2b-acceso__field">
+              <label for="comp-codigo_postal">{{ 'ledsc4.acceso.form.label_codigo_postal' | t }} <span class="b2b-acceso__req" aria-hidden="true">*</span></label>
+              <input type="text" name="codigo_postal" id="comp-codigo_postal" autocomplete="postal-code" required maxlength="12">
+              <span class="b2b-acceso__field-error" data-field="codigo_postal" hidden></span>
+            </div>
             <div class="b2b-acceso__field b2b-acceso__field--wide">
               <label for="comp-volumen">{{ 'ledsc4.acceso.form.label_volumen' | t }} <span class="b2b-acceso__optional">{{ 'ledsc4.common.form.optional' | t }}</span></label>
               <select name="volumen_estimado" id="comp-volumen">

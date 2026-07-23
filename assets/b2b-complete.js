@@ -151,6 +151,7 @@
     }
     if (!values.sector) errors.sector = ERRORS.required;
     if (!values.pais) errors.pais = ERRORS.required;
+    if (!values.codigo_postal) errors.codigo_postal = ERRORS.required;
     if (!values.condiciones) errors.condiciones = ERRORS.terms;
     return { errors: errors, normalized: { nif: taxRes.normalized } };
   }
@@ -170,6 +171,7 @@
       sector: (fd.get('sector') || '').toString(),
       pais: (fd.get('pais') || '').toString(),
       volumen_estimado: (fd.get('volumen_estimado') || '').toString(),
+      codigo_postal: (fd.get('codigo_postal') || '').toString().trim(),
       condiciones: form.querySelector('#comp-terms') ? form.querySelector('#comp-terms').checked : false,
     };
   }
@@ -254,6 +256,7 @@
       sector: values.sector,
       pais: values.pais,
       volumen_estimado: values.volumen_estimado || undefined,
+      codigo_postal: values.codigo_postal,
       condiciones: values.condiciones === true,
     };
 
