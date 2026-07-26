@@ -2,13 +2,24 @@
 // Crea/actualiza la jerarquía de colecciones del outlet B2B LedsC4 y las
 // publica al catalog "Outlet general". Idempotente.
 //
-// Estructura (PR-CAT-RESTRUCTURE 2026-05):
+// Estructura (PR-CAT-RESTRUCTURE 2026-05, ampliada 2026-07-26):
 //   - 5 padres SMART (cat-forlight, cat-architectural, cat-decorative,
 //     cat-outdoor, cat-emergency). Reglas AND: tag:Coleccion:2026 +
 //     catalogo == X.
-//   - 33 hijos SMART (combos catalogo × tipo con >= 3 productos en el
-//     audit). Naming: cat-{slug(catalogo)}-{slug(tipo)}. Reglas AND triple.
-//     cat-emergency es padre suelto sin hijos (3 productos, sub-umbral).
+//   - 45 hijos SMART (combos catalogo × tipo con >= 3 productos entre los
+//     que de verdad se publican). Naming: cat-{slug(catalogo)}-{slug(tipo)}.
+//     Reglas AND triple.
+//
+// 2026-07-26: tras validar en vivo contra el SFTP + stock + precios (dry-run
+// de la importación del lote de ~422 SKUs nuevos), se detectaron 12 combos
+// que ya superan el umbral de >=3 productos publicables y no tenían hijo:
+// emergency-superficie-de-pared(7), architectural-accesorio(6),
+// outdoor-baliza(6), forlight-modulo(6), architectural-colgante(6),
+// decorative-pie(5), forlight-flexo(4) — antes sub-umbral con 2, ver nota en
+// sku-overrides.json rule B, ya no aplica —, decorative-superficie-de-techo(3),
+// architectural-modulo(3), decorative-proyector(3),
+// outdoor-empotrable-de-techo(3), forlight-chillout(3). cat-emergency ya no
+// es un padre suelto: gana su primer hijo.
 //
 // Estructura previa (pre-2026-05, retirada): incluía cat-diy (con 5 hijos
 // smart) y cat-otros (custom, popularizada con productos catalogo ∈
@@ -60,14 +71,18 @@ const PADRES = ['Forlight', 'Architectural', 'Decorative', 'Outdoor', 'Emergency
 // que el conteo debe coincidir con el total del audit, no con la suma de
 // los hijos top-level. Conteos actualizados tras PR-CAT-RESTRUCTURE (los
 // 50 SKUs Bucket A + 4 Bucket B se reasignaron a Forlight; el SKU Bucket
-// C a Outdoor; los 3 Emergency forman cat-emergency).
+// C a Outdoor; los 3 Emergency forman cat-emergency), y de nuevo 2026-07-26
+// tras el dry-run del lote de ~422 SKUs nuevos (904 productos publicables
+// en total: stock>0 + precio>0). Sin refrescar esto, el WARN de tolerancia
+// (|got - expected| > 2) habría saltado en los 5 padres justo la noche del
+// import que trae el lote nuevo.
 // (Solo informativo para el WARN de tolerancia; no se usa en reglas.)
 const PADRE_EXPECTED = {
-  Forlight:      226,
-  Architectural: 103,
-  Decorative:     72,
-  Outdoor:        51,
-  Emergency:       3,
+  Forlight:      293,
+  Architectural: 390,
+  Decorative:    111,
+  Outdoor:       102,
+  Emergency:       8,
 };
 
 // Subcolecciones por padre: [tipo, expectedCount]. Solo los combos con
@@ -75,30 +90,38 @@ const PADRE_EXPECTED = {
 // actualizados tras PR-CAT-RESTRUCTURE (Forlight gana sobremesa+9,
 // superficie-de-pared+5, superficie-de-techo+16, serie-de-focos+8,
 // colgante+6, ventilador+3, baliza+2, proyector+2, bano+1, pie+1; Outdoor
-// gana farola+1). Emergency no tiene hijos (3 productos, sub-umbral de 3).
+// gana farola+1), y de nuevo 2026-07-26 con los 12 combos del lote de ~422
+// SKUs nuevos (ver nota de cabecera). expectedCount de los 12 nuevos es el
+// conteo entre productos publicables (stock>0 + precio>0) del dry-run, no
+// del audit total del catalogo.
 const HIJOS = {
   Forlight: [
     ['Superficie de Pared', 55], ['Empotrable de techo', 46], ['Superficie de Techo', 22],
     ['Serie de focos', 15], ['Baliza', 14], ['Sobremesa', 14],
     ['Proyector', 13], ['Ventilador', 12], ['Colgante', 10],
     ['Baño', 6], ['Empotrable de suelo', 4], ['Tira LED', 4],
-    ['Pie', 4],
+    ['Pie', 4], ['Módulo', 6], ['Flexo', 4], ['Chillout', 3],
   ],
   Architectural: [
     ['Empotrable de techo', 54], ['Tira LED', 15], ['Superficie de Techo', 7],
     ['Señalización', 6], ['Bajo voltaje', 6], ['Proyector', 5],
-    ['Carril', 5], ['Sistema lineal', 4],
+    ['Carril', 5], ['Sistema lineal', 4], ['Accesorio', 6],
+    ['Colgante', 6], ['Módulo', 3],
   ],
   Decorative: [
     ['Superficie de Pared', 29], ['Luz de lectura', 16], ['Colgante', 9],
-    ['Baño', 6], ['Sobremesa', 4],
+    ['Baño', 6], ['Sobremesa', 4], ['Pie', 5],
+    ['Superficie de Techo', 3], ['Proyector', 3],
   ],
   Outdoor: [
     ['Superficie de Pared', 14], ['Superficie de Techo', 7],
     ['Sistema lineal', 6], ['Empotrable de pared', 6],
     ['Empotrable de suelo', 5], ['Proyector', 4], ['Farola', 4],
+    ['Baliza', 6], ['Empotrable de techo', 3],
   ],
-  Emergency: [],
+  Emergency: [
+    ['Superficie de Pared', 7],
+  ],
 };
 
 const COUNT_TOLERANCE = 2;
@@ -193,7 +216,7 @@ async function main() {
     await processSmart(specPadre(cat), publicationId, results);
   }
 
-  console.log('\n── 33 hijos SMART ──');
+  console.log('\n── 45 hijos SMART ──');
   for (const cat of PADRES) {
     for (const [tipo, expected] of HIJOS[cat]) {
       await processSmart(specHijo(cat, tipo, expected), publicationId, results);
@@ -222,7 +245,7 @@ async function main() {
     }
   }
 
-  console.log(`\nTotal collections processed: ${results.length} (5 padres smart + 33 hijos smart = 38 expected)`);
+  console.log(`\nTotal collections processed: ${results.length} (5 padres smart + 45 hijos smart = 50 expected)`);
   process.exit(errs.length > 0 ? 1 : 0);
 }
 
