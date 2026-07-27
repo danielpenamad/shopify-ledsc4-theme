@@ -13,13 +13,23 @@
 // 2026-07-26: tras validar en vivo contra el SFTP + stock + precios (dry-run
 // de la importación del lote de ~422 SKUs nuevos), se detectaron 12 combos
 // que ya superan el umbral de >=3 productos publicables y no tenían hijo:
-// emergency-superficie-de-pared(7), architectural-accesorio(6),
-// outdoor-baliza(6), forlight-modulo(6), architectural-colgante(6),
-// decorative-pie(5), forlight-flexo(4) — antes sub-umbral con 2, ver nota en
-// sku-overrides.json rule B, ya no aplica —, decorative-superficie-de-techo(3),
-// architectural-modulo(3), decorative-proyector(3),
-// outdoor-empotrable-de-techo(3), forlight-chillout(3). cat-emergency ya no
+// emergency-superficie-de-pared, architectural-accesorio,
+// outdoor-baliza, forlight-modulo, architectural-colgante,
+// decorative-pie, forlight-flexo — antes sub-umbral con 2, ver nota en
+// sku-overrides.json rule B, ya no aplica —, decorative-superficie-de-techo,
+// architectural-modulo, decorative-proyector,
+// outdoor-empotrable-de-techo, forlight-chillout. cat-emergency ya no
 // es un padre suelto: gana su primer hijo.
+//
+// 2026-07-27: import de los ~422 SKUs completado en producción (904
+// publicables) y este script ya corrido contra la tienda real — las 50
+// colecciones (5 padres + 45 hijos) están creadas/actualizadas y publicadas,
+// 0 errores. Solo 3 eran genuinamente nuevas (architectural-accesorio,
+// architectural-colgante, architectural-modulo); el resto de los 12 ya
+// existían con la regla correcta (creadas manualmente o por un run previo).
+// PADRE_EXPECTED/HIJOS se refrescaron con el productsCount real devuelto por
+// Shopify en ese run — ver nota junto a PADRE_EXPECTED sobre por qué el
+// conteo real es más alto que "productos publicables".
 //
 // Estructura previa (pre-2026-05, retirada): incluía cat-diy (con 5 hijos
 // smart) y cat-otros (custom, popularizada con productos catalogo ∈
@@ -71,53 +81,57 @@ const PADRES = ['Forlight', 'Architectural', 'Decorative', 'Outdoor', 'Emergency
 // que el conteo debe coincidir con el total del audit, no con la suma de
 // los hijos top-level. Conteos actualizados tras PR-CAT-RESTRUCTURE (los
 // 50 SKUs Bucket A + 4 Bucket B se reasignaron a Forlight; el SKU Bucket
-// C a Outdoor; los 3 Emergency forman cat-emergency), y de nuevo 2026-07-26
-// tras el dry-run del lote de ~422 SKUs nuevos (904 productos publicables
-// en total: stock>0 + precio>0). Sin refrescar esto, el WARN de tolerancia
-// (|got - expected| > 2) habría saltado en los 5 padres justo la noche del
-// import que trae el lote nuevo.
+// C a Outdoor; los 3 Emergency forman cat-emergency).
+//
+// 2026-07-27: refrescados con productsCount REAL devuelto por Shopify tras
+// correr el script contra producción (import de los ~422 SKUs nuevos ya
+// completado, 904 publicables). La corrección de 2026-07-26 (basada en el
+// dry-run) usaba el conteo de productos *publicables* (stock>0+precio>0),
+// pero la smart collection cuenta TODO producto con el tag+metafield sin
+// filtrar por stock/precio/estado — incluye drafts y huérfanos históricos —
+// así que salía sistemáticamente por debajo del real (ej. Architectural —
+// Empotrable de techo: se esperaba 54, el real es 271). Estos 3 hijos
+// (Accesorio/Colgante/Módulo de Architectural) se crearon en este mismo run
+// y Shopify aún no había indexado su smart rule (productsCount=0 en el
+// momento de crearlos) — se deja el conteo estimado, no el 0 transitorio.
 // (Solo informativo para el WARN de tolerancia; no se usa en reglas.)
 const PADRE_EXPECTED = {
-  Forlight:      293,
-  Architectural: 390,
-  Decorative:    111,
-  Outdoor:       102,
-  Emergency:       8,
+  Forlight:      334,
+  Architectural: 417,
+  Decorative:    152,
+  Outdoor:       122,
+  Emergency:       9,
 };
 
 // Subcolecciones por padre: [tipo, expectedCount]. Solo los combos con
 // >= 3 productos (no incluye los descartados sub-umbral). Conteos
-// actualizados tras PR-CAT-RESTRUCTURE (Forlight gana sobremesa+9,
-// superficie-de-pared+5, superficie-de-techo+16, serie-de-focos+8,
-// colgante+6, ventilador+3, baliza+2, proyector+2, bano+1, pie+1; Outdoor
-// gana farola+1), y de nuevo 2026-07-26 con los 12 combos del lote de ~422
-// SKUs nuevos (ver nota de cabecera). expectedCount de los 12 nuevos es el
-// conteo entre productos publicables (stock>0 + precio>0) del dry-run, no
-// del audit total del catalogo.
+// actualizados tras PR-CAT-RESTRUCTURE, y de nuevo 2026-07-27 con
+// productsCount real de Shopify tras el run de producción (ver nota de
+// PADRE_EXPECTED).
 const HIJOS = {
   Forlight: [
-    ['Superficie de Pared', 55], ['Empotrable de techo', 46], ['Superficie de Techo', 22],
-    ['Serie de focos', 15], ['Baliza', 14], ['Sobremesa', 14],
-    ['Proyector', 13], ['Ventilador', 12], ['Colgante', 10],
-    ['Baño', 6], ['Empotrable de suelo', 4], ['Tira LED', 4],
+    ['Superficie de Pared', 76], ['Empotrable de techo', 60], ['Superficie de Techo', 36],
+    ['Serie de focos', 22], ['Baliza', 20], ['Sobremesa', 14],
+    ['Proyector', 19], ['Ventilador', 21], ['Colgante', 14],
+    ['Baño', 8], ['Empotrable de suelo', 5], ['Tira LED', 4],
     ['Pie', 4], ['Módulo', 6], ['Flexo', 4], ['Chillout', 3],
   ],
   Architectural: [
-    ['Empotrable de techo', 54], ['Tira LED', 15], ['Superficie de Techo', 7],
-    ['Señalización', 6], ['Bajo voltaje', 6], ['Proyector', 5],
-    ['Carril', 5], ['Sistema lineal', 4], ['Accesorio', 6],
+    ['Empotrable de techo', 271], ['Tira LED', 19], ['Superficie de Techo', 24],
+    ['Señalización', 6], ['Bajo voltaje', 11], ['Proyector', 31],
+    ['Carril', 5], ['Sistema lineal', 18], ['Accesorio', 6],
     ['Colgante', 6], ['Módulo', 3],
   ],
   Decorative: [
-    ['Superficie de Pared', 29], ['Luz de lectura', 16], ['Colgante', 9],
-    ['Baño', 6], ['Sobremesa', 4], ['Pie', 5],
-    ['Superficie de Techo', 3], ['Proyector', 3],
+    ['Superficie de Pared', 52], ['Luz de lectura', 25], ['Colgante', 27],
+    ['Baño', 12], ['Sobremesa', 9], ['Pie', 6],
+    ['Superficie de Techo', 3], ['Proyector', 4],
   ],
   Outdoor: [
-    ['Superficie de Pared', 14], ['Superficie de Techo', 7],
-    ['Sistema lineal', 6], ['Empotrable de pared', 6],
-    ['Empotrable de suelo', 5], ['Proyector', 4], ['Farola', 4],
-    ['Baliza', 6], ['Empotrable de techo', 3],
+    ['Superficie de Pared', 34], ['Superficie de Techo', 12],
+    ['Sistema lineal', 8], ['Empotrable de pared', 7],
+    ['Empotrable de suelo', 27], ['Proyector', 10], ['Farola', 9],
+    ['Baliza', 9], ['Empotrable de techo', 3],
   ],
   Emergency: [
     ['Superficie de Pared', 7],
