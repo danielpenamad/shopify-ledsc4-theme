@@ -4,7 +4,7 @@
   Do not modify this file. Any changes will be reset the next time that
   Locksmith interacts with this theme.
 
-  Last updated: Tue, 26 May 2026 09:59:13 +0200 (CEST)
+  Last updated: Sat, 08 Aug 2026 04:06:00 +0200 (CEST)
 {% endcomment -%}
 
 {%include 'locksmith-variables', locksmith_scope: nil%}{%if locksmith_access_denied_content == blank%}{%capture locksmith_access_denied_content%}{%if locksmith_manual_lock%}{{content_for_layout}}{%elsif locksmith_remote_lock%}<div id="locksmith-content">
@@ -71,8 +71,8 @@
         }
       </script>{%endif%}{%endcapture%}{%endif%}{%include 'locksmith-content-variables'%}{%include 'locksmith-variables', locksmith_scope: nil%}{%if locksmith_access_denied%}{%capture content_for_header%}{{content_for_header|replace:'.oembed', ''|replace:'.atom', ''|replace:'link rel="alternate" type="application/json+oembed"', 'link'|replace:' title="Feed" rel="alternate" type="application/atom+xml"', ''}}{%endcapture%}{%endif%}{%capture locksmith_initializations%}{%if locksmith_access_denied and locksmith_manual_lock == false and locksmith_noindex%}<meta name="robots" content="noindex" />{%endif%}{{locksmith_json_script}}{{locksmith_client}}
 
-  <script data-locksmith>Locksmith.jsonTag={{locksmith_json|json}};Locksmith.jsonTagSignature={{locksmith_json_signature|json}}</script>{%endcapture%}{%if locksmith_access_granted or locksmith_manual_lock%}{%if locksmith_redirect != blank%}{%assign content_for_layout=locksmith_redirect%}{%endif%}{%else%}{%assign content_for_layout=locksmith_access_denied_content%}{%endif%}{%capture _3%}{%if locksmith_access_denied%}<style>
-    /* Smart spacing for Locksmith content - only applied when access is denied */
+  <script data-locksmith>Locksmith.jsonTag={{locksmith_json|json}};Locksmith.jsonTagSignature={{locksmith_json_signature|json}}</script>{%endcapture%}{%if locksmith_access_granted or locksmith_manual_lock%}{%if locksmith_redirect != blank%}{%assign content_for_layout=locksmith_redirect%}{%endif%}{%else%}{%assign content_for_layout=locksmith_access_denied_content%}{%endif%}{%capture _3%}{%if locksmith_access_denied and locksmith_manual_lock == false%}<style>
+    /* Smart spacing for Locksmith content - only applied on a full-page render */
       /* Base padding: always add 20px minimum to top */
       #locksmith-content .section {
         padding-top: 20px;
@@ -128,7 +128,18 @@
       Locksmith.util.on('submit', 'locksmith-resource-form', function (event) {
         event.preventDefault();
         var data = Locksmith.util.serializeForm(event.target);
-        Locksmith.postResource(data, { spinner: false, container: 'locksmith-content' });
+        var options = { spinner: false, container: 'locksmith-content' };
+        // a form rendered inline (section replacement) must keep that context
+        // on resubmit: same enclosing container (there may be several on the
+        // page), and no layout classes or cancel affordance in the re-render
+        var inlineContainer = event.target.closest && event.target.closest('[id^="locksmith-content"]');
+        if (inlineContainer) {
+          options.container = inlineContainer;
+        }
+        if (event.target.getAttribute('data-locksmith-inline') === 'true') {
+          options.include_layout_classes = false;
+        }
+        Locksmith.postResource(data, options);
       });
 
       Locksmith.util.on('click', 'locksmith-manual-trigger', function (event) {
