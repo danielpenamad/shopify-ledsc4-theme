@@ -710,15 +710,15 @@
       "keep_reading": "Vous hésitez encore ? Continuez la lecture ↓",
       "que_es": {
         "heading": "Qu'est-ce que ce portail",
-        "body_html": "Portail de vente en gros privé pour écouler les stocks excédentaires et déréférencés de LedsC4, exclusivement entre professionnels."
+        "body_html": "Portail de vente en gros privé, exclusivement réservé aux professionnels, pour écouler les stocks excédentaires et déréférencés de LedsC4."
       },
       "como": {
         "heading": "Comment ça marche",
-        "intro_html": "Vous vous inscrivez, parcourez le catalogue à prix professionnels, composez votre sélection et cliquez sur « Demander une offre » : vous recevez le PDF et contactez votre distributeur pour la finaliser."
+        "intro_html": "Vous vous inscrivez, parcourez le catalogue, composez votre sélection et cliquez sur « Demander une offre » : vous recevez le PDF et contactez votre distributeur pour finaliser la commande."
       },
       "dentro": {
         "heading": "Ce que vous trouverez à l'intérieur",
-        "body_html": "Des centaines de références, mises à jour chaque semaine et à prix professionnels. Vous préparez votre sélection, la téléchargez en PDF et la finalisez avec votre distributeur. Chaque offre est enregistrée dans votre espace privé."
+        "body_html": "Des centaines de références, mises à jour chaque semaine, à prix professionnels. Vous préparez votre sélection, la téléchargez en PDF et la finalisez avec votre distributeur. Chaque offre est enregistrée dans votre espace privé."
       },
       "faq": {
         "heading": "Questions fréquentes",
@@ -727,7 +727,7 @@
         "q2_summary": "Combien de temps prend l'inscription ?",
         "q2_body": "Aucune attente : votre compte est activé automatiquement dès l'inscription. Vous recevez un e-mail de bienvenue avec le lien vers le catalogue et pouvez vous connecter aussitôt.",
         "q3_summary": "Puis-je acheter directement sur le portail ?",
-        "q3_body": "Non. Vous consultez le catalogue et les prix et préparez des offres ; pour passer commande, contactez votre distributeur habituel."
+        "q3_body": "Non. Pour passer commande, une fois le catalogue consulté avec les prix et le PDF de l'offre généré, vous devrez contacter votre distributeur habituel."
       },
       "ctas_lead": "Cela vous correspond ? Inscrivez-vous et commencez à préparer vos offres. Vous avez déjà un compte ? Accédez à votre espace privé.",
       "cta": {
