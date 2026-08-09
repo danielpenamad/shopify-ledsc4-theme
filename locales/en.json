@@ -710,15 +710,15 @@
       "keep_reading": "Still not sure? Keep reading ↓",
       "que_es": {
         "heading": "What this portal is",
-        "body_html": "A private wholesale portal for clearing LedsC4's surplus and discontinued stock, exclusively among professionals."
+        "body_html": "A private wholesale portal, exclusively for professionals, for clearing LedsC4's surplus and discontinued stock."
       },
       "como": {
         "heading": "How it works",
-        "intro_html": "You sign up, browse the catalogue at professional prices, build your selection and click “Request a quote”: you get the PDF and contact your distributor to close it."
+        "intro_html": "You sign up, browse the catalogue, build your selection and click “Request a quote”: you get the PDF and contact your distributor to close the order."
       },
       "dentro": {
         "heading": "What you'll find inside",
-        "body_html": "Hundreds of references, updated weekly and at professional prices. You prepare your selection, download it as a PDF quote and close it with your distributor. Every quote is saved in your private area."
+        "body_html": "Hundreds of references, updated weekly, at professional prices. You prepare your selection, download it as a PDF quote and close it with your distributor. Every quote is saved in your private area."
       },
       "faq": {
         "heading": "Frequently asked questions",
@@ -727,7 +727,7 @@
         "q2_summary": "How long does sign-up take?",
         "q2_body": "No wait at all: your account is activated automatically when you register. You receive a welcome email with the link to the catalogue and can log straight in.",
         "q3_summary": "Can I buy directly on the portal?",
-        "q3_body": "No. You browse the catalogue and prices and prepare quotes; to place the order, get in touch with your usual distributor."
+        "q3_body": "No. To place the order, once you have browsed the catalogue with prices and generated the quote PDF, you will need to get in touch with your usual distributor."
       },
       "ctas_lead": "Sounds right? Sign up and start preparing your quotes. Already have an account? Go to your private area.",
       "cta": {

@@ -883,15 +883,15 @@
       "keep_reading": "¿Aún no lo tienes claro? Sigue leyendo ↓",
       "que_es": {
         "heading": "Qué es este portal",
-        "body_html": "Portal mayorista privado para liquidar stocks excedentes y descatalogados de LedsC4 exclusivamente entre profesionales."
+        "body_html": "Portal mayorista privado, exclusivo para profesionales, para liquidar stocks excedentes y descatalogados de LedsC4."
       },
       "como": {
         "heading": "Cómo funciona",
-        "intro_html": "Te registras, navegas el catálogo a precios profesionales, montas tu selección y pulsas «Solicitar oferta»: recibes el PDF y contactas con tu distribuidor para cerrarla."
+        "intro_html": "Te registras, navegas el catálogo, haces tu selección y pulsas «Solicitar oferta»: recibes el PDF y contactas con tu distribuidor para cerrar el pedido."
       },
       "dentro": {
         "heading": "Qué encontrarás dentro",
-        "body_html": "Centenares de referencias, actualizadas cada semana y a precios profesionales. Preparas tu selección, la descargas como oferta en PDF y la cierras con tu distribuidor. Cada oferta queda guardada en tu área privada."
+        "body_html": "Centenares de referencias, actualizadas cada semana, a precios profesionales. Preparas tu selección, la descargas como oferta en PDF y la cierras con tu distribuidor. Cada oferta queda guardada en tu área privada."
       },
       "faq": {
         "heading": "Preguntas frecuentes",
@@ -900,7 +900,7 @@
         "q2_summary": "¿Cuánto tarda el alta?",
         "q2_body": "Nada: tu cuenta se activa automáticamente al registrarte. Recibes un email de bienvenida con el enlace al catálogo y ya puedes entrar.",
         "q3_summary": "¿Puedo comprar directamente en el portal?",
-        "q3_body": "No. Consultas catálogo y precios y preparas ofertas; para formalizar el pedido, ponte en contacto con tu distribuidor habitual."
+        "q3_body": "No. Para formalizar el pedido, una vez consultado el catálogo con precios y generado el PDF con la oferta, tendrás que ponerte en contacto con tu distribuidor habitual."
       },
       "ctas_lead": "¿Te encaja? Date de alta y empieza a preparar tus ofertas. Si ya tienes cuenta, entra a tu área privada.",
       "cta": {
