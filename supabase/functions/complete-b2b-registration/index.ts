@@ -9,8 +9,14 @@
 // Fase 2) al pulsar "Enviar solicitud". El customer ya está logueado: la
 // page Liquid SSR firma `<timestamp>:<nonce>:<customer.id>` con
 // settings.register_b2b_hmac_secret. Tras esta EF, el customer queda con
-// metafields b2b.* completos + tag 'pendiente' → Flow W1 dispara igual
-// que en register-b2b-customer.
+// metafields b2b.* completos + tags 'pendiente' y 'registro-completado'.
+//
+// Flow W1 NO cubre este carril. W1 tiene trigger `Customer created` y aquí
+// el customer ya existía (alta nativa), así que W1 no vuelve a dispararse
+// al completar el registro: ni whitelistCheck ni aviso al backoffice. El
+// tag 'registro-completado' existe para que un workflow de Flow dedicado
+// (trigger por tag añadido) pueda disparar el aviso al backoffice. No
+// eliminar ni renombrar ese tag sin tocar también ese workflow.
 //
 // Auth: HMAC-SHA256 de `<timestamp>:<nonce>:<customerId>` con el MISMO
 // secret REGISTER_B2B_HMAC_SECRET. TTL 1 hora. verify_jwt=false.
@@ -577,12 +583,19 @@ export async function handle(req: Request): Promise<Response> {
       }));
     }
 
-    // --- 5. tagsAdd: 'pendiente' (con retries; ver register-b2b-customer) ---
+    // --- 5. tagsAdd: 'pendiente' + 'registro-completado' (con retries) ---
     //
-    // Sin el tag, Flow W1 no dispara y el cliente queda huérfano (invisible
-    // para el backoffice). Reintentos 3× con backoff ante errores
-    // transitorios; userErrors no se reintentan. Failsafe final: cron de
-    // reconciliación en promote-whitelist-matches.
+    // Flow W1 NO interviene aquí: su trigger es `Customer created` y este
+    // customer ya existía, así que añadir tags no lo dispara. Los tags:
+    //   - 'pendiente': estado de revisión; sin él el cliente queda huérfano
+    //     (invisible para el backoffice).
+    //   - 'registro-completado': disparador para que un workflow de Flow
+    //     dedicado avise al backoffice de la nueva alta. No eliminar ni
+    //     renombrar sin tocar también ese workflow.
+    // Reintentos 3× con backoff ante errores transitorios; userErrors no se
+    // reintentan. Failsafe final: cron de reconciliación en
+    // promote-whitelist-matches (solo repone 'pendiente', no
+    // 'registro-completado': ese caso queda visible pero sin aviso).
     let tagsAdded = true;
     {
       interface TagsAddResp {
@@ -604,7 +617,7 @@ export async function handle(req: Request): Promise<Response> {
         try {
           const tagsData = await gql<TagsAddResp>(
             TAGS_ADD_MUTATION,
-            { id: customerId, tags: ["pendiente"] },
+            { id: customerId, tags: ["pendiente", "registro-completado"] },
           );
           if (tagsData.tagsAdd.userErrors.length > 0) {
             tagsAdded = false;

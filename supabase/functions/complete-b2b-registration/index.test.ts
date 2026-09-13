@@ -387,7 +387,7 @@ Deno.test("guard: tag 'rechazado' → 200 noop sin update", async () => {
   }
 });
 
-Deno.test("happy path: customerUpdate + tagsAdd 'pendiente' con input correcto", async () => {
+Deno.test("happy path: customerUpdate + tagsAdd 'pendiente'+'registro-completado' con input correcto", async () => {
   installFetchMock((call) => {
     if (call.query.includes("customer(id:")) {
       // sin tag terminal — alta nativa incompleta
@@ -458,7 +458,7 @@ Deno.test("happy path: customerUpdate + tagsAdd 'pendiente' con input correcto",
     assertEquals((tagsCall.variables as Record<string, unknown>).id, CUSTOMER_GID);
     assertEquals(
       (tagsCall.variables as Record<string, unknown>).tags,
-      ["pendiente"],
+      ["pendiente", "registro-completado"],
     );
   } finally {
     restoreFetch();

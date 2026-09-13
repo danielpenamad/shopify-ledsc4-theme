@@ -12,7 +12,7 @@ Describe el flujo end-to-end de alta B2B, desde que un anónimo aterriza en la l
 - La landing pública `/pages/acceso-profesional` con el form de registro.
 - La página `/pages/registro-recibido` de confirmación post-submit.
 - La edge function `register-b2b-customer` (creación del Customer + invite).
-- El hook con Shopify Flow W1 (whitelist check + decisión auto vs manual).
+- El hook con Shopify Flow W1 (whitelist check + decisión auto vs manual) — **solo para altas que crean el Customer** (`register-b2b-customer`); el carril `complete-b2b-registration` no pasa por W1 (§7.1).
 - Validación NIF/NIE/CIF con dígito de control completo.
 
 No cubre:
@@ -33,6 +33,12 @@ Shopify forzó `new customer accounts` en febrero de 2026 ([D5](adrs/d05-custome
 4. **Shopify Flow W1** detecta el Customer creado y decide: si su email matchea la whitelist → auto-aprueba; si no → queda pendiente para el backoffice.
 5. El usuario ve `/pages/registro-recibido` con instrucción "revisa tu email para activar la cuenta".
 6. El magic link del invite (`/account/activate/<token>`) le permite establecer password y entrar.
+
+> **W1 no cubre todas las altas.** Su trigger es `Customer created`, así que
+> solo actúa cuando la edge crea el Customer (paso 3). El carril de alta
+> nativa (`/pages/completar-registro` → `complete-b2b-registration`) trabaja
+> sobre un Customer que ya existía: W1 no vuelve a dispararse y ese carril
+> no tiene whitelistCheck ni aviso al backoffice vía W1. Ver §7.1.
 
 El registro **no genera login automático** — siempre pasa por el magic link, por dos razones: (a) verifica que el email es legítimo antes de dejar pasar; (b) Shopify exige flujo OAuth para activación, no se puede saltar.
 
@@ -349,6 +355,35 @@ Detalle completo del walkthrough en `flows/W1-walkthrough.md` (material crudo de
 
 Detalle de emails en [08-emails-transaccionales](08-emails-transaccionales.md).
 
+### 7.1 Carril `complete-b2b-registration`: W1 no aplica
+
+`complete-b2b-registration` (form `/pages/completar-registro`, para usuarios
+con alta nativa por New Customer Accounts) hace `customerUpdate` sobre un
+Customer **ya existente**. Como el trigger de W1 es `Customer created`, W1
+**no se dispara** en este carril: añadir metafields o el tag `pendiente` a
+un Customer existente no lo reactiva. Consecuencias:
+
+- No hay rama A/B: ni whitelistCheck, ni Internal email al backoffice, ni
+  marketing mail #02 vía W1.
+- El Customer queda con tag `pendiente` y visible en la cola del backoffice,
+  pero nadie recibe aviso de la nueva alta.
+
+Para cubrir el aviso, la edge añade **dos** tags en su `tagsAdd`:
+`pendiente` y `registro-completado`. El segundo existe **solo** para que un
+workflow de Flow dedicado (trigger por tag añadido, fuera de este repo, se
+edita a mano en Admin → Apps → Flow) pueda disparar el aviso al backoffice.
+Hasta que ese workflow esté activo, las altas de este carril siguen sin
+avisar. **No eliminar ni renombrar `registro-completado`** en la edge sin
+tocar también ese workflow, o el aviso deja de dispararse sin error visible.
+
+El aviso no se envía desde la edge: el email sigue siendo responsabilidad
+de Flow.
+
+Si el `tagsAdd` falla del todo (warning `TAG_PENDIENTE_FAILED`), el cron de
+reconciliación de `promote-whitelist-matches` repone solo `pendiente`, no
+`registro-completado`: el cliente vuelve a la cola del backoffice, pero sin
+aviso.
+
 ## 8. Theme settings y secrets
 
 ### Theme settings (`config/settings_data.json`)
@@ -504,6 +539,7 @@ persistencia — el uso en la oferta/email interno es Fase 3.
 
 ## Cambios
 
+- **v0.7** (2026-09): corregido que W1 cubriera todas las altas — su trigger `Customer created` no se dispara en el carril `complete-b2b-registration`. Nueva §7.1: la edge añade el tag `registro-completado` para que un workflow de Flow dedicado avise al backoffice.
 - **v0.6** (2026-07, Extra A): añadida §12 (captura y persistencia de UTMs de campaña).
 - **v0.5** (2026-07, cierre Fase 2): quitado el email interno de FYI del carril instalador; la exclusión de clientes sin `b2b.sector` se documenta como limitación aceptada, no pendiente de validar.
 - **v0.4** (2026-07, Fase 2 completa): §11 corregida — el discriminador de carril es `b2b.sector`, comprobado en Flow W1 antes de la whitelist (no un resultado de whitelist-miss). `codigo_postal` extendido a `complete-b2b-registration`.
