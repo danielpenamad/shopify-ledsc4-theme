@@ -10,7 +10,10 @@ La estrategia mixta que aplicamos:
   subject + body pegados **inline** en el step (Shopify no permite variables
   en el campo To; se hardcodea `daniel.pena+backoffice@creacciones.es`).
 
-Los `.liquid` de esta carpeta son la **fuente de verdad** del contenido.
+Los `.liquid` de esta carpeta son **copias** del contenido, no la fuente de
+verdad: los emails viven y se editan en Shopify, pueden haber cambiado allí
+sin réplica en el repo, y **lo configurado en Shopify es lo que manda**. Ver
+el aviso de [README.md](README.md).
 
 ## Tabla general
 

@@ -4,6 +4,12 @@ Workflow **W3 — Rechazo manual**. Dispara cuando staff añade el tag
 `rechazado` a un customer que aún tiene `pendiente`. Sustituye a
 `W3-rechazo-manual.md`.
 
+> **⚠️ Copia, no fuente de verdad.** Este documento copia lo configurado en
+> Shopify Flow al cierre de Fase B. El workflow y sus emails pueden haber
+> cambiado en el Admin sin réplica en el repo: **la verdad es siempre el
+> workflow vivo en Shopify**. Contrástalo con el Admin antes de fiarte de lo
+> que dice aquí (ver aviso en [README.md](README.md)).
+
 ## Estructura final
 
 ```

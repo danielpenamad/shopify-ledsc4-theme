@@ -1,5 +1,15 @@
 # Shopify Flow workflows — B2B LedsC4
 
+> **⚠️ IMPORTANTE — esto son copias, no código real.** Los workflows de
+> Flow y los emails (plantillas de marketing y emails internos) **viven y se
+> editan en Shopify**. Todo lo que hay en esta carpeta (walkthroughs, specs,
+> exports) y en `email-templates/` es una **copia hecha a mano en una fecha
+> concreta**: cualquiera de ellos puede cambiarse en el Admin de Shopify sin
+> tener réplica en el repo, así que **puede estar desactualizado**. No lo
+> tomes como el código que corre en producción: **la fuente de verdad es
+> siempre lo configurado en Shopify**. Antes de actuar basándote en estos
+> ficheros, contrástalos con el Admin (o reexporta el workflow).
+
 Cada archivo `.md` en esta carpeta describe **un workflow** de Shopify Flow:
 trigger, condiciones, variables, acciones y pseudocódigo. Se configura
 manualmente en **Admin → Apps → Flow → Create workflow** porque la API
@@ -14,6 +24,7 @@ Los `.md` originales (`W1-registro.md` … `W4-whitelist-reeval.md`) describen e
 3. [W3-walkthrough.md](W3-walkthrough.md) — ejecuta cuando staff añade el tag `rechazado`.
 4. [W4-walkthrough.md](W4-walkthrough.md) — **MOVIDO A SUPABASE**. Ver `supabase/`.
 5. [W6-walkthrough.md](W6-walkthrough.md) — ejecuta al crear un draft order de solicitud B2B (`tags` incluye `solicitud-b2b`); si el customer es instalador, genera el PDF de la oferta (Supabase `generate-offer-pdf`), avisa a ventas y envía la oferta al instalador. No actúa sobre solicitudes de distribuidor.
+6. [W7-walkthrough.md](W7-walkthrough.md) — ejecuta cuando `complete-b2b-registration` añade el tag `registro-completado` (carril de alta nativa, que W1 no cubre). Envía el aviso interno de nuevo pendiente al backoffice, quita el tag y manda el acuse pendiente al cliente (ES/FR/EN por locale).
 
 ## Dependencias
 
@@ -71,13 +82,13 @@ Cada workflow debe ser **idempotente** (re-ejecutar sin duplicar efectos):
 - Antes de enviar email, comprobar que no se haya enviado ya (usar un
   metafield `b2b.email_enviado_<id>` o el log de Flow si tiene dedupe).
 
-## Ficheros de esta carpeta — cuál es la fuente de verdad
+## Ficheros de esta carpeta — qué es cada uno (ninguno es la fuente de verdad)
 
-Esta carpeta contiene tres tipos de fichero. **La fuente de verdad viva es el walkthrough.**
+Esta carpeta contiene tres tipos de fichero. **Dentro del repo, la referencia más fiable es el walkthrough** — pero la fuente de verdad es el workflow vivo en Shopify (ver aviso al inicio).
 
 | Tipo | Fichero | Estado |
 |---|---|---|
-| Walkthrough | `Wx-walkthrough.md` | **Fuente de verdad.** Refleja la config real tal como está hoy en el admin de Flow. Es lo que hay que seguir para configurar o reconstruir un workflow. |
+| Walkthrough | `Wx-walkthrough.md` | **Referencia principal en el repo.** Refleja la config real en la fecha en que se contrastó con el export; puede haber cambiado después en el admin de Flow. Es lo que hay que seguir para configurar o reconstruir un workflow, contrastándolo antes con Shopify. |
 | Spec conceptual | `W1-registro.md` … `W4-whitelist-reeval.md` | Diseño conceptual original. Histórico — la implementación real divergió tras descubrir las limitaciones de Flow en Fase B. |
 | Export JSON | `Wx-<slug>.flow.json` | **Snapshot de Fase B, desactualizado.** Captura de un momento del workflow en el admin; los workflows han evolucionado después (ver historial de PRs). NO reconstruir un workflow desde el `.flow.json` sin contrastar con el walkthrough. |
 

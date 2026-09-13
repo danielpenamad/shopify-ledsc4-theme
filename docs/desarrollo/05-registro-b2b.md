@@ -364,17 +364,20 @@ Customer **ya existente**. Como el trigger de W1 es `Customer created`, W1
 un Customer existente no lo reactiva. Consecuencias:
 
 - No hay rama A/B: ni whitelistCheck, ni Internal email al backoffice, ni
-  marketing mail #02 vía W1.
-- El Customer queda con tag `pendiente` y visible en la cola del backoffice,
-  pero nadie recibe aviso de la nueva alta.
+  marketing mail #02 vía W1. La auto-aprobación por whitelist en este
+  carril la hace el cron `promote-whitelist-matches` cada 30 min, no W1.
+- El Customer queda con tag `pendiente` y visible en la cola del backoffice;
+  W1 no avisa de la nueva alta (lo hace W7, abajo).
 
 Para cubrir el aviso, la edge añade **dos** tags en su `tagsAdd`:
 `pendiente` y `registro-completado`. El segundo existe **solo** para que un
-workflow de Flow dedicado (trigger por tag añadido, fuera de este repo, se
-edita a mano en Admin → Apps → Flow) pueda disparar el aviso al backoffice.
-Hasta que ese workflow esté activo, las altas de este carril siguen sin
-avisar. **No eliminar ni renombrar `registro-completado`** en la edge sin
-tocar también ese workflow, o el aviso deja de dispararse sin error visible.
+workflow de Flow dedicado (trigger por tag añadido, se edita a mano en
+Admin → Apps → Flow) pueda disparar el aviso al backoffice. Ese workflow es
+**W7 - Registro completado (alta nativa)**, activo desde 2026-09-13: aviso
+interno al backoffice + acuse pendiente al cliente. Ver
+[flows/W7-walkthrough.md](../../flows/W7-walkthrough.md). **No eliminar ni
+renombrar `registro-completado`** en la edge sin tocar también W7, o el
+aviso deja de dispararse sin error visible.
 
 El aviso no se envía desde la edge: el email sigue siendo responsabilidad
 de Flow.
@@ -539,6 +542,7 @@ persistencia — el uso en la oferta/email interno es Fase 3.
 
 ## Cambios
 
+- **v0.8** (2026-09-13): §7.1 enlaza W7 (activo) como el workflow que avisa al backoffice en el carril `complete-b2b-registration`; aclarado que la auto-aprobación por whitelist de ese carril la hace `promote-whitelist-matches`.
 - **v0.7** (2026-09): corregido que W1 cubriera todas las altas — su trigger `Customer created` no se dispara en el carril `complete-b2b-registration`. Nueva §7.1: la edge añade el tag `registro-completado` para que un workflow de Flow dedicado avise al backoffice.
 - **v0.6** (2026-07, Extra A): añadida §12 (captura y persistencia de UTMs de campaña).
 - **v0.5** (2026-07, cierre Fase 2): quitado el email interno de FYI del carril instalador; la exclusión de clientes sin `b2b.sector` se documenta como limitación aceptada, no pendiente de validar.

@@ -4,7 +4,8 @@
 > Este documento describe el diseño original del flow con trigger
 > `Customer updated` y condición sobre `tags_previous`. La
 > implementación actual usa el trigger / condición descritos en
-> `W3-walkthrough.md`, que es la fuente de verdad operativa.
+> `W3-walkthrough.md` (referencia en el repo; la fuente de verdad es el
+> workflow vivo en Shopify, ver `README.md`).
 > Este `.md` se mantiene como histórico para trazar la evolución.
 
 ## Trigger
