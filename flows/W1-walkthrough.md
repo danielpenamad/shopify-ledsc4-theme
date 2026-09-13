@@ -3,12 +3,18 @@
 Configuración real del workflow **W1 — Registro B2B** en Shopify Flow,
 verificada línea a línea contra el export `.flow` real del workflow
 (`W1 — Registro B2B (5).flow`, 2026-07-21, aportado por Dani). Sustituye a
-`W1-registro.md` como fuente de verdad del "cómo está desplegado".
+`W1-registro.md` como referencia en el repo del "cómo está desplegado".
+
+> **⚠️ Copia, no fuente de verdad.** Este documento copia lo configurado en
+> Shopify Flow a fecha del export (2026-07-21). El workflow y sus emails
+> pueden haber cambiado en el Admin sin réplica en el repo: **la verdad es
+> siempre el workflow vivo en Shopify**. Contrástalo con el Admin antes de
+> fiarte de lo que dice aquí (ver aviso en [README.md](README.md)).
 
 > **✅ APLICADO.** La Fase 2 instalador (2026-07) está en producción — no
 > hay nada pendiente de aplicar a mano en el Admin. Este documento ya no
-> describe un diseño a implementar; describe el workflow **tal como corre
-> hoy**, reconstruido a partir del JSON exportado (`···` → Export en el
+> describe un diseño a implementar; describe el workflow **tal como corría
+> a fecha del export**, reconstruido a partir del JSON exportado (`···` → Export en el
 > editor de Flow). Si vuelves a tocar el workflow en el Admin, reexporta y
 > compara contra este documento para mantenerlo alineado.
 >

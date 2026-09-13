@@ -18,7 +18,7 @@ Lo que **no** está aquí: los emails nativos que Shopify envía sin pasar por F
 Los workflows viven en Shopify Flow y **no son editables externamente**. No hay API pública (estado mayo 2026) para crear, modificar o desplegar workflows programáticamente — solo la UI del admin. El repo contiene material de apoyo en `flows/`:
 
 - `Wx-<slug>.md` — diseño conceptual original (Fase A)
-- `Wx-walkthrough.md` — guía de configuración manual paso a paso, **fuente de verdad para reconfigurar**
+- `Wx-walkthrough.md` — guía de configuración manual paso a paso, **referencia para reconfigurar** (es una copia: contrastar antes con Shopify, ver aviso abajo)
 
 Cualquier `.flow.json` que veas en `flows/` es un snapshot histórico de Fase B y no refleja el estado actual de los flows en producción. La fuente de verdad implementacional es el workflow vivo en Shopify Admin; el walkthrough es la guía para reconstruirlo a mano si hace falta.
 

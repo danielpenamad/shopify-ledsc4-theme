@@ -82,7 +82,7 @@ Cada workflow debe ser **idempotente** (re-ejecutar sin duplicar efectos):
 - Antes de enviar email, comprobar que no se haya enviado ya (usar un
   metafield `b2b.email_enviado_<id>` o el log de Flow si tiene dedupe).
 
-## Ficheros de esta carpeta — cuál es la fuente de verdad
+## Ficheros de esta carpeta — qué es cada uno (ninguno es la fuente de verdad)
 
 Esta carpeta contiene tres tipos de fichero. **Dentro del repo, la referencia más fiable es el walkthrough** — pero la fuente de verdad es el workflow vivo en Shopify (ver aviso al inicio).
 

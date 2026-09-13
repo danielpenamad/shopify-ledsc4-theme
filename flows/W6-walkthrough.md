@@ -5,7 +5,13 @@ reconstruida línea a línea contra el export `.flow` real del workflow
 (`W6 - Instaladores.flow`, aportado por Dani). Es la pieza de Fase 3 que
 genera la oferta PDF y avisa a ventas cuando un **instalador** envía una
 solicitud desde el carrito — no existe spec conceptual previa (`W6-*.md`)
-como en W1-W4: este documento es la primera fuente de verdad para W6.
+como en W1-W4: este documento es la única referencia de W6 en el repo.
+
+> **⚠️ Copia, no fuente de verdad.** Este documento copia lo configurado en
+> Shopify Flow a fecha del export. El workflow y sus emails pueden haber
+> cambiado en el Admin sin réplica en el repo: **la verdad es siempre el
+> workflow vivo en Shopify**. Contrástalo con el Admin antes de fiarte de lo
+> que dice aquí (ver aviso en [README.md](README.md)).
 
 > **✅ APLICADO.** El workflow está en producción — no hay nada pendiente
 > de aplicar a mano en el Admin. Reconstruido a partir del JSON exportado
