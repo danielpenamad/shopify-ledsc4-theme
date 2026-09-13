@@ -22,6 +22,9 @@ Los workflows viven en Shopify Flow y **no son editables externamente**. No hay 
 
 Cualquier `.flow.json` que veas en `flows/` es un snapshot histórico de Fase B y no refleja el estado actual de los flows en producción. La fuente de verdad implementacional es el workflow vivo en Shopify Admin; el walkthrough es la guía para reconstruirlo a mano si hace falta.
 
+!!! warning "Flows y emails del repo = copias, no código real"
+    Los workflows de Flow y los emails (plantillas de marketing y emails internos) **viven y se editan en Shopify**. Lo que hay en `flows/`, en `email-templates/` y en este documento son **copias hechas a mano en una fecha concreta**: pueden cambiarse en el Admin sin réplica en el repo y, por tanto, **estar desactualizadas**. No las tomes como el código que corre en producción — **la fuente de verdad es siempre lo configurado en Shopify**. Contrasta con el Admin antes de actuar.
+
 | Workflow | Trigger | Activo | Doc en repo |
 | --- | --- | --- | --- |
 | W1 — Registro B2B | `customer_created` | Sí | `W1-walkthrough.md` |
@@ -128,6 +131,12 @@ La condición de tag filtra solicitudes B2B de cualquier otro Draft Order que Sh
 | `W5-acuse-ES` | ES | Hemos recibido tu solicitud `{{ draftOrder.name }}` | W5 |
 | `W5-acuse-EN` | EN | We have received your request `{{ draftOrder.name }}` | W5 |
 | `W5-acuse-FR` | FR | Nous avons reçu votre demande `{{ draftOrder.name }}` | W5 |
+| Aviso interno "nuevo registro pendiente" (`Send internal email`, inline, a backoffice) | ES | `[B2B] Nuevo registro pendiente - {{ runCode.empresa }}` | W7 (carril alta nativa) |
+| Acuse pendiente ES — `MarketingActivity/207259500871` | ES | Definido en la plantilla (no figura en el export de W7) | W7 (carril alta nativa) |
+| Acuse pendiente FR — `MarketingActivity/207259599175` | FR | Definido en la plantilla (no figura en el export de W7) | W7 (carril alta nativa) |
+| Acuse pendiente EN — `MarketingActivity/207259631943` | EN | Definido en la plantilla (no figura en el export de W7) | W7 (carril alta nativa) |
+
+Las filas de W7 cubren el carril de alta nativa (`complete-b2b-registration`), que W1 no dispara: W7 reacciona al tag `registro-completado`. Sus tres acuses son Marketing Activities **propias de W7**, distintas de las de `W1-acuse-*`. Detalle en [flows/W7-walkthrough.md](../../flows/W7-walkthrough.md).
 
 Los 15 templates comparten estructura HTML (header con logo, body, footer con dirección legal y unsubscribe). Logo apunta a `https://shop.ledsc4.com/cdn/shop/files/logo-ledsc4.png`. Solo el body y el footer cambian por idioma.
 

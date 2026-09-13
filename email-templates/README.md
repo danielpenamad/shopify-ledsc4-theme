@@ -1,5 +1,14 @@
 # Plantillas de email B2B — LedsC4 Outlet
 
+> **⚠️ IMPORTANTE — esto son copias, no código real.** Los emails (plantillas
+> de marketing en Shopify y bodies de `Send internal email` dentro de Flow)
+> **viven y se editan en Shopify**. Los `.liquid` de esta carpeta son
+> **copias hechas a mano en una fecha concreta**: pueden cambiarse en el
+> Admin sin réplica en el repo y, por tanto, **estar desactualizados**. No
+> los tomes como lo que se envía en producción: **la fuente de verdad es
+> siempre lo configurado en Shopify**. Contrasta con el Admin antes de
+> actuar. Mismo aviso para los workflows en `flows/README.md`.
+
 6 bodies de email para los escenarios del workflow de registro y
 aprobación. Todos los textos están en español. Estrategia mixta:
 
