@@ -4,7 +4,7 @@
   Do not modify this file. Any changes will be reset the next time that
   Locksmith interacts with this theme.
 
-  Last updated: Sat, 08 Aug 2026 04:06:00 +0200 (CEST)
+  Last updated: Sat, 19 Sep 2026 03:36:04 +0200 (CEST)
 {% endcomment -%}
 
 {%include 'locksmith-variables', locksmith_scope: nil%}{%if locksmith_access_denied_content == blank%}{%capture locksmith_access_denied_content%}{%if locksmith_manual_lock%}{{content_for_layout}}{%elsif locksmith_remote_lock%}<div id="locksmith-content">
@@ -81,7 +81,7 @@
 
       /* Locksmith-specific centering that doesn't rely on theme CSS */
       #locksmith-content .locksmith-content-inner {
-        max-width: var(--page-width, 1200px);
+        max-width: var(--page-width, var(--page-content-width, var(--container-md-max-width, 1200px)));
         margin-left: auto !important;
         margin-right: auto !important;
         padding-left: var(--page-padding, 1.5rem);
@@ -103,16 +103,16 @@
         )
         > main
         > #locksmith-content:first-child .section {
-        /* Prioritize header-height, then header-group-height, default to 70px for transparent headers */
+        /* Prioritize the theme's header-height variables, default to 70px for transparent headers */
         /* The 20px base padding is already included in the base rule above */
-        padding-top: calc(var(--header-height, var(--header-group-height, 70px)) + 20px );
+        padding-top: calc(var(--header-height, var(--header-group-height, var(--sticky-header-offset, var(--sticky-header-height, var(--sticky-area-height, 70px))))) + 20px);
       }
 
       /* Alternative selector for themes that don't use #header-group */
       body:has(header[data-transparent], .header[data-transparent], #shopify-section-header[data-transparent])
         > main
         > #locksmith-content:first-child .section {
-        padding-top: calc(var(--header-height, var(--header-group-height, 70px)) + 20px );
+        padding-top: calc(var(--header-height, var(--header-group-height, var(--sticky-header-offset, var(--sticky-header-height, var(--sticky-area-height, 70px))))) + 20px);
       }
 
   </style>{%endif%}<script data-locksmith>
