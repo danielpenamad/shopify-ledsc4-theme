@@ -87,3 +87,12 @@ verify_jwt = true
 # manualmente para forzar refresh. No expone datos sensibles ni acepta
 # input no-confiable: solo lee Frankfurter y escribe el metafield.
 verify_jwt = false
+
+# --- Storage retention (2026-09) ---
+# Poda runs/<id>/ en el bucket ledsc4-imports con más de RETENTION_DAYS.
+# pg_cron diario invoca vía pg_net con with_auth=true (mismo patrón que
+# sftp-sync) — JWT obligatorio, no público. Borra con la Storage API
+# (storage.remove), nunca DELETE por SQL sobre storage.objects; nunca toca
+# private.import_runs ni el run más reciente.
+[functions.prune-import-runs]
+verify_jwt = true
