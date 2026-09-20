@@ -1,7 +1,7 @@
 # 14 · Secrets
 
 !!! info "Estado del documento"
-    **Versión:** 1.0 · 17-may-2026
+    **Versión:** 1.1 · 20-sep-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
@@ -169,6 +169,11 @@ Síntoma de PAT desincronizado: `sftp-sync` responde `dispatch_status: "failed"`
 
 Cuando LedsC4 reciba el sistema, hay que migrarlo del sandbox de desarrollo al proyecto del cliente sin que ningún secret quede en sitios fantasma. La transferencia ocurre por hitos, no de golpe.
 
+### Estado del handover (2026-09-20)
+
+- **Proyecto Supabase `mbjvmhaglbhnxoccwyex`**: transferido con la función nativa a la organización Supabase de LedsC4 (`mttojpayijfavietsujv`, plan **Free**). Dani es **Administrator** en ella. Se conservan project-ref, URL, claves, secrets de las edge functions, pg_cron y Storage, así que no hay que reconfigurar nada en Supabase ni en los secrets de GitHub Actions.
+- **Repo `danielpenamad/shopify-ledsc4-theme` y `GITHUB_DISPATCH_TOKEN`**: siguen bajo la cuenta `danielpenamad` (el token es un PAT fine-grained de esa cuenta). Pendientes de la fase de traspaso de GitHub; hasta entonces, si la cuenta pierde acceso al repo o el PAT caduca, `sftp-sync` descarga los CSV pero no dispara el workflow (`dispatch_status: "failed"`, `HTTP 401`).
+
 ### Clasificación de los secrets para el cutover
 
 **Los genera el cliente** (no se copian del sandbox):
@@ -206,4 +211,5 @@ El runbook de operaciones (16) cubrirá el checklist de cutover paso a paso y la
 
 ## Cambios
 
+- **v1.1** (20-sep-2026): nuevo apartado "Estado del handover" en §7 — el proyecto Supabase ya pertenece a la organización de LedsC4 (plan Free, Dani Administrator); repo y `GITHUB_DISPATCH_TOKEN` siguen bajo `danielpenamad`.
 - **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.
