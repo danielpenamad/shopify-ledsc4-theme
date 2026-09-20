@@ -212,6 +212,13 @@ Cuando el cliente (LedsC4) reciba el sistema, hay que migrarlo de
 "sandbox de Dani" a "proyecto del cliente" sin que ningún secret
 quede en sitios fantasma. Lista de tareas:
 
+> **Estado a 2026-09-20.** El proyecto Supabase `mbjvmhaglbhnxoccwyex`
+> **pertenece desde hoy a la organización Supabase de LedsC4**
+> (`mttojpayijfavietsujv`, plan **Free**) y Dani es **Administrator** en ella
+> (Fase D hecha). El **repo** `danielpenamad/shopify-ledsc4-theme` y el
+> `GITHUB_DISPATCH_TOKEN` (PAT fine-grained) **siguen bajo la cuenta
+> `danielpenamad`**, pendientes de la fase de traspaso de GitHub (Fase B).
+
 ### 4.0. Fases de transferencia
 
 La transferencia no es instantánea. Sucede por hitos a lo largo de
@@ -224,7 +231,7 @@ account abierta, shop a producción, etc.):
 | **A** | Cierre del proyecto (mayo 2026) | Documentación + acceso del cliente al repo (collaborator), Supabase project (con cliente añadido), Shopify shop. Ownership sigue en Dani. |
 | **B** | T+3 meses tras entrega | Transfer de ownership del repo de GitHub a la org del cliente. Regenerar `GITHUB_DISPATCH_TOKEN` bajo el nuevo owner. Reapuntar `repository_dispatch` desde Supabase si hace falta. |
 | **C** | Cuando el shop pase a producción | Transfer del Shopify shop a la Partner account del cliente. Dani queda como collaborator (developer). |
-| **D** | Cuando el proyecto cierre del todo | Transfer del Supabase project a la org del cliente vía función nativa de Supabase (no recrear). |
+| **D** | Cuando el proyecto cierre del todo | Transfer del Supabase project a la org del cliente vía función nativa de Supabase (no recrear). **✅ Hecha 2026-09-20**: org `mttojpayijfavietsujv` (plan Free), Dani como Administrator. |
 
 Cada bullet del checklist en §4.4 está anotado con `(Fase X)` para
 indicar a qué hito pertenece. El inventario de propiedades / cuentas
@@ -264,6 +271,7 @@ Anotado por fase (ver §4.0 para qué hito es cada una).
 
 - [ ] (Fase A) Compartir acceso al repo de GitHub con el cliente como collaborator.
 - [ ] (Fase A) Añadir al cliente como miembro del Supabase project (org de Dani por ahora).
+- [x] (Fase D) Transferir el proyecto Supabase a la org del cliente con la función nativa — **hecho 2026-09-20** (`mttojpayijfavietsujv`, plan Free, Dani Administrator). El proyecto migra entero: mantiene project-ref, URL, claves, secrets, edge functions, pg_cron y Storage.
 - [ ] (Fase D) Crear proyecto Supabase nuevo en la org del cliente — sólo si NO se va a usar la transfer feature de Supabase. Si se transfiere, omitir este bullet (el proyecto migra entero, las migrations ya están aplicadas).
 - [ ] (Fase D) Aplicar todas las migrations del repo (`supabase db push`) — sólo si se recrea desde cero.
 - [ ] (Fase D) Crear bucket `ledsc4-imports` privado (one-shot ya en migration) — sólo si se recrea.
@@ -280,9 +288,9 @@ Anotado por fase (ver §4.0 para qué hito es cada una).
       con `--limit=1`) y verificar host key + listing.
 - [ ] (Fase A) Smoke test: invocar `shopify-write` (cuando exista, I4.2-A) sobre
       el run del paso anterior.
-- [ ] (Fase D) Documentar en este fichero la fecha del cutover y borrar las
-      referencias específicas a `mbjvmhaglbhnxoccwyex` (project ref del
-      sandbox).
+- [x] (Fase D) Documentar en este fichero la fecha del cutover (2026-09-20).
+      Las referencias a `mbjvmhaglbhnxoccwyex` **no se borran**: al usar la
+      transfer nativa el project-ref y la URL se conservan.
 
 ### 4.5. Qué NO transferimos
 
@@ -305,9 +313,9 @@ Cubre lo que NO son secrets pero sí entran en el handover:
 
 | Recurso | Propietario hoy | Propietario tras handover | Fase | Notas |
 |---|---|---|---|---|
-| GitHub repo `danielpenamad/shopify-ledsc4-theme` | Dani (cuenta personal) | Org del cliente | B | Acceso compartido en fase A (collaborator). Webhook `repository_dispatch` desde Supabase debe seguir apuntando al repo correcto tras transfer (GitHub redirige automáticamente, pero verificar con un sftp-sync manual post-transfer). |
-| GitHub Actions secrets (incl. `GITHUB_DISPATCH_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `SHOPIFY_ADMIN_TOKEN`) | Bajo repo de Dani | Bajo repo del cliente | B | `GITHUB_DISPATCH_TOKEN` es fine-grained PAT del repo; regenerable bajo nuevo owner. Otros secrets se transfieren con el repo si se usa `Transfer ownership`. |
-| Supabase project `mbjvmhaglbhnxoccwyex` | Org de Dani | Org del cliente | D | Vía función nativa de Supabase (Project settings → Transfer project), **no recrear**. Mantiene `private.import_runs`, `sku_state`, Storage `ledsc4-imports`, secrets, edge functions, pg_cron jobs. |
+| GitHub repo `danielpenamad/shopify-ledsc4-theme` | Dani (cuenta personal) — **sigue así a 2026-09-20, pendiente de Fase B** | Org del cliente | B | Acceso compartido en fase A (collaborator). Webhook `repository_dispatch` desde Supabase debe seguir apuntando al repo correcto tras transfer (GitHub redirige automáticamente, pero verificar con un sftp-sync manual post-transfer). |
+| GitHub Actions secrets (incl. `GITHUB_DISPATCH_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `SHOPIFY_ADMIN_TOKEN`) | Bajo repo de Dani — **`GITHUB_DISPATCH_TOKEN` sigue siendo un PAT de `danielpenamad` a 2026-09-20, pendiente de Fase B** | Bajo repo del cliente | B | `GITHUB_DISPATCH_TOKEN` es fine-grained PAT del repo; regenerable bajo nuevo owner. Otros secrets se transfieren con el repo si se usa `Transfer ownership`. |
+| Supabase project `mbjvmhaglbhnxoccwyex` | **Org de LedsC4 `mttojpayijfavietsujv` (plan Free) desde 2026-09-20**; Dani = Administrator | Org del cliente | D ✅ | Vía función nativa de Supabase (Project settings → Transfer project), **no recrear**. Mantiene `private.import_runs`, `sku_state`, Storage `ledsc4-imports`, secrets, edge functions, pg_cron jobs. |
 | Shopify shop `ledsc4-b2b-outlet` | Partner account de Dani | Partner del cliente | C | Cuando el shop pase a producción. Dani queda como collaborator (developer). |
 | Shopify Apps de pago (Locksmith, Boost Commerce) | Cliente (ya paga) | Cliente | A | Sin acción — ya está bien. |
 | SFTP credentials (`LEDSC4_SFTP_*`) | Cliente | Cliente | A | El cliente las controla; sólo se consumen vía Supabase secrets. Si el cliente las rota, actualizar el secret en Supabase. |

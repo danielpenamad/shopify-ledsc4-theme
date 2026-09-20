@@ -28,3 +28,6 @@ Thumbs.db
 .claude/
 .mcp.json
 package-lock.json
+
+# Supabase CLI local state (linked project, CLI version)
+supabase/.temp/

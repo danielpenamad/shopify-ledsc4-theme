@@ -258,9 +258,9 @@ Anotado por fase. Varios pasos solo aplican si el proyecto Supabase se recrea de
 - [ ] (B) Regenerar `GITHUB_DISPATCH_TOKEN` bajo el nuevo owner y actualizarlo en Supabase secrets (ver el procedimiento de rotación en 14-secrets §6).
 - [ ] (B) Configurar/verificar los GitHub Actions secrets en el repo del cliente.
 - [ ] (C) Transferir el shop a la Partner account del cliente. Dani queda como collaborator.
-- [ ] (D) Transferir el proyecto Supabase a la organización del cliente (Project settings → Transfer project).
+- [x] (D) Transferir el proyecto Supabase a la organización del cliente (Project settings → Transfer project). **Hecho 2026-09-20**: org `mttojpayijfavietsujv`, plan Free, Dani Administrator.
 - [ ] (D) Si se recrea el proyecto en vez de transferirlo: aplicar las 10 migraciones (`supabase db push`), setear los ~17 secrets manuales, los 2 `UPDATE` de `private.config`, re-deployar las 10 funciones, verificar los 6 crons.
-- [ ] (D) Documentar la fecha del cutover y eliminar las referencias al `project-ref` del sandbox de desarrollo.
+- [x] (D) Documentar la fecha del cutover (2026-09-20). El `project-ref` no cambia con la transfer nativa, así que sus referencias se mantienen.
 
 ### Qué no se transfiere
 
