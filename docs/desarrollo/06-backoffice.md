@@ -166,11 +166,11 @@ Output: `promote_triggered: true` si el POST salió OK; `false` si falló (el ca
 
 1. Comprueba que el target tiene tag `pendiente`. Si no → `409 INVALID_STATE`.
 2. `customerUpdate(input: { id, tags: [...] })` **atómico** — reemplaza array de tags, preservando los no-estado y añadiendo `aprobado` (quita `pendiente`).
-3. **NO toca metafields ni Company** — esa parte la hace W2.
+3. **NO toca Company** — esa parte la hace W2 (la fecha `b2b.fecha_aprobacion` sí la escribe la edge).
 
 **Reparto con W2**:
-- Edge → cambia tags.
-- W2 → setea `b2b.fecha_aprobacion`, llama a `create-company-for-customer`, manda email 4.
+- Edge → cambia tags y escribe `b2b.fecha_aprobacion`.
+- W2 → llama a `create-company-for-customer` y manda email 4 (bienvenida).
 
 ### 3.4 `reject-customer`
 
@@ -191,7 +191,7 @@ Output: `promote_triggered: true` si el POST salió OK; `false` si falló (el ca
 
 | Acción | Hace la edge | Lo hace Flow |
 |---|---|---|
-| Aprobar | Flip atómico `pendiente → aprobado`. | W2 setea `b2b.fecha_aprobacion`, invoca `create-company-for-customer`, manda email 4. |
+| Aprobar | Flip atómico `pendiente → aprobado`. | La edge además escribe `b2b.fecha_aprobacion`. W2 invoca `create-company-for-customer` y manda email 4 (bienvenida). |
 | Rechazar | Setea `b2b.motivo_rechazo` (si motivo) + `b2b.fecha_rechazo` **antes** del flip. Luego flip atómico `pendiente → rechazado`. | W3 manda email 5 leyendo `motivo_rechazo`. |
 | Whitelist | Mergea, dedup, valida, escribe `b2b.whitelist_emails` + `b2b.whitelist_last_update`. POST fire-and-forget a `promote-whitelist-matches`. | Nada — la edge dispara la promoción directa, sin esperar al cron. |
 
@@ -335,7 +335,7 @@ Cualquier Customer con tag `backoffice` opera la página. El script idempotente 
 3. **Whitelist**: pegar 5 emails (mezcla de válidos, inválidos, duplicados con la lista, duplicados entre sí). Submit. Verificar feedback `added/duplicates/invalid` y que `b2b.whitelist_last_update` se refresca.
 4. **Aprobar**: registrar un cliente nuevo desde `/pages/acceso-profesional` ([05-registro-b2b](05-registro-b2b.md)) → entrar al backoffice → aprobar la fila → verificar:
    - Tag `pendiente` fuera, `aprobado` dentro.
-   - `b2b.fecha_aprobacion` rellenado por W2.
+   - `b2b.fecha_aprobacion` rellenado por la edge `approve-customer`.
    - Company creada por `create-company-for-customer` (W2 la llama).
    - Email 4 enviado (la tienda corre en plan Grow desde el cutover del 13-may-2026).
 5. **Rechazar**: otro cliente nuevo → desde el backoffice → motivo `"test rejection"` → confirmar → verificar:
