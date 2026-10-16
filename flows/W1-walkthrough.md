@@ -286,7 +286,8 @@ innecesario. El email que importa operativamente es el de la oferta (Fase
 3. **Update metafield `b2b.fecha_aprobacion`** — Type: `Fecha`, Value: `{{ runCode.fecha_registro }}`.
 4. **Add tags al cliente**: `aprobado, instalador`.
    - **Nota de disparo cruzado**: este cambio de tags también dispara **W2**
-     (`Customer tags added`, condición `NOT pendiente AND aprobado`) — W2
+     (`Customer tags added`, condición `customer.tags` NO contiene `pendiente` AND
+     las etiquetas añadidas en el evento incluyen `aprobado`) — W2
      invocará `create-company-for-customer` igualmente. Es intencional y
      seguro: la función es idempotente y aborta sin crear Company si
      `b2b.empresa` está vacío (confirmado en código,

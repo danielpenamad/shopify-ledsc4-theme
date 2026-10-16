@@ -20,7 +20,7 @@ pública de Flow no permite crear workflows programáticamente (abril 2026).
 Los `.md` originales (`W1-registro.md` … `W4-whitelist-reeval.md`) describen el **diseño conceptual** de cada workflow. Los `*-walkthrough.md` (el que importa) describen la **config real** tal como quedó en Fase B tras descubrir las limitaciones de Flow. **Al configurar, seguir los walkthroughs, no los specs originales.**
 
 1. [W1-walkthrough.md](W1-walkthrough.md) — ejecuta al crear un customer. Parse metafields, decide auto-aprobación vs pendiente, dispara Supabase para crear Company y emails al backoffice.
-2. [W2-walkthrough.md](W2-walkthrough.md) — ejecuta cuando staff añade el tag `aprobado` a un cliente `pendiente`.
+2. [W2-walkthrough.md](W2-walkthrough.md) — ejecuta cuando se añade el tag `aprobado` a un cliente que ya no tiene `pendiente`. La condición de entrada comprueba que `aprobado` esté entre las etiquetas **añadidas en el evento** del trigger (no en `customer.tags`), para no reejecutarse —ni reenviar la bienvenida— cuando se añade cualquier otro tag a un cliente ya aprobado. La bienvenida se ramifica por `customer.locale` con **"empieza por"** (`es`, `fr`; resto → EN) para cubrir locales regionales como `es-ES`.
 3. [W3-walkthrough.md](W3-walkthrough.md) — ejecuta cuando staff añade el tag `rechazado`.
 4. [W4-walkthrough.md](W4-walkthrough.md) — **MOVIDO A SUPABASE**. Ver `supabase/`.
 5. [W6-walkthrough.md](W6-walkthrough.md) — ejecuta al crear un draft order de solicitud B2B (`tags` incluye `solicitud-b2b`); si el customer es instalador, genera el PDF de la oferta (Supabase `generate-offer-pdf`), avisa a ventas y envía la oferta al instalador. No actúa sobre solicitudes de distribuidor.
@@ -90,9 +90,15 @@ Esta carpeta contiene tres tipos de fichero. **Dentro del repo, la referencia m�
 |---|---|---|
 | Walkthrough | `Wx-walkthrough.md` | **Referencia principal en el repo.** Refleja la config real en la fecha en que se contrastó con el export; puede haber cambiado después en el admin de Flow. Es lo que hay que seguir para configurar o reconstruir un workflow, contrastándolo antes con Shopify. |
 | Spec conceptual | `W1-registro.md` … `W4-whitelist-reeval.md` | Diseño conceptual original. Histórico — la implementación real divergió tras descubrir las limitaciones de Flow en Fase B. |
-| Export JSON | `Wx-<slug>.flow.json` | **Snapshot de Fase B, desactualizado.** Captura de un momento del workflow en el admin; los workflows han evolucionado después (ver historial de PRs). NO reconstruir un workflow desde el `.flow.json` sin contrastar con el walkthrough. |
+| Export JSON | `Wx-<slug>.flow.json` | **Snapshot de un momento del workflow en el admin**; los workflows pueden haber evolucionado después (ver historial de PRs). Contrastar con el walkthrough y con Shopify antes de reconstruir un workflow desde él. |
 
-Solo W2 y W3 tienen `.flow.json` commiteado, y ambos son de Fase B. No reflejan los cambios posteriores (semántica de transiciones, limpieza de vestigios). Si se necesita un export al día, regenerarlo desde el admin y contrastarlo con el walkthrough antes de confiar en él.
+Estado de los `.flow.json` commiteados:
+
+- `W2-aprobacion-manual.flow.json` — **al día** (export `(4)` de oct-2026): condición de entrada sobre las etiquetas del evento, y ramas de idioma ES/FR/EN con `empieza por`. Coincide con [W2-walkthrough.md](W2-walkthrough.md); si discrepan, manda el export.
+- `W3-rechazo-manual.flow.json` — snapshot de Fase B, desactualizado (no refleja semántica de transiciones ni limpieza de vestigios posteriores).
+- `W6-instaladores.flow.json` — ver [W6-walkthrough.md](W6-walkthrough.md).
+
+Si se necesita un export al día de otro workflow, regenerarlo desde el admin y contrastarlo con el walkthrough antes de confiar en él.
 
 ## Cómo exportar un workflow (opcional)
 

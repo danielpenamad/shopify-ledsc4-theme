@@ -1,7 +1,7 @@
 # 08 · Emails transaccionales
 
 !!! info "Estado del documento"
-    **Versión:** 1.1 · 13-sep-2026
+    **Versión:** 1.2 · oct-2026
     **Estado:** ✅ completo
     **Audiencia:** Equipo de desarrollo
 
@@ -72,17 +72,21 @@ Nota sobre el `Run code` del paso 1: el customer llega con campos B2B serializad
 
 ### W2 — Aprobación manual
 
-Trigger: `customer_tags_added`. Se dispara cuando un admin cambia el tag de un cliente desde `pendiente` a `aprobado` en Shopify Admin (o cuando el backoffice lo hace vía edge `approve-customer`, ver 06-backoffice §4).
+Trigger: `customer_tags_added`. Se dispara cuando se añade el tag `aprobado` a un cliente: el backoffice vía edge `approve-customer` (ver 06-backoffice §4), el cron `promote-whitelist-matches`, W1 en su rama de instalador, o un admin a mano en Shopify Admin.
 
 Estructura:
 
-1. Condition: ¿tags contiene `aprobado` Y no contiene `pendiente`?
+1. Condition (AND):
+   - `customer.tags`: **ningún** elemento es igual a `pendiente` (estado actual del cliente).
+   - `tags` (las etiquetas **añadidas en el evento** del trigger, no `customer.tags`): **algún** elemento es igual a `aprobado`.
    - **VERDADERO**:
      - Send HTTP a edge `create-company-for-customer`
      - Ramificado i18n → envía template `W2-aprobacion-{ES/FR/EN}`
    - **FALSO**: fin sin acción
 
-La doble condición (`aprobado` Y no `pendiente`) evita que el workflow se dispare en estados intermedios o si un admin añade `aprobado` sin quitar `pendiente`.
+W2 no quita `pendiente`, no escribe `b2b.fecha_aprobacion` ni envía email interno: eso lo hacen los productores del tag (edges `approve-customer` / `promote-whitelist-matches`, o W1).
+
+**Por qué `aprobado` se comprueba sobre las etiquetas del evento.** Antes la condición era "`customer.tags` contiene `aprobado`". Como el trigger se dispara con *cualquier* tag añadido, un cliente ya aprobado que recibía otro tag (`instalador`, `registro-completado`, un tag de segmentación…) volvía a cumplirla y W2 se **reejecutaba**: otra llamada a `create-company-for-customer` y reenvío del email de bienvenida. Mirando solo las etiquetas añadidas en el evento, W2 corre únicamente en la transición real hacia `aprobado`. La condición sobre `pendiente` sigue sobre `customer.tags` porque `approve-customer` hace el flip de forma atómica y el cliente llega ya sin `pendiente`.
 
 ### W3 — Rechazo manual
 
@@ -198,7 +202,7 @@ Los `email-templates/*.liquid` antiguos quedaron en el repo como referencia hist
 
 ## 5. Patrón de ramificación por idioma
 
-W1, W2, W3, W5 y W7 usan este patrón para decidir qué template enviar (W6 no ramifica por idioma; W2 compara con `==`, ver abajo):
+W1, W2, W3, W5 y W7 usan este patrón para decidir qué template enviar (W6 no ramifica por idioma):
 
 ```
 Condition 1: customer.locale start_with? "es"
@@ -213,7 +217,7 @@ EN es el fallback implícito (sin condition explícita) porque cubre cualquier l
 
 Dos detalles técnicos no obvios:
 
-1. **`start_with?` en vez de igualdad**. `customer.locale` puede incluir sufijos regionales (`es-ES`, `en-GB`, `fr-CA`). Usar `==` exacto fallaría con `es-ES` y mandaría a EN. `start_with?` captura todas las variantes. **Excepción real: W2** compara `customer.locale == "es"` / `== "fr"` (export del 13-sep-2026), así que un cliente con locale `es-ES` o `fr-FR` recibe el email de aprobación en EN. W1, W3, W5 y W7 sí usan `start_with?`.
+1. **`start_with?` en vez de igualdad**. `customer.locale` puede incluir sufijos regionales (`es-ES`, `en-GB`, `fr-CA`). Usar `==` exacto fallaría con `es-ES` y mandaría a EN. `start_with?` captura todas las variantes. Los cinco workflows con ramificación por idioma (W1, W2, W3, W5, W7) usan `start_with?`. W2 comparaba antes con `==` (export del 13-sep-2026), con lo que un `es-ES` o `fr-FR` recibía el email de aprobación en EN; corregido a "empieza por" en el export `(4)` de oct-2026.
 
 2. **Variable distinta en W5**. El trigger `draft_order_created` cuelga el customer del draft order: la variable es `draftOrder.customer.locale`, no `customer.locale`. Misma lógica, distinto path. Cualquier copia-pega entre W1/W2/W3 y W5 debe ajustar la variable.
 
@@ -359,9 +363,10 @@ No hay export/import operativo entre tiendas: el formato no se preserva ni es ed
 
 - **Templates antiguos en `email-templates/*.liquid`**. Quedaron como referencia tras la migración de `Send internal email` a `Send marketing email` (§4). Verificar si pueden eliminarse del repo sin perder valor histórico (probablemente sí, la config viva en Shopify Email es la verdad).
 
-- **Limpiar `.flow.json` viejos en `flows/`**. Hay snapshots de Fase B (`W2-aprobacion-manual.flow.json`, `W3-rechazo-manual.flow.json`) que no reflejan el estado actual. No tienen valor documental — los walkthroughs son la guía actual y el formato no es replayable. PR de limpieza pendiente.
+- **Limpiar `.flow.json` viejos en `flows/`**. `W3-rechazo-manual.flow.json` es un snapshot de Fase B que no refleja el estado actual. No tiene valor documental — los walkthroughs son la guía actual y el formato no es replayable. PR de limpieza pendiente. `W2-aprobacion-manual.flow.json` ya está al día (export `(4)` de oct-2026).
 
 ## Cambios
 
+- **v1.2** (oct-2026): W2 alineado con el export `(4)`. Condición de entrada: `aprobado` se comprueba sobre las etiquetas añadidas en el evento (no `customer.tags`), lo que evita la reejecución —y el reenvío de la bienvenida— al añadir otros tags a un cliente ya aprobado. Ramas de idioma de W2 pasan de `==` a `empieza por`; desaparece la excepción de §5. Quitados del inventario de W2 los pasos que ya no existen en el flow (remove tag, fecha de aprobación, email interno).
 - **v1.1** (13-sep-2026): recuentos actualizados con W6 y W7 contra los exports de Flow del 13-sep-2026 (6 workflows con emails, 19 marketing mails, 5 emails internos). W6 y W7 añadidos al inventario de workflows y templates. Documentado que W2 compara el locale con `==` y que el email interno de W6 va a Víctor + Josep Sans. Aviso de que flows y emails del repo son copias.
 - **v1.0** (17-may-2026): cabecera de estado añadida; documento ya estaba completo. Primera publicación del contenido: 16-may-2026.
