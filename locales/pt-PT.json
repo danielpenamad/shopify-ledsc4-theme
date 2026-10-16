@@ -549,6 +549,11 @@
     }
   },
   "ledsc4": {
+    "registro_completado": {
+      "heading": "A sua conta já está ativa",
+      "text": "Já pode aceder ao catálogo com as suas condições de instalador e pedir propostas.",
+      "btn_catalog": "Ir para o catálogo"
+    },
     "common": {
       "country": {
         "am": "Arménia",

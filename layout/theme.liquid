@@ -556,6 +556,38 @@
           {%- endif -%}
         {%- endif -%}
       {%- endunless -%}
+
+      {%- comment -%}
+        Redirect de primera visita (thank-you page de registro, 2026-10).
+        Instalador con acceso = misma condición que el gate: tag 'aprobado'
+        (acceso) + tag 'instalador' (carril; mismo criterio que el markup de
+        precios). La primera vez que ese customer.id entra en la tienda en este
+        navegador → /pages/registro-completado, y se guarda la marca en
+        localStorage. Sin return_url: Shopify no lo propaga en el OTP de
+        cuentas nuevas (ver docs/desarrollo/05-registro-b2b.md §13).
+
+        No redirige en: la propia página, el flujo de registro
+        (acceso-instalador, registro-recibido), auth/cuenta (/account,
+        /customer_authentication), /checkout ni /policies/. Tampoco dentro de
+        un iframe. Si localStorage no está disponible (lectura o escritura
+        falla) NO redirige. Distribuidores (sin tag 'instalador') y anónimos
+        no entran en el bloque.
+      {%- endcomment -%}
+      {%- if customer != nil and customer.tags contains 'aprobado' and customer.tags contains 'instalador' -%}
+        {%- unless gate_path == '/pages/registro-completado' or gate_path == '/pages/acceso-instalador' or gate_path == '/pages/registro-recibido' or gate_path contains '/account' or gate_path contains '/customer_authentication' or gate_path contains '/checkout' or gate_path contains '/policies/' -%}
+          <script>
+            (function () {
+              try {
+                if (window.self !== window.top) return;
+                var key = 'ledsc4:registro-completado:' + {{ customer.id | json }};
+                if (window.localStorage.getItem(key)) return;
+                window.localStorage.setItem(key, '1');
+                window.location.replace({{ locale_prefix | append: '/pages/registro-completado' | json }});
+              } catch (_) { /* sin localStorage: no redirigir */ }
+            })();
+          </script>
+        {%- endunless -%}
+      {%- endif -%}
     {%- endunless -%}
   </head>
 

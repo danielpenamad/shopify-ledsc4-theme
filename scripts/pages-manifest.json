@@ -85,5 +85,12 @@
     "template_suffix": "registro-recibido",
     "body_html": "<p>Hemos recibido tu solicitud de acceso al portal B2B LedsC4. Revisa tu email para activar la cuenta.</p><p><em>Contenido renderizado desde el tema (templates/page.registro-recibido.json).</em></p>",
     "published": true
+  },
+  {
+    "title": "Registro completado",
+    "handle": "registro-completado",
+    "template_suffix": "registro-completado",
+    "body_html": "<p>Tu cuenta de instalador ya está activa.</p><p><em>Contenido renderizado desde el tema (templates/page.registro-completado.json).</em></p>",
+    "published": true
   }
 ]

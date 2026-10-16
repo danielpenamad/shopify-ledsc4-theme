@@ -1,0 +1,202 @@
+{% comment %}
+  Thank-you page de registro completado (instalador).
+
+  Renderizada en /pages/registro-completado. El tema redirige aquí al
+  instalador aprobado la PRIMERA vez que entra en la tienda tras activar su
+  cuenta (script "first-visit redirect" en layout/theme.liquid). Sirve de
+  página de conversión para medir en Google Ads el embudo de captación.
+
+  Por qué no return_url: Shopify no lo propaga en el flujo OTP de las
+  cuentas de cliente nuevas — ver docs/desarrollo/05-registro-b2b.md §13.
+
+  Mismo patrón y estética que main-registro-recibido (paleta light,
+  acento `var(--color-ledsc4-accent)`). Destino del botón: el mismo
+  catálogo que usa el resto del tema para un aprobado
+  (/collections/coleccion-2026).
+
+  Si hay sesión iniciada, marca en localStorage que este customer ya vio la
+  página (misma clave que lee el redirect del layout), para no volver a
+  redirigirle si entra aquí directamente.
+{% endcomment %}
+
+{%- liquid
+  # locale_prefix: '' en home, '/fr' en /fr — ver hotfix doc.
+  assign locale_prefix = routes.root_url
+  if locale_prefix == '/'
+    assign locale_prefix = ''
+  endif
+-%}
+
+<section
+  class="b2b-completado"
+  aria-labelledby="b2b-completado-heading"
+  style="--b2b-completado-pad-top: {{ section.settings.padding_top | default: 96 }}px; --b2b-completado-pad-bottom: {{ section.settings.padding_bottom | default: 80 }}px;"
+>
+  <div class="b2b-completado__inner">
+    <span class="b2b-completado__check" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="9 12 11 14 15 10"/>
+      </svg>
+    </span>
+
+    <h1 id="b2b-completado-heading" class="b2b-completado__heading">
+      {{ 'ledsc4.registro_completado.heading' | t }}
+    </h1>
+
+    <p class="b2b-completado__lead">
+      {{ 'ledsc4.registro_completado.text' | t }}
+    </p>
+
+    <div class="b2b-completado__ctas">
+      <a href="{{ locale_prefix }}/collections/coleccion-2026" class="b2b-completado__btn b2b-completado__btn--primary">
+        {{ 'ledsc4.registro_completado.btn_catalog' | t }}
+      </a>
+    </div>
+  </div>
+</section>
+
+{%- if customer -%}
+  <script>
+    (function () {
+      try {
+        window.localStorage.setItem('ledsc4:registro-completado:' + {{ customer.id | json }}, '1');
+      } catch (_) { /* localStorage no disponible: sin marca, el layout tampoco redirige */ }
+    })();
+  </script>
+{%- endif -%}
+
+<style>
+  .b2b-completado {
+    /* Paleta ledsc4.com — blanco + negro, acento azul corporativo. */
+    --bg: #ffffff;
+    --fg: #000000;
+    --fg-strong: #000000;
+    --fg-muted: rgba(0, 0, 0, 0.72);
+    --accent: var(--color-ledsc4-accent);
+
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    padding: var(--b2b-completado-pad-top, 96px) 1.5rem var(--b2b-completado-pad-bottom, 80px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .b2b-completado *,
+  .b2b-completado *::before,
+  .b2b-completado *::after {
+    box-sizing: border-box;
+  }
+
+  .b2b-completado__inner {
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .b2b-completado__check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 5.6rem;
+    height: 5.6rem;
+    border-radius: 50%;
+    background: rgba(0, 81, 255, 0.10);
+    color: var(--accent);
+    margin-bottom: 2rem;
+  }
+  .b2b-completado__check svg {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+
+  .b2b-completado__heading {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(3.6rem, 6vw, 5.6rem);
+    font-weight: 400;
+    line-height: 1.1;
+    margin: 0 0 1.5rem;
+    color: var(--fg-strong);
+    letter-spacing: -0.015em;
+  }
+
+  .b2b-completado__lead {
+    font-size: clamp(1.7rem, 1.8vw, 2rem);
+    line-height: 1.55;
+    color: var(--fg-muted);
+    margin: 0 auto 2.5rem;
+    max-width: 50ch;
+  }
+
+  .b2b-completado__ctas {
+    display: flex;
+    justify-content: center;
+  }
+
+  .b2b-completado__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16rem;
+    padding: 1.4rem 2.6rem;
+    border-radius: 999px;
+    font-size: 1.6rem;
+    font-weight: 500;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .b2b-completado__btn--primary {
+    background: #0051FF;
+    color: #ffffff;
+    border: 1px solid #0051FF;
+  }
+  .b2b-completado__btn--primary:hover {
+    background: #ffffff;
+    color: #0051FF;
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 750px) {
+    .b2b-completado {
+      padding: 4rem 1rem 3rem;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Registro completado",
+  "tag": "section",
+  "class": "section-b2b-completado",
+  "settings": [
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding superior",
+      "default": 96
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 200,
+      "step": 4,
+      "unit": "px",
+      "label": "Padding inferior",
+      "default": 80
+    }
+  ],
+  "presets": [
+    {
+      "name": "Registro completado"
+    }
+  ]
+}
+{% endschema %}

@@ -807,6 +807,11 @@
         "desc": "View the status of your submitted applications, download confirmations, and review your order history."
       }
     },
+    "registro_completado": {
+      "heading": "Your account is now active",
+      "text": "You can now access the catalogue with your installer terms and request quotes.",
+      "btn_catalog": "Go to the catalogue"
+    },
     "registro_recibido": {
       "eyebrow": "Request submitted",
       "heading": "Check your email",

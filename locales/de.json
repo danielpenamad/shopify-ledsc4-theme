@@ -537,6 +537,11 @@
     }
   },
   "ledsc4": {
+    "registro_completado": {
+      "heading": "Ihr Konto ist jetzt aktiv",
+      "text": "Sie können jetzt mit Ihren Installateurkonditionen auf den Katalog zugreifen und Angebote anfordern.",
+      "btn_catalog": "Zum Katalog"
+    },
     "common": {
       "country": {
         "am": "Armenien",
