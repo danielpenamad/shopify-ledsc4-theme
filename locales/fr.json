@@ -807,6 +807,11 @@
         "desc": "Consultez le statut de vos demandes envoyées, téléchargez les confirmations et examinez l'historique de vos commandes."
       }
     },
+    "registro_completado": {
+      "heading": "Votre compte est maintenant actif",
+      "text": "Vous pouvez dès à présent accéder au catalogue avec vos conditions d'installateur et demander des offres.",
+      "btn_catalog": "Aller au catalogue"
+    },
     "registro_recibido": {
       "eyebrow": "Demande envoyée",
       "heading": "Vérifie tes e-mails",

@@ -980,6 +980,11 @@
         "desc": "Consulta el estado de tus solicitudes enviadas, descarga confirmaciones y revisa el histórico de pedidos."
       }
     },
+    "registro_completado": {
+      "heading": "Tu cuenta ya está activa",
+      "text": "Ya puedes acceder al catálogo con tus condiciones de instalador y solicitar ofertas.",
+      "btn_catalog": "Ir al catálogo"
+    },
     "registro_recibido": {
       "eyebrow": "Solicitud enviada",
       "heading": "Revisa tu email",

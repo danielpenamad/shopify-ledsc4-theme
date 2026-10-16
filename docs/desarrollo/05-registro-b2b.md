@@ -540,8 +540,58 @@ persistencia — el uso en la oferta/email interno es Fase 3.
 - Metafields nuevos en `scripts/metafield-definitions.json` — pendiente de
   ejecutar `apply-metafield-definitions.mjs` tras el merge.
 
+## 13. Thank-you page de registro completado (instalador, 2026-10)
+
+**Objetivo**: que LedsC4 mida en Google Ads el embudo de captación de
+instaladores con una conversión "registro completado". Tras activar su
+cuenta, el instalador aterriza en la página de cuenta de Shopify (customer
+accounts, alojada fuera del tema), que no controlamos; necesitamos una
+página propia que sí controlemos.
+
+**Solución**: `/pages/registro-completado` (section
+`sections/main-registro-completado.liquid`, template
+`templates/page.registro-completado.json`, mismo patrón que
+`registro-recibido`). Título, párrafo y botón al catálogo
+(`/collections/coleccion-2026`, el mismo destino que el dashboard de cuenta
+y el email de bienvenida de instalador). Todo el copy en
+`ledsc4.registro_completado.*` (`heading`, `text`, `btn_catalog`) en los 6
+locales (es, en, fr, de, it, pt-PT).
+
+**Redirección de primera visita** (`layout/theme.liquid`, justo tras el bloque
+del gate, dentro del mismo `unless design_mode / preview / password`):
+
+- Condición: `customer.tags contains 'aprobado'` (la misma que usa el gate
+  para dar acceso) **y** `customer.tags contains 'instalador'` (la misma que
+  activa el markup visual +15%). Distribuidores y anónimos no entran.
+- Si en `localStorage` no existe `ledsc4:registro-completado:<customer.id>`,
+  se escribe la marca y se hace `location.replace` a la página (con prefijo
+  de locale). Lectura y escritura van en `try/catch`: si `localStorage` no
+  está disponible **no se redirige** (evita bucles de redirección).
+- No redirige en la propia página, `/pages/acceso-instalador`,
+  `/pages/registro-recibido`, `/account*`, `/customer_authentication*`,
+  `/checkout*`, `/policies/*`, ni dentro de iframes (solo se ejecuta en
+  renders de página completa del layout, no en llamadas a la Section
+  Rendering API).
+- Visitar `/pages/registro-completado` directamente también escribe la marca
+  (la section lo hace si hay sesión), así que no habrá redirección después.
+- La marca es **por navegador**: si el instalador entra desde otro
+  dispositivo/navegador, verá la página una vez más. Es aceptable (el
+  evento de conversión se mide por visita a la URL).
+
+**Por qué no `return_url`**: el `return_url` del email de invitación de
+activación se pierde: Shopify no lo propaga en el flujo OTP de las cuentas de
+cliente nuevas (customer accounts), y el usuario acaba en la página de cuenta
+de Shopify. Por eso la redirección se hace desde el tema, en la primera
+entrada a la tienda (normalmente al pulsar "Comprar ahora" en su cuenta).
+
+**Operativa pendiente (manual)**: crear la Page en Admin con handle
+`registro-completado` y template `page.registro-completado`
+(`scripts/pages-manifest.json` ya la incluye por si se usa
+`create-b2b-pages.mjs`). Hasta entonces la redirección llevaría a un 404.
+
 ## Cambios
 
+- **v0.9** (2026-10): añadida §13 (thank-you page `/pages/registro-completado` y redirección de primera visita del instalador; motivo de no usar `return_url`).
 - **v0.8** (2026-09-13): §7.1 enlaza W7 (activo) como el workflow que avisa al backoffice en el carril `complete-b2b-registration`; aclarado que la auto-aprobación por whitelist de ese carril la hace `promote-whitelist-matches`.
 - **v0.7** (2026-09): corregido que W1 cubriera todas las altas — su trigger `Customer created` no se dispara en el carril `complete-b2b-registration`. Nueva §7.1: la edge añade el tag `registro-completado` para que un workflow de Flow dedicado avise al backoffice.
 - **v0.6** (2026-07, Extra A): añadida §12 (captura y persistencia de UTMs de campaña).
