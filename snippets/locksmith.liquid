@@ -4,7 +4,7 @@
   Do not modify this file. Any changes will be reset the next time that
   Locksmith interacts with this theme.
 
-  Last updated: Sat, 19 Sep 2026 03:36:04 +0200 (CEST)
+  Last updated: Sat, 14 Nov 2026 02:32:02 +0100 (CET)
 {% endcomment -%}
 
 {%include 'locksmith-variables', locksmith_scope: nil%}{%if locksmith_access_denied_content == blank%}{%capture locksmith_access_denied_content%}{%if locksmith_manual_lock%}{{content_for_layout}}{%elsif locksmith_remote_lock%}<div id="locksmith-content">
@@ -115,6 +115,18 @@
         padding-top: calc(var(--header-height, var(--header-group-height, var(--sticky-header-offset, var(--sticky-header-height, var(--sticky-area-height, 70px))))) + 20px);
       }
 
+  </style>
+  <style>
+    /* the wrapper's generic class names borrow a theme's section spacing and
+       nothing else: a theme that paints its section background on a
+       positioned pseudo-element (Concept's white .section::before, drawn
+       above the section's static content) would paint over this message */
+    #locksmith-content .section::before,
+    #locksmith-content .section::after,
+    #locksmith-content .locksmith-content-inner::before,
+    #locksmith-content .locksmith-content-inner::after {
+      content: none !important;
+    }
   </style>{%endif%}<script data-locksmith>
     var load = function () {
 {%unless _7%}
